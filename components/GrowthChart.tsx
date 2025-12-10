@@ -1,0 +1,69 @@
+import React from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { GrowthData, Language } from '../types';
+import { getTranslation } from '../translations';
+
+interface GrowthChartProps {
+  data: GrowthData[];
+  language: Language;
+}
+
+export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
+  const t = (key: any) => getTranslation(language, key);
+
+  return (
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+      <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-6 flex items-center">
+        <span className="w-2 h-6 bg-primary rounded-full mr-2"></span>
+        {t('growth_tracker')}
+      </h3>
+      
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} />
+            <XAxis 
+              dataKey="month" 
+              label={{ value: t('months_label'), position: 'insideBottomRight', offset: -5, fill: '#94a3b8' }} 
+              stroke="#94a3b8"
+              fontSize={12}
+              tick={{fill: '#94a3b8'}}
+            />
+            <YAxis stroke="#94a3b8" fontSize={12} tick={{fill: '#94a3b8'}} />
+            <Tooltip 
+              contentStyle={{ 
+                borderRadius: '12px', 
+                border: 'none', 
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                color: '#1e293b'
+              }}
+            />
+            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+            <Line 
+              type="monotone" 
+              dataKey="height" 
+              name={`${t('height_label')} (cm)`}
+              stroke="#FF9AA2" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: '#FF9AA2', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 6 }} 
+            />
+            <Line 
+              type="monotone" 
+              dataKey="weight" 
+              name={`${t('weight_label')} (kg)`}
+              stroke="#C7CEEA" 
+              strokeWidth={3} 
+              dot={{ r: 4, fill: '#C7CEEA', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-xs text-center text-slate-400 dark:text-slate-500 mt-4">
+        {t('disclaimer')}
+      </p>
+    </div>
+  );
+};
