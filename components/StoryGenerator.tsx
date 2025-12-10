@@ -1,29 +1,49 @@
-import React, { useState } from 'react';
-import { generateBedtimeStory } from '../services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { generateBedtimeStoryStream } from '../services/geminiService';
 import { Wand2, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../translations';
+import { GenerateContentResponse } from '@google/genai';
 
 interface StoryGeneratorProps {
   language: Language;
+  defaultChildName?: string;
 }
 
-export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language }) => {
+export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaultChildName }) => {
   const [topic, setTopic] = useState('');
-  const [childName, setChildName] = useState(language === 'mm' ? 'သားသား' : 'Baby');
+  const [childName, setChildName] = useState(defaultChildName || (language === 'mm' ? 'သားသား' : 'Baby'));
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
 
   const t = (key: any) => getTranslation(language, key);
+
+  useEffect(() => {
+    if (defaultChildName) {
+        setChildName(defaultChildName);
+    }
+  }, [defaultChildName]);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     
     setLoading(true);
     setStory(''); // Clear previous
-    const generatedStory = await generateBedtimeStory(topic, childName, language);
-    setStory(generatedStory);
-    setLoading(false);
+    
+    try {
+        const streamResponse = await generateBedtimeStoryStream(topic, childName, language);
+        
+        for await (const chunk of streamResponse) {
+             const c = chunk as GenerateContentResponse;
+             if (c.text) {
+                 setStory(prev => prev + c.text);
+             }
+        }
+    } catch (error) {
+        setStory(language === 'mm' ? "ခေတ္တခဏ ရပ်ဆိုင်းနေပါသည်။ ပြန်လည်ကြိုးစားကြည့်ပါ။" : "Something went wrong. Please try again.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (

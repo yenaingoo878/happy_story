@@ -6,9 +6,10 @@ import { getTranslation } from '../translations';
 interface GalleryGridProps {
   memories: Memory[];
   language: Language;
+  onMemoryClick: (memory: Memory) => void;
 }
 
-export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language }) => {
+export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, onMemoryClick }) => {
   const t = (key: any) => getTranslation(language, key);
 
   return (
@@ -25,7 +26,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language }) 
           {memories.map((memory, index) => (
             <div 
               key={memory.id} 
-              className={`group relative rounded-2xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer border border-transparent dark:border-slate-700
+              onClick={() => onMemoryClick(memory)}
+              className={`group relative rounded-2xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md border border-transparent dark:border-slate-700 cursor-pointer
                 ${index % 3 === 0 ? 'col-span-2 aspect-[2/1]' : 'col-span-1 aspect-square'}
               `}
             >
@@ -34,8 +36,10 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language }) 
                 alt={memory.title} 
                 className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" 
                />
-               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                 <span className="text-white text-sm font-medium truncate">{memory.title}</span>
+               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 pointer-events-none">
+                 <div className="w-full flex justify-between items-end">
+                    <span className="text-white text-sm font-medium truncate">{memory.title}</span>
+                 </div>
                </div>
             </div>
           ))}

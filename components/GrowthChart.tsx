@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GrowthData, Language } from '../types';
 import { getTranslation } from '../translations';
+import { analyzeGrowthData } from '../services/geminiService';
+import { Sparkles, Loader2 } from 'lucide-react';
 
 interface GrowthChartProps {
   data: GrowthData[];
@@ -9,14 +11,34 @@ interface GrowthChartProps {
 }
 
 export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
+  const [analysis, setAnalysis] = useState<string>('');
+  const [analyzing, setAnalyzing] = useState(false);
   const t = (key: any) => getTranslation(language, key);
+
+  const handleAnalyze = async () => {
+      setAnalyzing(true);
+      const result = await analyzeGrowthData(data, language);
+      setAnalysis(result);
+      setAnalyzing(false);
+  };
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
-      <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-6 flex items-center">
-        <span className="w-2 h-6 bg-primary rounded-full mr-2"></span>
-        {t('growth_tracker')}
-      </h3>
+      <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center">
+            <span className="w-2 h-6 bg-primary rounded-full mr-2"></span>
+            {t('growth_tracker')}
+          </h3>
+          
+          <button 
+             onClick={handleAnalyze}
+             disabled={analyzing}
+             className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-2 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center"
+          >
+             {analyzing ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <Sparkles className="w-3 h-3 mr-1"/>}
+             {analyzing ? t('analyzing') : t('analyze_btn')}
+          </button>
+      </div>
       
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -61,6 +83,19 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {analysis && (
+          <div className="mt-4 p-4 bg-indigo-50 dark:bg-slate-700/50 rounded-xl animate-fade-in border border-indigo-100 dark:border-slate-600">
+             <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-1 flex items-center">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {t('ai_insight')}
+             </h4>
+             <p className="text-xs text-indigo-700 dark:text-slate-300 leading-relaxed">
+                 {analysis}
+             </p>
+          </div>
+      )}
+
       <p className="text-xs text-center text-slate-400 dark:text-slate-500 mt-4">
         {t('disclaimer')}
       </p>

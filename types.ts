@@ -16,6 +16,12 @@ export interface GrowthData {
   weight: number; // kg
 }
 
+export interface ChildProfile {
+  name: string;
+  dob: string;
+  gender: 'boy' | 'girl';
+}
+
 export interface StoryState {
   isLoading: boolean;
   content: string;
@@ -27,5 +33,6 @@ export enum TabView {
   ADD_MEMORY = 'ADD_MEMORY',
   STORY = 'STORY',
   GROWTH = 'GROWTH',
-  GALLERY = 'GALLERY'
+  GALLERY = 'GALLERY',
+  SETTINGS = 'SETTINGS'
 }

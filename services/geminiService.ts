@@ -1,9 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
-import { Language } from '../types';
+import { Language, GrowthData } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateBedtimeStory = async (topic: string, childName: string, language: Language): Promise<string> => {
+export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
@@ -15,25 +15,49 @@ export const generateBedtimeStory = async (topic: string, childName: string, lan
       Do not include markdown formatting or bold text, just plain text paragraphs.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await ai.models.generateContentStream({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for faster simple creative writing
+        thinkingConfig: { thinkingBudget: 0 },
         temperature: 0.7,
       }
     });
 
-    const errorMsg = language === 'mm' 
-      ? "ပုံပြင်လေး ဖန်တီးလို့ မရသေးပါ... ခဏနေမှ ပြန်ကြိုးစားကြည့်ပေးပါ။"
-      : "Could not generate story yet... please try again later.";
-
-    return response.text || errorMsg;
+    return response;
   } catch (error) {
     console.error("Error generating story:", error);
-    const connError = language === 'mm'
-      ? "ဝမ်းနည်းပါတယ်။ အင်တာနက်လိုင်း အနည်းငယ် အဆင်မပြေဖြစ်နေပုံရပါတယ်။"
-      : "Sorry, there seems to be a connection issue.";
-    return connError;
+    throw error;
   }
 };
+
+export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
+    try {
+        const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
+        const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
+        
+        const prompt = `
+          Act as a friendly pediatrician assistant. Analyze this growth data for a child:
+          ${dataStr}
+          
+          Provide a very short, encouraging summary (max 2-3 sentences) in ${langPrompt} for the parent. 
+          Focus on the steady progress. Do not give medical advice, just general encouragement about their growth trend.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                thinkingConfig: { thinkingBudget: 0 },
+                temperature: 0.5,
+            }
+        });
+
+        return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
+    } catch (error) {
+        console.error("Error analyzing growth:", error);
+        return language === 'mm' 
+            ? "ကွန်ဟက်ချိတ်ဆက်မှု အခက်အခဲရှိနေပါသည်။" 
+            : "Connection error. Please try again.";
+    }
+}

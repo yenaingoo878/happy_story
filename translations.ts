@@ -17,15 +17,19 @@ export const translations = {
   nav_create: { en: "New", mm: "အသစ်" },
   nav_growth: { en: "Growth", mm: "ဖွံ့ဖြိုးမှု" },
   nav_gallery: { en: "Gallery", mm: "ဓာတ်ပုံ" },
+  nav_settings: { en: "Settings", mm: "ဆက်တင်" },
 
-  // Add Memory
+  // Add/Edit Memory
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },
+  edit_memory_title: { en: "Edit Memory", mm: "အမှတ်တရ ပြင်ဆင်ရန်" },
   choose_photo: { en: "Choose Photo", mm: "ဓာတ်ပုံရွေးချယ်ပါ" },
   form_title: { en: "Title", mm: "ခေါင်းစဉ်" },
   form_title_placeholder: { en: "e.g., Day at the pool", mm: "ဥပမာ - ရေကူးကန်သွားတဲ့နေ့" },
   form_desc: { en: "Description", mm: "အကြောင်းအရာ" },
   form_desc_placeholder: { en: "What happened today...", mm: "ဒီနေ့ ဘာတွေထူးခြားလဲ..." },
   record_btn: { en: "Save Memory", mm: "မှတ်တမ်းတင်မယ်" },
+  update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
+  cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
 
   // Story Generator
   story_title: { en: "Bedtime Story", mm: "အိပ်ရာဝင် ပုံပြင်" },
@@ -44,6 +48,9 @@ export const translations = {
   growth_title: { en: "Growth Record", mm: "ကြီးထွားမှု မှတ်တမ်း" },
   growth_subtitle: { en: "Height and Weight Chart", mm: "အရပ် နှင့် ကိုယ်အလေးချိန် ဇယား" },
   growth_tracker: { en: "Growth Tracker", mm: "ဖွံ့ဖြိုးမှု မှတ်တမ်း (Growth Tracker)" },
+  analyze_btn: { en: "Analyze Growth with AI", mm: "AI ဖြင့် ကြီးထွားမှုကို ဆန်းစစ်ရန်" },
+  ai_insight: { en: "AI Insight", mm: "AI အကြံပြုချက်" },
+  analyzing: { en: "Analyzing...", mm: "ဆန်းစစ်နေသည်..." },
   months_label: { en: "Months", mm: "လ (Months)" },
   height_label: { en: "Height", mm: "အရပ်" },
   weight_label: { en: "Weight", mm: "ကိုယ်အလေးချိန်" },
@@ -53,6 +60,31 @@ export const translations = {
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },
   gallery_subtitle: { en: "Precious Moments", mm: "အမှတ်တရ ပုံရိပ်လွှာများ" },
   no_photos: { en: "No photos yet", mm: "ဓာတ်ပုံများ မရှိသေးပါ" },
+
+  // Settings
+  settings_title: { en: "Settings", mm: "ဆက်တင်များ" },
+  settings_subtitle: { en: "Preferences & Profile", mm: "အသုံးပြုသူ နှင့် ကလေးအချက်အလက်" },
+  about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
+  app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
+  data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
+  child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
+  save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
+  language: { en: "Language", mm: "ဘာသာစကား" },
+  theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
+  back: { en: "Back", mm: "ပြန်ထွက်" },
+  
+  // Manage Data
+  manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
+  growth_input_title: { en: "Add/Edit Record", mm: "မှတ်တမ်း အသစ်/ပြင်ဆင်" },
+  add_record: { en: "Save Record", mm: "မှတ်တမ်းတင်မည်" },
+  update_record: { en: "Update", mm: "ပြင်ဆင်မည်" },
+  month: { en: "Month", mm: "လ" },
+  cm: { en: "cm", mm: "စင်တီမီတာ" },
+  kg: { en: "kg", mm: "ကီလို" },
+  manage_memories: { en: "Memories List", mm: "အမှတ်တရများ စာရင်း" },
+  delete: { en: "Delete", mm: "ဖျက်မည်" },
+  edit: { en: "Edit", mm: "ပြင်မည်" },
+  confirm_delete: { en: "Are you sure you want to delete this?", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား?" },
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
