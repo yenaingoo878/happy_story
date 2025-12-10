@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, User, Trash2, ArrowLeft, Ruler, Scale, Calendar, Upload, Lock, Unlock, Eye, EyeOff, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, ChevronDown } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -13,6 +13,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
   const [settingsView, setSettingsView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>('MAIN');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profileImageInputRef = useRef<HTMLInputElement>(null); // New ref for profile image
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -25,18 +26,51 @@ function App() {
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
-  // Application Data State (Now loaded from DB)
+  // Delete Confirmation State
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE', id: string } | null>(null);
+
+  // Application Data State
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [childProfile, setChildProfile] = useState<ChildProfile>({ name: '', dob: '', gender: 'boy' });
+  
+  // Profile Management State
+  const [profiles, setProfiles] = useState<ChildProfile[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string>(''); // Used to track which child is "Current"
+  const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' }); // For the form input
+
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Input Focus State for Date Formatting Hack
+  const [dateInputType, setDateInputType] = useState('text');
+  const [dobInputType, setDobInputType] = useState('text');
 
   // State for new growth record input in Settings
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
   const [isEditingGrowth, setIsEditingGrowth] = useState(false);
 
+  // Helper to get today's date in YYYY-MM-DD using Local Time (not UTC)
+  const getTodayLocal = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper to format YYYY-MM-DD to DD/MM/YYYY for display
+  const formatDateDisplay = (isoDate: string | undefined) => {
+    if (!isoDate) return '';
+    const parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
   // Updated state to include imageUrl
-  const [newMemory, setNewMemory] = useState<{title: string; desc: string; imageUrl?: string}>({ title: '', desc: '' });
+  const [newMemory, setNewMemory] = useState<{title: string; desc: string; date: string; imageUrl?: string}>({ 
+    title: '', 
+    desc: '', 
+    date: getTodayLocal() 
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   
   // Persistence for Language (Keep in localStorage for app preference)
@@ -51,13 +85,46 @@ function App() {
 
   const t = (key: any) => getTranslation(language, key);
 
-  const refreshData = async () => {
-      const mems = await DataService.getMemories();
-      const growth = await DataService.getGrowth();
-      const profile = await DataService.getProfile();
+  // Computed Active Profile for display
+  const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
+
+  // Fetch data specific to the current child
+  const loadChildData = async (childId: string) => {
+      const mems = await DataService.getMemories(childId);
+      const growth = await DataService.getGrowth(childId);
       setMemories(mems);
       setGrowthData(growth);
-      setChildProfile(profile);
+  };
+
+  const refreshData = async () => {
+      const fetchedProfiles = await DataService.getProfiles();
+      setProfiles(fetchedProfiles);
+
+      let targetId = activeProfileId;
+
+      // Determine active profile if not set or invalid
+      if (fetchedProfiles.length > 0) {
+          if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
+             targetId = fetchedProfiles[0].id || '';
+             setActiveProfileId(targetId);
+             setEditingProfile(fetchedProfiles[0]);
+          } else {
+             // Refresh editing profile if it matches active
+             const active = fetchedProfiles.find(p => p.id === targetId);
+             if (active) setEditingProfile(active);
+          }
+      } else {
+        // No profiles exist (edge case)
+        setActiveProfileId('');
+        setMemories([]);
+        setGrowthData([]);
+        return;
+      }
+
+      // Load data for the determined ID
+      if (targetId) {
+          await loadChildData(targetId);
+      }
   };
 
   // Initialize DB and Load Data
@@ -114,10 +181,46 @@ function App() {
       setIsSyncing(false);
   };
 
-  // Handle Child Profile Updates
-  const handleProfileUpdate = async (updatedProfile: ChildProfile) => {
-      setChildProfile(updatedProfile);
-      await DataService.saveProfile(updatedProfile);
+  // Handle Profile Save
+  const handleSaveProfile = async () => {
+      // Validate
+      if (!editingProfile.name.trim()) return;
+
+      const profileToSave = {
+         ...editingProfile,
+         id: editingProfile.id || Date.now().toString()
+      };
+
+      await DataService.saveProfile(profileToSave);
+      
+      // Update local UI
+      await refreshData();
+      setActiveProfileId(profileToSave.id || '');
+      // If we just created a new one, load its empty data
+      if (profileToSave.id !== activeProfileId) {
+          loadChildData(profileToSave.id || '');
+      }
+      
+      console.log("Profile Saved");
+  };
+
+  const createNewProfile = () => {
+      setEditingProfile({
+         id: '',
+         name: '',
+         dob: '',
+         gender: 'boy'
+      });
+      // Lock details when creating new to force unlock (security)
+      setIsDetailsUnlocked(false);
+  };
+
+  const selectProfileToEdit = (profile: ChildProfile) => {
+      setEditingProfile(profile);
+      setActiveProfileId(profile.id || '');
+      loadChildData(profile.id || '');
+      // When switching, re-lock sensitive info if previously unlocked
+      setIsDetailsUnlocked(false);
   };
 
   const toggleLanguage = () => {
@@ -162,14 +265,19 @@ function App() {
   };
 
   const handlePasscodeSubmit = () => {
+    // Strict 4 digits check
+    if (passcodeInput.length !== 4) {
+       setPasscodeError(true);
+       setTimeout(() => setPasscodeError(false), 500);
+       return;
+    }
+
     if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
-       if (passcodeInput.length >= 4) {
           localStorage.setItem('app_passcode', passcodeInput);
           setPasscode(passcodeInput);
           setIsDetailsUnlocked(true);
           setShowPasscodeModal(false);
           setPasscodeInput('');
-       }
        return;
     }
 
@@ -202,21 +310,25 @@ function App() {
       }
   };
 
-  const formattedDate = new Date().toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  });
+  // dd/mm/yyyy format for Header
+  const today = new Date();
+  const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
   const handleEditStart = (memory: Memory) => {
-    setNewMemory({ title: memory.title, desc: memory.description, imageUrl: memory.imageUrl });
+    setNewMemory({ 
+        title: memory.title, 
+        desc: memory.description, 
+        imageUrl: memory.imageUrl,
+        date: memory.date 
+    });
     setEditingId(memory.id);
     setActiveTab(TabView.ADD_MEMORY);
     setSettingsView('MAIN'); 
+    setSelectedMemory(null); // Close modal if open
   };
 
   const handleCancelEdit = () => {
-    setNewMemory({ title: '', desc: '' }); 
+    setNewMemory({ title: '', desc: '', date: getTodayLocal() }); 
     setEditingId(null);
     setActiveTab(TabView.HOME);
   };
@@ -231,20 +343,71 @@ function App() {
       reader.readAsDataURL(file);
     }
   };
+  
+  // New handler for Profile Image
+  const handleProfileImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setEditingProfile(prev => ({ ...prev, profileImage: reader.result as string }));
+          };
+          reader.readAsDataURL(file);
+      }
+  };
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+  
+  const triggerProfileImageInput = () => {
+      if(isDetailsUnlocked) {
+        profileImageInputRef.current?.click();
+      }
+  };
 
-  const handleDeleteMemory = async (id: string) => {
-     if (window.confirm(t('confirm_delete'))) {
-        await DataService.deleteMemory(id);
-        await refreshData();
+  // Trigger custom delete modal
+  const requestDeleteMemory = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent modal or other clicks
+    setItemToDelete({ type: 'MEMORY', id });
+  };
+
+  const requestDeleteGrowth = (id: string) => {
+    setItemToDelete({ type: 'GROWTH', id });
+  };
+
+  const requestDeleteProfile = (id: string) => {
+      // Prevent deleting the last profile if it's the only one (optional safety, but usually good)
+      if (profiles.length <= 1 && id === profiles[0].id) {
+          alert("Cannot delete the only profile.");
+          return;
+      }
+      setItemToDelete({ type: 'PROFILE', id });
+  };
+
+  const confirmDelete = async () => {
+     if (!itemToDelete) return;
+
+     if (itemToDelete.type === 'MEMORY') {
+        await DataService.deleteMemory(itemToDelete.id);
+        if (selectedMemory && selectedMemory.id === itemToDelete.id) {
+           setSelectedMemory(null);
+        }
+     } else if (itemToDelete.type === 'GROWTH') {
+        await DataService.deleteGrowth(itemToDelete.id);
+     } else if (itemToDelete.type === 'PROFILE') {
+        await DataService.deleteProfile(itemToDelete.id);
+        // After delete, refresh will automatically switch to another profile or create default
      }
+
+     await refreshData();
+     setItemToDelete(null);
   };
 
   const handleSaveMemory = async () => {
     if (!newMemory.title) return;
+    // Require active profile
+    if (!activeProfileId) return; 
 
     const finalImageUrl = newMemory.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
 
@@ -252,16 +415,24 @@ function App() {
       // Update existing
       const existing = memories.find(m => m.id === editingId);
       if (existing) {
-          const updated: Memory = { ...existing, title: newMemory.title, description: newMemory.desc, imageUrl: finalImageUrl };
-          await DataService.addMemory(updated); // Put handles update
+          const updated: Memory = { 
+            ...existing, 
+            childId: existing.childId, // Keep original childId
+            title: newMemory.title, 
+            description: newMemory.desc, 
+            imageUrl: finalImageUrl,
+            date: newMemory.date 
+          };
+          await DataService.addMemory(updated); 
       }
     } else {
       // Create new
       const memory: Memory = {
         id: Date.now().toString(),
-        title: newMemory.title,
-        description: newMemory.desc,
-        date: new Date().toISOString().split('T')[0],
+        childId: activeProfileId, // Link to current child
+        title: newMemory.title, 
+        description: newMemory.desc, 
+        date: newMemory.date, 
         imageUrl: finalImageUrl,
         tags: ['New Memory'],
         synced: 0
@@ -270,18 +441,20 @@ function App() {
     }
 
     // Refresh UI
-    await refreshData();
+    await loadChildData(activeProfileId);
 
     // Reset state
-    setNewMemory({ title: '', desc: '' });
+    setNewMemory({ title: '', desc: '', date: getTodayLocal() });
     setEditingId(null);
     setActiveTab(TabView.HOME);
   };
 
   const handleAddGrowthRecord = async () => {
-    if (newGrowth.month && newGrowth.height && newGrowth.weight) {
+    // Check if month is defined (including 0) and height/weight are present
+    if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
       let updatedData: GrowthData = {
           id: newGrowth.id || Date.now().toString(),
+          childId: activeProfileId, // Link to current child
           month: Number(newGrowth.month),
           height: Number(newGrowth.height),
           weight: Number(newGrowth.weight),
@@ -289,7 +462,7 @@ function App() {
       };
 
       await DataService.saveGrowth(updatedData);
-      await refreshData();
+      await loadChildData(activeProfileId);
       
       setNewGrowth({ month: undefined, height: undefined, weight: undefined });
       setIsEditingGrowth(false);
@@ -299,13 +472,6 @@ function App() {
   const handleEditGrowthRecord = (data: GrowthData) => {
       setNewGrowth(data);
       setIsEditingGrowth(true);
-  };
-
-  const handleDeleteGrowthRecord = async (data: GrowthData) => {
-      if (data.id) {
-        await DataService.deleteGrowth(data.id);
-        await refreshData();
-      }
   };
 
   // Logic for Expandable Pill Nav Bar
@@ -331,7 +497,7 @@ function App() {
             <div className="flex justify-between items-center mb-2">
                <div>
                   <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
-                    {childProfile.name ? `${t('greeting')}, ${childProfile.name}` : t('greeting')}
+                    {activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2">
                       {formattedDate}
@@ -344,6 +510,13 @@ function App() {
                       )}
                   </p>
                </div>
+               
+               {/* Tiny Profile Pic on Home */}
+               {activeProfile.profileImage && (
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm">
+                      <img src={activeProfile.profileImage} alt="Profile" className="w-full h-full object-cover"/>
+                  </div>
+               )}
             </div>
 
             {/* Bento Grid Layout */}
@@ -425,7 +598,7 @@ function App() {
                         <img src={mem.imageUrl} className="w-12 h-12 rounded-2xl object-cover ring-1 ring-slate-100 dark:ring-slate-700" alt={mem.title} />
                         <div>
                           <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">{mem.title}</h4>
-                          <p className="text-slate-400 dark:text-slate-500 text-xs">{mem.date}</p>
+                          <p className="text-slate-400 dark:text-slate-500 text-xs">{formatDateDisplay(mem.date)}</p>
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -438,15 +611,9 @@ function App() {
           </div>
         );
 
-      // Other cases (ADD_MEMORY, STORY, GROWTH, GALLERY, SETTINGS) remain same but need to be returned
-      // Since I only changed logic above for HOME header, I need to include the rest of the switch cases
-      // But to save space and context, I'm providing the full updated App.tsx content which includes them.
-      
       case TabView.ADD_MEMORY:
-        // ... (No logic changes here, just UI)
         return (
           <div className="pb-32 animate-fade-in">
-             {/* ... Same JSX as before ... */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 transition-colors">
                 {editingId ? t('edit_memory_title') : t('add_memory_title')}
@@ -508,6 +675,17 @@ function App() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('date_label')}</label>
+                  <input 
+                    type={dateInputType}
+                    value={dateInputType === 'date' ? newMemory.date : formatDateDisplay(newMemory.date)}
+                    onFocus={() => setDateInputType('date')}
+                    onBlur={() => setDateInputType('text')}
+                    onChange={(e) => setNewMemory({...newMemory, date: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t('form_desc')}</label>
                   <textarea 
                     value={newMemory.desc}
@@ -548,7 +726,7 @@ function App() {
                 <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 transition-colors">{t('story_title')}</h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm transition-colors">{t('story_subtitle')}</p>
              </div>
-            <StoryGenerator language={language} defaultChildName={childProfile.name} />
+            <StoryGenerator language={language} defaultChildName={activeProfile.name} />
           </div>
         );
 
@@ -612,7 +790,7 @@ function App() {
                        <div>
                           <label className="text-[10px] uppercase text-slate-400 dark:text-slate-500 font-bold ml-1 mb-1 block">{t('month')}</label>
                           <div className="relative">
-                            <input type="number" className="w-full pl-3 pr-2 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-sm font-bold text-slate-700 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-800" value={newGrowth.month || ''} onChange={e => setNewGrowth({...newGrowth, month: Number(e.target.value)})}/>
+                            <input type="number" className="w-full pl-3 pr-2 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-sm font-bold text-slate-700 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-200 dark:focus:ring-teal-800" value={newGrowth.month !== undefined ? newGrowth.month : ''} onChange={e => setNewGrowth({...newGrowth, month: Number(e.target.value)})}/>
                              <Calendar className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                           </div>
                        </div>
@@ -660,7 +838,7 @@ function App() {
                           </div>
                           <div className="flex gap-2">
                              <button onClick={() => handleEditGrowthRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 rounded-lg transition-colors"><Pencil className="w-4 h-4"/></button>
-                             <button onClick={() => handleDeleteGrowthRecord(data)} className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                             <button onClick={() => requestDeleteGrowth(data.id || '')} className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                           </div>
                        </div>
                     ))}
@@ -696,12 +874,12 @@ function App() {
                               <img src={mem.imageUrl} className="w-12 h-12 rounded-xl object-cover bg-slate-200" alt="" />
                               <div className="min-w-0">
                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{mem.title}</p>
-                                 <p className="text-xs text-slate-400 dark:text-slate-500">{mem.date}</p>
+                                 <p className="text-xs text-slate-400 dark:text-slate-500">{formatDateDisplay(mem.date)}</p>
                               </div>
                            </div>
                            <div className="flex gap-2">
-                              <button onClick={() => handleEditStart(mem)} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-600 transition-all"><Pencil className="w-4 h-4"/></button>
-                              <button onClick={() => handleDeleteMemory(mem.id)} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all"><Trash2 className="w-4 h-4"/></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleEditStart(mem); }} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-600 transition-all"><Pencil className="w-4 h-4"/></button>
+                              <button onClick={(e) => requestDeleteMemory(mem.id, e)} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all"><Trash2 className="w-4 h-4"/></button>
                            </div>
                         </div>
                       ))
@@ -714,60 +892,133 @@ function App() {
         // MAIN SETTINGS VIEW
         return (
           <div className="pb-32 animate-fade-in space-y-6">
-             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 transition-colors">{t('settings_title')}</h1>
-                <p className="text-slate-500 dark:text-slate-400 text-sm transition-colors">{t('settings_subtitle')}</p>
-             </div>
-
-             {/* 1. Profile Card */}
-             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-4 text-slate-700 dark:text-slate-200 border-b border-slate-50 dark:border-slate-700/50 pb-3">
-                   <div className="flex items-center">
-                      <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl mr-3 text-rose-500">
-                          <Baby className="w-5 h-5" />
+             {/* New Settings Header: Current Profile Info */}
+             <div className="flex flex-col items-center justify-center pt-4 pb-6">
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg mb-3">
+                   {activeProfile.profileImage ? (
+                      <img src={activeProfile.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                   ) : (
+                      <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                         <Baby className="w-10 h-10 text-slate-300 dark:text-slate-600" />
                       </div>
-                      <h3 className="font-bold">{t('about_child')}</h3>
-                   </div>
-                   {isDetailsUnlocked && (
-                     <button onClick={() => setIsDetailsUnlocked(false)} className="text-xs font-bold text-slate-400 hover:text-primary flex items-center">
-                        <Lock className="w-3 h-3 mr-1" />
-                        {t('hide_details')}
-                     </button>
                    )}
                 </div>
-                
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Name is always visible */}
-                  <div className="relative">
-                     <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_name')}</label>
-                     <input 
-                       type="text" 
-                       value={childProfile.name}
-                       onChange={(e) => handleProfileUpdate({...childProfile, name: e.target.value})}
-                       className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
-                       placeholder="Baby Name"
-                     />
-                  </div>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                   {activeProfile.name || 'New Profile'}
+                </h1>
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full mt-1">
+                   {t('about_child')}
+                </p>
+             </div>
 
-                  {/* Private Details Section */}
-                  <div className="relative overflow-hidden rounded-2xl transition-all duration-500">
-                    {!isDetailsUnlocked ? (
-                      <div onClick={handleUnlockClick} className="w-full h-32 bg-slate-100 dark:bg-slate-700/30 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-dashed border-slate-300 dark:border-slate-600 rounded-xl">
-                          <div className="bg-white dark:bg-slate-700 p-3 rounded-full mb-2 shadow-sm">
-                             <Lock className="w-6 h-6 text-slate-400" />
-                          </div>
-                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">{t('private_info')}</span>
-                          <span className="text-xs text-primary font-bold mt-1">{t('tap_to_unlock')}</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 animate-fade-in">
+             {/* 1. Profile Card with Multi-User Support */}
+             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 relative">
+                
+                {/* Profile Selector */}
+                <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2 no-scrollbar">
+                   {profiles.map(p => (
+                      <button 
+                        key={p.id}
+                        onClick={() => selectProfileToEdit(p)}
+                        className={`flex flex-col items-center flex-shrink-0 transition-all ${editingProfile.id === p.id ? 'opacity-100 scale-105' : 'opacity-60 scale-100 hover:opacity-100'}`}
+                      >
+                         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary bg-rose-50' : 'border-slate-200 bg-slate-50'}`}>
+                            {p.profileImage ? (
+                                <img src={p.profileImage} alt={p.name} className="w-full h-full object-cover"/>
+                            ) : (
+                                <Baby className={`w-6 h-6 ${editingProfile.id === p.id ? 'text-primary' : 'text-slate-400'}`} />
+                            )}
+                         </div>
+                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate w-16 text-center">{p.name || 'New'}</span>
+                         {activeProfileId === p.id && <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1"></span>}
+                      </button>
+                   ))}
+                   <button 
+                      onClick={createNewProfile}
+                      className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                   >
+                       <div className="w-12 h-12 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1 text-slate-400 bg-slate-50/50">
+                          <UserPlus className="w-5 h-5" />
+                       </div>
+                       <span className="text-[10px] font-bold text-slate-500">{t('nav_create')}</span>
+                   </button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 mt-2">
+                  {!isDetailsUnlocked ? (
+                    // LOCKED STATE: Sleek Compact Button
+                    <button 
+                        onClick={handleUnlockClick} 
+                        className="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/30 rounded-2xl border border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all group"
+                    >
+                        <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-300 group-hover:bg-primary group-hover:text-white transition-colors">
+                              <Lock className="w-5 h-5" />
+                           </div>
+                           <div className="text-left">
+                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('private_info')}</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500">{t('tap_to_unlock')}</p>
+                           </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 transition-colors" />
+                    </button>
+                  ) : (
+                    // UNLOCKED STATE: Show All Inputs
+                    <div className="space-y-4 animate-fade-in mt-2 relative">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{t('edit')}</span>
+                            <button onClick={() => setIsDetailsUnlocked(false)} className="text-xs font-bold text-primary flex items-center bg-primary/10 px-2 py-1 rounded-lg">
+                                <Lock className="w-3 h-3 mr-1" />
+                                {t('hide_details')}
+                            </button>
+                        </div>
+                        
+                        {/* Profile Picture Upload */}
+                        <div className="flex justify-center mb-2">
+                             <div 
+                               onClick={triggerProfileImageInput}
+                               className={`relative w-24 h-24 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-700/50 transition-all cursor-pointer hover:border-primary`}
+                             >
+                                {editingProfile.profileImage ? (
+                                    <img src={editingProfile.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Camera className="w-8 h-8 text-slate-300" />
+                                )}
+                                
+                                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">{t('choose_photo')}</span>
+                                </div>
+                             </div>
+                             <input 
+                               ref={profileImageInputRef}
+                               type="file"
+                               accept="image/*"
+                               onChange={handleProfileImageUpload}
+                               className="hidden"
+                             />
+                        </div>
+
+                        {/* Name Input */}
+                        <div className="relative">
+                             <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_name')}</label>
+                             <input 
+                               type="text" 
+                               value={editingProfile.name}
+                               onChange={(e) => setEditingProfile({...editingProfile, name: e.target.value})}
+                               className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
+                               placeholder="Baby Name"
+                             />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                           <div className="relative">
                              <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_dob')}</label>
                              <input 
-                               type="date" 
-                               value={childProfile.dob}
-                               onChange={(e) => handleProfileUpdate({...childProfile, dob: e.target.value})}
+                               type={dobInputType}
+                               value={dobInputType === 'date' ? editingProfile.dob : formatDateDisplay(editingProfile.dob)}
+                               onFocus={() => setDobInputType('date')}
+                               onBlur={() => setDobInputType('text')}
+                               onChange={(e) => setEditingProfile({...editingProfile, dob: e.target.value})}
                                className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              />
                           </div>
@@ -775,8 +1026,8 @@ function App() {
                              <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_birth_time')}</label>
                              <input 
                                type="time" 
-                               value={childProfile.birthTime || ''}
-                               onChange={(e) => handleProfileUpdate({...childProfile, birthTime: e.target.value})}
+                               value={editingProfile.birthTime || ''}
+                               onChange={(e) => setEditingProfile({...editingProfile, birthTime: e.target.value})}
                                className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              />
                           </div>
@@ -786,8 +1037,8 @@ function App() {
                            <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('hospital_name')}</label>
                            <input 
                              type="text" 
-                             value={childProfile.hospitalName || ''}
-                             onChange={(e) => handleProfileUpdate({...childProfile, hospitalName: e.target.value})}
+                             value={editingProfile.hospitalName || ''}
+                             onChange={(e) => setEditingProfile({...editingProfile, hospitalName: e.target.value})}
                              className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              placeholder={t('hospital_placeholder')}
                            />
@@ -797,15 +1048,32 @@ function App() {
                            <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('birth_location')}</label>
                            <input 
                              type="text" 
-                             value={childProfile.birthLocation || ''}
-                             onChange={(e) => handleProfileUpdate({...childProfile, birthLocation: e.target.value})}
+                             value={editingProfile.birthLocation || ''}
+                             onChange={(e) => setEditingProfile({...editingProfile, birthLocation: e.target.value})}
                              className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              placeholder={t('location_placeholder')}
                            />
                         </div>
-                      </div>
-                    )}
-                  </div>
+
+                         <div className="flex gap-3 mt-2">
+                             {editingProfile.id && (
+                                <button 
+                                  onClick={() => requestDeleteProfile(editingProfile.id || '')}
+                                  className="flex-1 py-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/40 font-bold text-sm transition-all"
+                                >
+                                  {t('delete')}
+                                </button>
+                             )}
+                             <button 
+                              onClick={handleSaveProfile}
+                              className="flex-[2] py-3 rounded-xl bg-primary hover:bg-rose-400 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center"
+                             >
+                               <Save className="w-4 h-4 mr-2" />
+                               {t('save_changes')}
+                             </button>
+                         </div>
+                    </div>
+                  )}
                 </div>
              </div>
 
@@ -955,62 +1223,107 @@ function App() {
         {renderContent()}
       </main>
 
+      {/* Passcode Modal */}
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <div className="bg-white dark:bg-slate-800 w-full max-w-xs p-6 rounded-[32px] shadow-2xl animate-zoom-in relative">
+              <button 
+                onClick={() => setShowPasscodeModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col items-center">
+                 <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-full flex items-center justify-center mb-4">
+                    <Lock className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 text-center">
+                   {getModalTitle()}
+                 </h3>
+                 
+                 <div className="w-full mb-6">
+                    <div className="relative">
+                      <input 
+                        type="tel" 
+                        value={passcodeInput}
+                        onChange={(e) => setPasscodeInput(e.target.value)}
+                        className={`w-full px-4 py-3 text-center text-2xl tracking-widest font-bold rounded-xl border bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all
+                          ${passcodeError 
+                            ? 'border-rose-300 focus:ring-rose-200' 
+                            : 'border-slate-200 dark:border-slate-600 focus:ring-indigo-200 dark:focus:ring-indigo-800'
+                          }
+                        `}
+                        placeholder="••••"
+                        maxLength={4} 
+                        autoFocus
+                      />
+                    </div>
+                    {passcodeError && (
+                      <p className="text-rose-500 text-xs text-center mt-2 font-bold animate-pulse">
+                        {passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW' ? 'Exactly 4 digits required' : t('wrong_passcode')}
+                      </p>
+                    )}
+                 </div>
+                 
+                 <button 
+                    onClick={handlePasscodeSubmit}
+                    className="w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm transition-colors shadow-lg shadow-indigo-500/30"
+                 >
+                    {t('confirm')}
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Detail Modal */}
       {selectedMemory && (
         <MemoryDetailModal 
           memory={selectedMemory} 
-          onClose={() => setSelectedMemory(null)} 
+          language={language}
+          onClose={() => setSelectedMemory(null)}
+          onEdit={() => {
+            if (selectedMemory) {
+               handleEditStart(selectedMemory);
+            }
+          }}
+          onDelete={() => {
+             if (selectedMemory) {
+                // requestDeleteMemory will open the confirm modal
+                requestDeleteMemory(selectedMemory.id);
+             }
+          }}
         />
       )}
 
-      {/* Passcode Modal */}
-      {showPasscodeModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      {/* Custom Delete Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
            <div className="bg-white dark:bg-slate-800 w-full max-w-xs p-6 rounded-[32px] shadow-2xl animate-zoom-in">
               <div className="flex flex-col items-center">
-                 <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-primary rounded-full flex items-center justify-center mb-4">
-                    <Lock className="w-6 h-6" />
+                 <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                    <AlertTriangle className="w-6 h-6" />
                  </div>
-                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
-                   {getModalTitle()}
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 text-center">
+                   {t('delete')}?
                  </h3>
-                 <p className="text-xs text-slate-400 mb-6 text-center">
-                   {passcodeMode === 'REMOVE' ? "Enter PIN to remove protection" : !passcode ? "Set a 4-digit PIN to protect private details" : "Enter PIN"}
+                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 text-center leading-relaxed">
+                   {t('confirm_delete')}
                  </p>
                  
-                 <input 
-                   type="password" 
-                   inputMode="numeric"
-                   maxLength={4}
-                   value={passcodeInput}
-                   onChange={(e) => setPasscodeInput(e.target.value)}
-                   className={`w-full text-center text-3xl font-bold tracking-[1em] py-3 border-b-2 bg-transparent outline-none transition-colors mb-2
-                     ${passcodeError 
-                        ? 'border-rose-500 text-rose-500' 
-                        : 'border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-100 focus:border-primary'
-                     }
-                   `}
-                   placeholder="••••"
-                   autoFocus
-                 />
-                 
-                 {passcodeError && (
-                   <p className="text-xs text-rose-500 font-bold mb-4 animate-bounce">{t('wrong_passcode')}</p>
-                 )}
-                 
-                 <div className="flex gap-3 w-full mt-4">
+                 <div className="flex gap-3 w-full">
                     <button 
-                       onClick={() => setShowPasscodeModal(false)}
-                       className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold text-sm"
+                       onClick={() => setItemToDelete(null)}
+                       className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                     >
                        {t('cancel_btn')}
                     </button>
                     <button 
-                       onClick={handlePasscodeSubmit}
-                       disabled={passcodeInput.length < 4}
-                       className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                       onClick={confirmDelete}
+                       className="flex-1 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 transition-colors shadow-lg shadow-rose-500/30"
                     >
-                       {t('confirm')}
+                       {t('delete')}
                     </button>
                  </div>
               </div>

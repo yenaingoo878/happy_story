@@ -1,14 +1,27 @@
 import React from 'react';
-import { Memory } from '../types';
+import { Memory, Language } from '../types';
 import { X, Calendar, Tag } from 'lucide-react';
+import { getTranslation } from '../translations';
 
 interface MemoryDetailModalProps {
   memory: Memory | null;
+  language: Language; // Added language prop for translations
   onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
-export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, onClose }) => {
+export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose, onEdit, onDelete }) => {
   if (!memory) return null;
+  const t = (key: any) => getTranslation(language, key);
+
+  // Helper to ensure dd/mm/yyyy format
+  const formatDate = (isoDate: string) => {
+     if (!isoDate) return '';
+     const parts = isoDate.split('-');
+     if (parts.length !== 3) return isoDate;
+     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -16,15 +29,18 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, on
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" 
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
+        
+        {/* Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
+          className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="relative h-72 sm:h-80 bg-slate-100 dark:bg-slate-800">
+        {/* Image Section */}
+        <div className="relative h-72 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0">
           <img 
             src={memory.imageUrl} 
             alt={memory.title} 
@@ -35,12 +51,13 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, on
             <h2 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm">{memory.title}</h2>
             <div className="flex items-center text-white/90 text-sm font-medium">
               <Calendar className="w-4 h-4 mr-2" />
-              {memory.date}
+              {formatDate(memory.date)}
             </div>
           </div>
         </div>
 
-        <div className="p-6 max-h-[40vh] overflow-y-auto">
+        {/* Content Section (Scrollable) */}
+        <div className="p-6 overflow-y-auto grow">
           <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6 whitespace-pre-wrap">
             {memory.description}
           </p>

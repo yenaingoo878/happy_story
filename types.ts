@@ -3,16 +3,18 @@ export type Theme = 'light' | 'dark';
 
 export interface Memory {
   id: string;
+  childId: string; // Added to link memory to specific child
   title: string;
   date: string;
   description: string;
   imageUrl: string;
   tags: string[];
-  synced?: number; // 0 for false, 1 for true (IndexedDB uses numbers for booleans sometimes easier for indexing)
+  synced?: number; 
 }
 
 export interface GrowthData {
-  id?: string; // Added ID for DB tracking
+  id?: string;
+  childId: string; // Added to link growth data to specific child
   month: number;
   height: number; // cm
   weight: number; // kg
@@ -22,6 +24,7 @@ export interface GrowthData {
 export interface ChildProfile {
   id?: string; // Singleton ID
   name: string;
+  profileImage?: string; // Added profile image
   dob: string;
   birthTime?: string;
   hospitalName?: string;

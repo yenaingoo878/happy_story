@@ -30,6 +30,7 @@ export const translations = {
   record_btn: { en: "Save Memory", mm: "မှတ်တမ်းတင်မယ်" },
   update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
   cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
+  date_label: { en: "Date", mm: "နေ့စွဲ" },
 
   // Story Generator
   story_title: { en: "Bedtime Story", mm: "အိပ်ရာဝင် ပုံပြင်" },

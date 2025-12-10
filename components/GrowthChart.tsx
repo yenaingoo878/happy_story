@@ -40,8 +40,9 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
           </button>
       </div>
       
-      <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      {/* Explicit styling to prevent Recharts size calculation errors */}
+      <div style={{ width: '100%', height: 300, minHeight: 300 }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} />
             <XAxis 

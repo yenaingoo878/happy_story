@@ -7,6 +7,14 @@ interface MemoryCardProps {
 }
 
 export const MemoryCard: React.FC<MemoryCardProps> = ({ memory }) => {
+  // Helper to ensure dd/mm/yyyy format
+  const formatDate = (isoDate: string) => {
+     if (!isoDate) return '';
+     const parts = isoDate.split('-');
+     if (parts.length !== 3) return isoDate;
+     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-slate-100 dark:border-slate-700 mb-6">
       <div className="relative h-48 w-full overflow-hidden">
@@ -25,7 +33,7 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({ memory }) => {
         <div className="flex items-center text-slate-400 dark:text-slate-500 text-sm mb-3 space-x-4">
           <div className="flex items-center">
             <Calendar className="w-3 h-3 mr-1" />
-            <span>{memory.date}</span>
+            <span>{formatDate(memory.date)}</span>
           </div>
         </div>
         
