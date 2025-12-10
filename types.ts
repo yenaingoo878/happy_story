@@ -19,6 +19,9 @@ export interface GrowthData {
 export interface ChildProfile {
   name: string;
   dob: string;
+  birthTime?: string;
+  hospitalName?: string;
+  birthLocation?: string;
   gender: 'boy' | 'girl';
 }
 

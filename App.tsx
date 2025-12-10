@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, User, Trash2, ArrowLeft, Ruler, Scale, Calendar, Upload } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, User, Trash2, ArrowLeft, Ruler, Scale, Calendar, Upload, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -15,6 +15,13 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   
+  // Security State
+  const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
+  const [isDetailsUnlocked, setIsDetailsUnlocked] = useState(false);
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState(false);
+
   // Persistence for Memories
   const [memories, setMemories] = useState<Memory[]>(() => {
     const saved = localStorage.getItem('memories');
@@ -89,6 +96,39 @@ function App() {
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  // Passcode Logic
+  const handleUnlockClick = () => {
+    if (isDetailsUnlocked) {
+      setIsDetailsUnlocked(false);
+    } else {
+      setPasscodeInput('');
+      setPasscodeError(false);
+      setShowPasscodeModal(true);
+    }
+  };
+
+  const handlePasscodeSubmit = () => {
+    if (!passcode) {
+      // Setting new passcode
+      if (passcodeInput.length >= 4) {
+        localStorage.setItem('app_passcode', passcodeInput);
+        setPasscode(passcodeInput);
+        setIsDetailsUnlocked(true);
+        setShowPasscodeModal(false);
+      }
+    } else {
+      // Verifying existing passcode
+      if (passcodeInput === passcode) {
+        setIsDetailsUnlocked(true);
+        setShowPasscodeModal(false);
+      } else {
+        setPasscodeError(true);
+        // Shake animation reset
+        setTimeout(() => setPasscodeError(false), 500);
+      }
+    }
   };
 
   const formattedDate = new Date().toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', {
@@ -590,32 +630,90 @@ function App() {
 
              {/* 1. Profile Card */}
              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                <div className="flex items-center mb-4 text-slate-700 dark:text-slate-200 border-b border-slate-50 dark:border-slate-700/50 pb-3">
-                   <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl mr-3 text-rose-500">
-                      <Baby className="w-5 h-5" />
+                <div className="flex items-center justify-between mb-4 text-slate-700 dark:text-slate-200 border-b border-slate-50 dark:border-slate-700/50 pb-3">
+                   <div className="flex items-center">
+                      <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl mr-3 text-rose-500">
+                          <Baby className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-bold">{t('about_child')}</h3>
                    </div>
-                   <h3 className="font-bold">{t('about_child')}</h3>
+                   {isDetailsUnlocked && (
+                     <button onClick={() => setIsDetailsUnlocked(false)} className="text-xs font-bold text-slate-400 hover:text-primary flex items-center">
+                        <Lock className="w-3 h-3 mr-1" />
+                        {t('hide_details')}
+                     </button>
+                   )}
                 </div>
                 
                 <div className="grid grid-cols-1 gap-4">
+                  {/* Name is always visible */}
                   <div className="relative">
                      <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_name')}</label>
                      <input 
                        type="text" 
                        value={childProfile.name}
                        onChange={(e) => setChildProfile({...childProfile, name: e.target.value})}
-                       className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium"
+                       className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                        placeholder="Baby Name"
                      />
                   </div>
-                  <div className="relative">
-                     <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_dob')}</label>
-                     <input 
-                       type="date" 
-                       value={childProfile.dob}
-                       onChange={(e) => setChildProfile({...childProfile, dob: e.target.value})}
-                       className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium"
-                     />
+
+                  {/* Private Details Section */}
+                  <div className="relative overflow-hidden rounded-2xl transition-all duration-500">
+                    {!isDetailsUnlocked ? (
+                      <div onClick={handleUnlockClick} className="w-full h-32 bg-slate-100 dark:bg-slate-700/30 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors border border-dashed border-slate-300 dark:border-slate-600 rounded-xl">
+                          <div className="bg-white dark:bg-slate-700 p-3 rounded-full mb-2 shadow-sm">
+                             <Lock className="w-6 h-6 text-slate-400" />
+                          </div>
+                          <span className="text-sm font-bold text-slate-500 dark:text-slate-400">{t('private_info')}</span>
+                          <span className="text-xs text-primary font-bold mt-1">{t('tap_to_unlock')}</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 animate-fade-in">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="relative">
+                             <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_dob')}</label>
+                             <input 
+                               type="date" 
+                               value={childProfile.dob}
+                               onChange={(e) => setChildProfile({...childProfile, dob: e.target.value})}
+                               className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
+                             />
+                          </div>
+                          <div className="relative">
+                             <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('child_birth_time')}</label>
+                             <input 
+                               type="time" 
+                               value={childProfile.birthTime || ''}
+                               onChange={(e) => setChildProfile({...childProfile, birthTime: e.target.value})}
+                               className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
+                             />
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                           <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('hospital_name')}</label>
+                           <input 
+                             type="text" 
+                             value={childProfile.hospitalName || ''}
+                             onChange={(e) => setChildProfile({...childProfile, hospitalName: e.target.value})}
+                             className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
+                             placeholder={t('hospital_placeholder')}
+                           />
+                        </div>
+
+                        <div className="relative">
+                           <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 absolute top-2 left-3">{t('birth_location')}</label>
+                           <input 
+                             type="text" 
+                             value={childProfile.birthLocation || ''}
+                             onChange={(e) => setChildProfile({...childProfile, birthLocation: e.target.value})}
+                             className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
+                             placeholder={t('location_placeholder')}
+                           />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
              </div>
@@ -721,6 +819,61 @@ function App() {
           memory={selectedMemory} 
           onClose={() => setSelectedMemory(null)} 
         />
+      )}
+
+      {/* Passcode Modal */}
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <div className="bg-white dark:bg-slate-800 w-full max-w-xs p-6 rounded-[32px] shadow-2xl animate-zoom-in">
+              <div className="flex flex-col items-center">
+                 <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 text-primary rounded-full flex items-center justify-center mb-4">
+                    <Lock className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
+                   {!passcode ? t('create_passcode') : t('enter_passcode')}
+                 </h3>
+                 <p className="text-xs text-slate-400 mb-6 text-center">
+                   {!passcode ? "Set a 4-digit PIN to protect private details" : "Enter PIN to view private details"}
+                 </p>
+                 
+                 <input 
+                   type="password" 
+                   inputMode="numeric"
+                   maxLength={4}
+                   value={passcodeInput}
+                   onChange={(e) => setPasscodeInput(e.target.value)}
+                   className={`w-full text-center text-3xl font-bold tracking-[1em] py-3 border-b-2 bg-transparent outline-none transition-colors mb-2
+                     ${passcodeError 
+                        ? 'border-rose-500 text-rose-500' 
+                        : 'border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-100 focus:border-primary'
+                     }
+                   `}
+                   placeholder="••••"
+                   autoFocus
+                 />
+                 
+                 {passcodeError && (
+                   <p className="text-xs text-rose-500 font-bold mb-4 animate-bounce">{t('wrong_passcode')}</p>
+                 )}
+                 
+                 <div className="flex gap-3 w-full mt-4">
+                    <button 
+                       onClick={() => setShowPasscodeModal(false)}
+                       className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold text-sm"
+                    >
+                       {t('cancel_btn')}
+                    </button>
+                    <button 
+                       onClick={handlePasscodeSubmit}
+                       disabled={passcodeInput.length < 4}
+                       className="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                       {t('confirm')}
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
       )}
 
       {/* Expanding Pill Navigation Bar */}

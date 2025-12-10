@@ -68,6 +68,11 @@ export const translations = {
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
   child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
+  child_birth_time: { en: "Time of Birth", mm: "မွေးဖွားချိန်" },
+  hospital_name: { en: "Hospital", mm: "မွေးဖွားရာဆေးရုံ" },
+  birth_location: { en: "Location", mm: "မွေးဖွားရာမြို့/နေရာ" },
+  hospital_placeholder: { en: "e.g. City Hospital", mm: "ဥပမာ - ဗဟိုအမျိုးသမီးဆေးရုံ" },
+  location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },
   save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
@@ -85,6 +90,16 @@ export const translations = {
   delete: { en: "Delete", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
   confirm_delete: { en: "Are you sure you want to delete this?", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား?" },
+
+  // Security
+  private_info: { en: "Private Details", mm: "ကိုယ်ရေးအချက်အလက်များ" },
+  locked_msg: { en: "Details are locked", mm: "အချက်အလက်များကို ပိတ်ထားပါသည်" },
+  tap_to_unlock: { en: "Tap to view", mm: "ကြည့်ရှုရန် နှိပ်ပါ" },
+  enter_passcode: { en: "Enter Passcode", mm: "လျှို့ဝှက်နံပါတ် ရိုက်ထည့်ပါ" },
+  create_passcode: { en: "Create Passcode", mm: "လျှို့ဝှက်နံပါတ် အသစ်သတ်မှတ်ပါ" },
+  confirm: { en: "Confirm", mm: "အတည်ပြုမည်" },
+  wrong_passcode: { en: "Incorrect passcode", mm: "လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်" },
+  hide_details: { en: "Hide Details", mm: "ပြန်ဖွက်ထားမည်" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
