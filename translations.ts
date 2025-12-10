@@ -99,7 +99,15 @@ export const translations = {
   create_passcode: { en: "Create Passcode", mm: "လျှို့ဝှက်နံပါတ် အသစ်သတ်မှတ်ပါ" },
   confirm: { en: "Confirm", mm: "အတည်ပြုမည်" },
   wrong_passcode: { en: "Incorrect passcode", mm: "လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်" },
-  hide_details: { en: "Hide Details", mm: "ပြန်ဖွက်ထားမည်" }
+  hide_details: { en: "Hide Details", mm: "ပြန်ဖွက်ထားမည်" },
+  
+  // Security Management
+  security_title: { en: "Security", mm: "လုံခြုံရေး" },
+  change_passcode: { en: "Change Passcode", mm: "လျှို့ဝှက်နံပါတ် ပြောင်းမည်" },
+  remove_passcode: { en: "Turn off Passcode", mm: "လျှို့ဝှက်နံပါတ် ဖြုတ်မည်" },
+  enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
+  enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
+  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {

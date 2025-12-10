@@ -1,7 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safely retrieve the API key to prevent crashes if process is undefined
+const getApiKey = () => {
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env.API_KEY;
+    }
+    return '';
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {

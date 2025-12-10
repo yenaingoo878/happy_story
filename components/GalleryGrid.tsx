@@ -1,6 +1,6 @@
 import React from 'react';
 import { Memory, Language } from '../types';
-import { ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import { getTranslation } from '../translations';
 
 interface GalleryGridProps {

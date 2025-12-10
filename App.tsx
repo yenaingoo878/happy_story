@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, User, Trash2, ArrowLeft, Ruler, Scale, Calendar, Upload, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, User, Trash2, ArrowLeft, Ruler, Scale, Calendar, Upload, Lock, Unlock, Eye, EyeOff, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
 import { MemoryDetailModal } from './components/MemoryDetailModal';
-import { MOCK_MEMORIES, MOCK_GROWTH_DATA } from './constants';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
 import { getTranslation } from './translations';
+import { initDB, DataService, syncData } from './db';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
   const [settingsView, setSettingsView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>('MAIN');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Security State
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
@@ -21,24 +23,13 @@ function App() {
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
+  const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
-  // Persistence for Memories
-  const [memories, setMemories] = useState<Memory[]>(() => {
-    const saved = localStorage.getItem('memories');
-    return saved ? JSON.parse(saved) : MOCK_MEMORIES;
-  });
-
-  // Persistence for Child Profile
-  const [childProfile, setChildProfile] = useState<ChildProfile>(() => {
-    const saved = localStorage.getItem('childProfile');
-    return saved ? JSON.parse(saved) : { name: '', dob: '', gender: 'boy' };
-  });
-
-  // Persistence for Growth Data
-  const [growthData, setGrowthData] = useState<GrowthData[]>(() => {
-    const saved = localStorage.getItem('growthData');
-    return saved ? JSON.parse(saved) : MOCK_GROWTH_DATA;
-  });
+  // Application Data State (Now loaded from DB)
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [childProfile, setChildProfile] = useState<ChildProfile>({ name: '', dob: '', gender: 'boy' });
+  const [growthData, setGrowthData] = useState<GrowthData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // State for new growth record input in Settings
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
@@ -48,17 +39,57 @@ function App() {
   const [newMemory, setNewMemory] = useState<{title: string; desc: string; imageUrl?: string}>({ title: '', desc: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   
-  // Persistence for Language
+  // Persistence for Language (Keep in localStorage for app preference)
   const [language, setLanguage] = useState<Language>(() => {
      return (localStorage.getItem('language') as Language) || 'mm';
   });
 
-  // Persistence for Theme
+  // Persistence for Theme (Keep in localStorage)
   const [theme, setTheme] = useState<Theme>(() => {
      return (localStorage.getItem('theme') as Theme) || 'light';
   });
 
   const t = (key: any) => getTranslation(language, key);
+
+  const refreshData = async () => {
+      const mems = await DataService.getMemories();
+      const growth = await DataService.getGrowth();
+      const profile = await DataService.getProfile();
+      setMemories(mems);
+      setGrowthData(growth);
+      setChildProfile(profile);
+  };
+
+  // Initialize DB and Load Data
+  useEffect(() => {
+    const loadData = async () => {
+      await initDB();
+      await refreshData();
+      setIsLoading(false);
+      // Try initial sync silently
+      if (navigator.onLine) {
+         syncData().then(() => refreshData());
+      }
+    };
+    loadData();
+
+    // Setup Online/Offline listeners
+    const handleOnline = async () => {
+      setIsOnline(true);
+      console.log("Online: Syncing...");
+      await syncData();
+      await refreshData();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Effect to save Theme
   useEffect(() => {
@@ -75,20 +106,19 @@ function App() {
     localStorage.setItem('language', language);
   }, [language]);
 
-  // Effect to save Memories
-  useEffect(() => {
-    localStorage.setItem('memories', JSON.stringify(memories));
-  }, [memories]);
+  const handleManualSync = async () => {
+      if (!isOnline) return;
+      setIsSyncing(true);
+      await syncData();
+      await refreshData();
+      setIsSyncing(false);
+  };
 
-  // Effect to save Child Profile
-  useEffect(() => {
-    localStorage.setItem('childProfile', JSON.stringify(childProfile));
-  }, [childProfile]);
-
-  // Effect to save Growth Data
-  useEffect(() => {
-    localStorage.setItem('growthData', JSON.stringify(growthData));
-  }, [growthData]);
+  // Handle Child Profile Updates
+  const handleProfileUpdate = async (updatedProfile: ChildProfile) => {
+      setChildProfile(updatedProfile);
+      await DataService.saveProfile(updatedProfile);
+  };
 
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'mm' ? 'en' : 'mm');
@@ -103,32 +133,73 @@ function App() {
     if (isDetailsUnlocked) {
       setIsDetailsUnlocked(false);
     } else {
+      setPasscodeMode('UNLOCK');
       setPasscodeInput('');
       setPasscodeError(false);
       setShowPasscodeModal(true);
     }
   };
 
+  const openPasscodeSetup = () => {
+    setPasscodeMode('SETUP');
+    setPasscodeInput('');
+    setPasscodeError(false);
+    setShowPasscodeModal(true);
+  };
+
+  const openChangePasscode = () => {
+    setPasscodeMode('CHANGE_VERIFY');
+    setPasscodeInput('');
+    setPasscodeError(false);
+    setShowPasscodeModal(true);
+  };
+
+  const openRemovePasscode = () => {
+    setPasscodeMode('REMOVE');
+    setPasscodeInput('');
+    setPasscodeError(false);
+    setShowPasscodeModal(true);
+  };
+
   const handlePasscodeSubmit = () => {
-    if (!passcode) {
-      // Setting new passcode
-      if (passcodeInput.length >= 4) {
-        localStorage.setItem('app_passcode', passcodeInput);
-        setPasscode(passcodeInput);
-        setIsDetailsUnlocked(true);
-        setShowPasscodeModal(false);
-      }
-    } else {
-      // Verifying existing passcode
-      if (passcodeInput === passcode) {
-        setIsDetailsUnlocked(true);
-        setShowPasscodeModal(false);
-      } else {
-        setPasscodeError(true);
-        // Shake animation reset
-        setTimeout(() => setPasscodeError(false), 500);
-      }
+    if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
+       if (passcodeInput.length >= 4) {
+          localStorage.setItem('app_passcode', passcodeInput);
+          setPasscode(passcodeInput);
+          setIsDetailsUnlocked(true);
+          setShowPasscodeModal(false);
+          setPasscodeInput('');
+       }
+       return;
     }
+
+    if (passcodeInput === passcode) {
+       if (passcodeMode === 'UNLOCK') {
+          setIsDetailsUnlocked(true);
+          setShowPasscodeModal(false);
+       } else if (passcodeMode === 'CHANGE_VERIFY') {
+          setPasscodeMode('CHANGE_NEW');
+          setPasscodeInput('');
+       } else if (passcodeMode === 'REMOVE') {
+          localStorage.removeItem('app_passcode');
+          setPasscode(null);
+          setIsDetailsUnlocked(true); 
+          setShowPasscodeModal(false);
+       }
+    } else {
+       setPasscodeError(true);
+       setTimeout(() => setPasscodeError(false), 500);
+    }
+  };
+  
+  const getModalTitle = () => {
+      switch(passcodeMode) {
+          case 'SETUP': return t('create_passcode');
+          case 'CHANGE_NEW': return t('enter_new_passcode');
+          case 'CHANGE_VERIFY': return t('enter_old_passcode');
+          case 'REMOVE': return t('enter_passcode');
+          default: return !passcode ? t('create_passcode') : t('enter_passcode');
+      }
   };
 
   const formattedDate = new Date().toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', {
@@ -141,11 +212,11 @@ function App() {
     setNewMemory({ title: memory.title, desc: memory.description, imageUrl: memory.imageUrl });
     setEditingId(memory.id);
     setActiveTab(TabView.ADD_MEMORY);
-    setSettingsView('MAIN'); // Reset settings view
+    setSettingsView('MAIN'); 
   };
 
   const handleCancelEdit = () => {
-    setNewMemory({ title: '', desc: '' }); // Clears imageUrl as well
+    setNewMemory({ title: '', desc: '' }); 
     setEditingId(null);
     setActiveTab(TabView.HOME);
   };
@@ -165,39 +236,41 @@ function App() {
     fileInputRef.current?.click();
   };
 
-  const handleDeleteMemory = (id: string) => {
+  const handleDeleteMemory = async (id: string) => {
      if (window.confirm(t('confirm_delete'))) {
-        setMemories(prev => prev.filter(m => m.id !== id));
+        await DataService.deleteMemory(id);
+        await refreshData();
      }
   };
 
-  const handleSaveMemory = () => {
+  const handleSaveMemory = async () => {
     if (!newMemory.title) return;
 
-    // Use uploaded image or fallback to random if creating new and no image selected
-    // For editing, if no new image selected, we keep existing (handled by state)
     const finalImageUrl = newMemory.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
 
     if (editingId) {
-      // Update existing memory
-      const updatedMemories = memories.map(mem => 
-        mem.id === editingId 
-          ? { ...mem, title: newMemory.title, description: newMemory.desc, imageUrl: finalImageUrl }
-          : mem
-      );
-      setMemories(updatedMemories);
+      // Update existing
+      const existing = memories.find(m => m.id === editingId);
+      if (existing) {
+          const updated: Memory = { ...existing, title: newMemory.title, description: newMemory.desc, imageUrl: finalImageUrl };
+          await DataService.addMemory(updated); // Put handles update
+      }
     } else {
-      // Create new memory
+      // Create new
       const memory: Memory = {
         id: Date.now().toString(),
         title: newMemory.title,
         description: newMemory.desc,
         date: new Date().toISOString().split('T')[0],
         imageUrl: finalImageUrl,
-        tags: ['New Memory']
+        tags: ['New Memory'],
+        synced: 0
       };
-      setMemories([memory, ...memories]);
+      await DataService.addMemory(memory);
     }
+
+    // Refresh UI
+    await refreshData();
 
     // Reset state
     setNewMemory({ title: '', desc: '' });
@@ -205,29 +278,19 @@ function App() {
     setActiveTab(TabView.HOME);
   };
 
-  const handleAddGrowthRecord = () => {
+  const handleAddGrowthRecord = async () => {
     if (newGrowth.month && newGrowth.height && newGrowth.weight) {
-      // Check if month already exists, if so update it
-      const existingIndex = growthData.findIndex(d => d.month === Number(newGrowth.month));
-      let newData = [...growthData];
+      let updatedData: GrowthData = {
+          id: newGrowth.id || Date.now().toString(),
+          month: Number(newGrowth.month),
+          height: Number(newGrowth.height),
+          weight: Number(newGrowth.weight),
+          synced: 0
+      };
+
+      await DataService.saveGrowth(updatedData);
+      await refreshData();
       
-      if (existingIndex >= 0) {
-        newData[existingIndex] = {
-            month: Number(newGrowth.month),
-            height: Number(newGrowth.height),
-            weight: Number(newGrowth.weight)
-        };
-      } else {
-        newData.push({ 
-            month: Number(newGrowth.month), 
-            height: Number(newGrowth.height), 
-            weight: Number(newGrowth.weight) 
-        });
-      }
-      
-      // Sort by month
-      newData.sort((a, b) => a.month - b.month);
-      setGrowthData(newData);
       setNewGrowth({ month: undefined, height: undefined, weight: undefined });
       setIsEditingGrowth(false);
     }
@@ -238,20 +301,27 @@ function App() {
       setIsEditingGrowth(true);
   };
 
-  const handleDeleteGrowthRecord = (index: number) => {
-    setGrowthData(prev => prev.filter((_, i) => i !== index));
+  const handleDeleteGrowthRecord = async (data: GrowthData) => {
+      if (data.id) {
+        await DataService.deleteGrowth(data.id);
+        await refreshData();
+      }
   };
 
   // Logic for Expandable Pill Nav Bar
   const tabs = [
     { id: TabView.HOME, icon: Home, label: 'nav_home' },
-    { id: TabView.STORY, icon: BookOpen, label: 'nav_story' },
+    { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
     { id: TabView.ADD_MEMORY, icon: PlusCircle, label: 'nav_create' },
     { id: TabView.GROWTH, icon: Activity, label: 'nav_growth' },
     { id: TabView.SETTINGS, icon: Settings, label: 'nav_settings' },
   ];
 
   const renderContent = () => {
+    if (isLoading) {
+        return <div className="flex h-screen items-center justify-center text-slate-400">Loading...</div>;
+    }
+
     switch (activeTab) {
       case TabView.HOME:
         const latestMemory = memories[0];
@@ -263,7 +333,16 @@ function App() {
                   <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
                     {childProfile.name ? `${t('greeting')}, ${childProfile.name}` : t('greeting')}
                   </h1>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors">{formattedDate}</p>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2">
+                      {formattedDate}
+                      {isOnline ? (
+                         <button onClick={handleManualSync} className="text-primary hover:text-primary/80 transition-colors">
+                             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                         </button>
+                      ) : (
+                         <CloudOff className="w-4 h-4 text-slate-400" />
+                      )}
+                  </p>
                </div>
             </div>
 
@@ -271,23 +350,29 @@ function App() {
             <div className="grid grid-cols-2 gap-4">
               
               {/* Main Feature: Latest Memory (Span 2 columns) */}
-              <div 
-                className="col-span-2 relative h-64 rounded-[32px] overflow-hidden shadow-sm group cursor-pointer border border-transparent dark:border-slate-700"
-                onClick={() => setSelectedMemory(latestMemory)}
-              >
-                <img 
-                  src={latestMemory?.imageUrl} 
-                  alt="Latest" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
-                  <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 border border-white/20">
-                    {t('latest_arrival')}
-                  </span>
-                  <h3 className="text-white text-xl font-bold leading-tight drop-shadow-sm">{latestMemory?.title}</h3>
-                  <p className="text-white/80 text-sm mt-1 line-clamp-1 drop-shadow-sm">{latestMemory?.description}</p>
-                </div>
-              </div>
+              {latestMemory ? (
+                  <div 
+                    className="col-span-2 relative h-64 rounded-[32px] overflow-hidden shadow-sm group cursor-pointer border border-transparent dark:border-slate-700"
+                    onClick={() => setSelectedMemory(latestMemory)}
+                  >
+                    <img 
+                      src={latestMemory?.imageUrl} 
+                      alt="Latest" 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
+                      <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 border border-white/20">
+                        {t('latest_arrival')}
+                      </span>
+                      <h3 className="text-white text-xl font-bold leading-tight drop-shadow-sm">{latestMemory?.title}</h3>
+                      <p className="text-white/80 text-sm mt-1 line-clamp-1 drop-shadow-sm">{latestMemory?.description}</p>
+                    </div>
+                  </div>
+              ) : (
+                  <div className="col-span-2 relative h-64 rounded-[32px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+                      {t('no_photos')}
+                  </div>
+              )}
 
               {/* Story Widget (Span 1) */}
               <div 
@@ -318,7 +403,7 @@ function App() {
                 <div>
                   <p className="text-slate-400 dark:text-slate-500 text-xs font-medium">{t('current_height')}</p>
                   <h3 className="font-bold text-slate-800 dark:text-slate-100 text-2xl">
-                    {growthData[growthData.length - 1]?.height || 0} <span className="text-sm text-slate-500 dark:text-slate-400 font-normal">cm</span>
+                    {growthData.length > 0 ? growthData[growthData.length - 1]?.height : 0} <span className="text-sm text-slate-500 dark:text-slate-400 font-normal">cm</span>
                   </h3>
                 </div>
               </div>
@@ -353,9 +438,15 @@ function App() {
           </div>
         );
 
+      // Other cases (ADD_MEMORY, STORY, GROWTH, GALLERY, SETTINGS) remain same but need to be returned
+      // Since I only changed logic above for HOME header, I need to include the rest of the switch cases
+      // But to save space and context, I'm providing the full updated App.tsx content which includes them.
+      
       case TabView.ADD_MEMORY:
+        // ... (No logic changes here, just UI)
         return (
           <div className="pb-32 animate-fade-in">
+             {/* ... Same JSX as before ... */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 transition-colors">
                 {editingId ? t('edit_memory_title') : t('add_memory_title')}
@@ -474,13 +565,13 @@ function App() {
                <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 text-xs mb-1">{t('current_height')}</span>
                   <span className="text-2xl font-bold text-primary">
-                    {growthData[growthData.length - 1]?.height || 0} cm
+                    {growthData.length > 0 ? growthData[growthData.length - 1]?.height : 0} cm
                   </span>
                </div>
                <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center transition-colors">
                   <span className="text-slate-400 dark:text-slate-500 text-xs mb-1">{t('current_weight')}</span>
                   <span className="text-2xl font-bold text-accent">
-                    {growthData[growthData.length - 1]?.weight || 0} kg
+                    {growthData.length > 0 ? growthData[growthData.length - 1]?.weight : 0} kg
                   </span>
                </div>
             </div>
@@ -569,7 +660,7 @@ function App() {
                           </div>
                           <div className="flex gap-2">
                              <button onClick={() => handleEditGrowthRecord(data)} className="p-2 bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 rounded-lg transition-colors"><Pencil className="w-4 h-4"/></button>
-                             <button onClick={() => handleDeleteGrowthRecord(index)} className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                             <button onClick={() => handleDeleteGrowthRecord(data)} className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                           </div>
                        </div>
                     ))}
@@ -652,7 +743,7 @@ function App() {
                      <input 
                        type="text" 
                        value={childProfile.name}
-                       onChange={(e) => setChildProfile({...childProfile, name: e.target.value})}
+                       onChange={(e) => handleProfileUpdate({...childProfile, name: e.target.value})}
                        className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                        placeholder="Baby Name"
                      />
@@ -676,7 +767,7 @@ function App() {
                              <input 
                                type="date" 
                                value={childProfile.dob}
-                               onChange={(e) => setChildProfile({...childProfile, dob: e.target.value})}
+                               onChange={(e) => handleProfileUpdate({...childProfile, dob: e.target.value})}
                                className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              />
                           </div>
@@ -685,7 +776,7 @@ function App() {
                              <input 
                                type="time" 
                                value={childProfile.birthTime || ''}
-                               onChange={(e) => setChildProfile({...childProfile, birthTime: e.target.value})}
+                               onChange={(e) => handleProfileUpdate({...childProfile, birthTime: e.target.value})}
                                className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              />
                           </div>
@@ -696,7 +787,7 @@ function App() {
                            <input 
                              type="text" 
                              value={childProfile.hospitalName || ''}
-                             onChange={(e) => setChildProfile({...childProfile, hospitalName: e.target.value})}
+                             onChange={(e) => handleProfileUpdate({...childProfile, hospitalName: e.target.value})}
                              className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              placeholder={t('hospital_placeholder')}
                            />
@@ -707,7 +798,7 @@ function App() {
                            <input 
                              type="text" 
                              value={childProfile.birthLocation || ''}
-                             onChange={(e) => setChildProfile({...childProfile, birthLocation: e.target.value})}
+                             onChange={(e) => handleProfileUpdate({...childProfile, birthLocation: e.target.value})}
                              className="w-full px-3 pb-2 pt-6 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-colors font-medium text-sm"
                              placeholder={t('location_placeholder')}
                            />
@@ -718,7 +809,58 @@ function App() {
                 </div>
              </div>
 
-             {/* 2. Preferences Card */}
+             {/* 2. Security Card */}
+             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <div className="p-4 bg-slate-50 dark:bg-slate-700/30 border-b border-slate-100 dark:border-slate-700 flex items-center">
+                   <ShieldCheck className="w-4 h-4 mr-2 text-slate-400" />
+                   <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{t('security_title')}</h3>
+                </div>
+                <div className="p-2">
+                   {passcode ? (
+                      <>
+                        <button 
+                           onClick={openChangePasscode}
+                           className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl transition-colors text-left"
+                        >
+                          <div className="flex items-center">
+                             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 flex items-center justify-center mr-3">
+                                <KeyRound className="w-4 h-4" />
+                             </div>
+                             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('change_passcode')}</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-300" />
+                        </button>
+                        <button 
+                           onClick={openRemovePasscode}
+                           className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl transition-colors text-left"
+                        >
+                          <div className="flex items-center">
+                             <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-500 flex items-center justify-center mr-3">
+                                <Unlock className="w-4 h-4" />
+                             </div>
+                             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('remove_passcode')}</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-300" />
+                        </button>
+                      </>
+                   ) : (
+                      <button 
+                        onClick={openPasscodeSetup}
+                        className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl transition-colors text-left"
+                      >
+                        <div className="flex items-center">
+                           <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center mr-3">
+                              <Lock className="w-4 h-4" />
+                           </div>
+                           <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span>
+                        </div>
+                        <Plus className="w-4 h-4 text-slate-300" />
+                      </button>
+                   )}
+                </div>
+             </div>
+
+             {/* 3. Preferences Card */}
              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
                 <div className="p-4 bg-slate-50 dark:bg-slate-700/30 border-b border-slate-100 dark:border-slate-700 flex items-center">
                    <Settings className="w-4 h-4 mr-2 text-slate-400" />
@@ -763,7 +905,7 @@ function App() {
                 </div>
              </div>
 
-             {/* 3. Data Management Menu */}
+             {/* 4. Data Management Menu */}
              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
                 <div className="p-4 bg-slate-50 dark:bg-slate-700/30 border-b border-slate-100 dark:border-slate-700 flex items-center">
                    <Activity className="w-4 h-4 mr-2 text-slate-400" />
@@ -830,10 +972,10 @@ function App() {
                     <Lock className="w-6 h-6" />
                  </div>
                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
-                   {!passcode ? t('create_passcode') : t('enter_passcode')}
+                   {getModalTitle()}
                  </h3>
                  <p className="text-xs text-slate-400 mb-6 text-center">
-                   {!passcode ? "Set a 4-digit PIN to protect private details" : "Enter PIN to view private details"}
+                   {passcodeMode === 'REMOVE' ? "Enter PIN to remove protection" : !passcode ? "Set a 4-digit PIN to protect private details" : "Enter PIN"}
                  </p>
                  
                  <input 
