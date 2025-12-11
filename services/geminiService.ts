@@ -1,11 +1,14 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-// Safely retrieve the API key to prevent crashes if process is undefined
+// Safely retrieve the API key
 const getApiKey = () => {
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env.API_KEY;
-    }
+    try {
+        if (typeof process !== 'undefined' && process && process.env) {
+            return process.env.API_KEY || '';
+        }
+    } catch (e) {}
     return '';
 };
 

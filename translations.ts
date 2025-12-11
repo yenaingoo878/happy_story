@@ -1,3 +1,4 @@
+
 import { Language } from './types';
 
 export const translations = {
@@ -78,6 +79,8 @@ export const translations = {
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
+  sign_out: { en: "Sign Out", mm: "အကောင့်ထွက်မည်" },
+  account: { en: "Account", mm: "အကောင့်" },
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
@@ -108,7 +111,22 @@ export const translations = {
   remove_passcode: { en: "Turn off Passcode", mm: "လျှို့ဝှက်နံပါတ် ဖြုတ်မည်" },
   enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
   enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
-  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" }
+  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" },
+
+  // Authentication
+  welcome_back: { en: "Welcome Back", mm: "ကြိုဆိုပါတယ်" },
+  welcome_title: { en: "Little Moments", mm: "Little Moments" },
+  welcome_subtitle: { en: "Capture every precious memory", mm: "အဖိုးတန် အမှတ်တရများကို သိမ်းဆည်းပါ" },
+  email: { en: "Email", mm: "အီးမေးလ်" },
+  password: { en: "Password", mm: "စကားဝှက်" },
+  sign_in: { en: "Sign In", mm: "အကောင့်ဝင်မည်" },
+  sign_up: { en: "Create Account", mm: "အကောင့်သစ်ဖွင့်မည်" },
+  guest_mode: { en: "Continue as Guest", mm: "အကောင့်မဖွင့်ဘဲ သုံးမည်" },
+  guest_desc: { en: "Data will be saved on this device only.", mm: "မှတ်တမ်းများကို ဤဖုန်းထဲတွင်သာ သိမ်းဆည်းထားပါမည်။" },
+  have_account: { en: "Already have an account?", mm: "အကောင့်ရှိပြီးသားလား?" },
+  no_account: { en: "Don't have an account?", mm: "အကောင့် မရှိသေးဘူးလား?" },
+  auth_error: { en: "Authentication failed", mm: "အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ" },
+  loading: { en: "Loading...", mm: "လုပ်ဆောင်နေသည်..." }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {

@@ -29,7 +29,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" 
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-2xl lg:max-w-4xl rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col md:flex-row max-h-[90vh] z-[101]">
         
         {/* Close Button */}
         <button 
@@ -40,14 +40,14 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
         </button>
 
         {/* Image Section */}
-        <div className="relative h-72 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0">
+        <div className="relative h-72 sm:h-80 md:h-auto md:w-1/2 bg-slate-100 dark:bg-slate-800 shrink-0">
           <img 
             src={memory.imageUrl} 
             alt={memory.title} 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute bottom-0 left-0 p-6 text-white w-full">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none md:hidden" />
+          <div className="absolute bottom-0 left-0 p-6 text-white w-full md:hidden">
             <h2 className="text-2xl font-bold leading-tight mb-2 drop-shadow-sm">{memory.title}</h2>
             <div className="flex items-center text-white/90 text-sm font-medium">
               <Calendar className="w-4 h-4 mr-2" />
@@ -57,21 +57,32 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
         </div>
 
         {/* Content Section (Scrollable) */}
-        <div className="p-6 overflow-y-auto grow">
+        <div className="p-6 overflow-y-auto grow md:w-1/2 flex flex-col">
+          {/* Desktop Title Header */}
+          <div className="hidden md:block mb-6">
+            <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">{memory.title}</h2>
+             <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+              <Calendar className="w-4 h-4 mr-2" />
+              {formatDate(memory.date)}
+            </div>
+          </div>
+
           <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6 whitespace-pre-wrap">
             {memory.description}
           </p>
 
-          {memory.tags && memory.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {memory.tags.map(tag => (
-                <span key={tag} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                  <Tag className="w-3 h-3 mr-1" />
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="mt-auto">
+            {memory.tags && memory.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {memory.tags.map(tag => (
+                  <span key={tag} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                    <Tag className="w-3 h-3 mr-1" />
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
