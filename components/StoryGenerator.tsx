@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { generateBedtimeStoryStream } from '../services/geminiService';
-import { Wand2, BookOpen, Sparkles, Loader2, Save, CheckCircle2 } from 'lucide-react';
+import { Wand2, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../translations';
 import { GenerateContentResponse } from '@google/genai';
-import { DataService } from '../db';
 
 interface StoryGeneratorProps {
   language: Language;
   defaultChildName?: string;
-  currentProfileId?: string;
 }
 
-export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaultChildName, currentProfileId }) => {
+export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaultChildName }) => {
   const [topic, setTopic] = useState('');
   const [childName, setChildName] = useState(defaultChildName || (language === 'mm' ? 'သားသား' : 'Baby'));
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const t = (key: any) => getTranslation(language, key);
 
@@ -33,7 +29,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
     
     setLoading(true);
     setStory(''); 
-    setSaved(false);
     
     try {
         const streamResponse = await generateBedtimeStoryStream(topic, childName, language);
@@ -49,29 +44,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
     } finally {
         setLoading(false);
     }
-  };
-
-  const handleSaveStory = async () => {
-      if (!story || !currentProfileId || saved) return;
-      
-      setIsSaving(true);
-      try {
-          await DataService.addMemory({
-              id: crypto.randomUUID(),
-              childId: currentProfileId,
-              title: topic || (language === 'mm' ? 'ပုံပြင်' : 'Bedtime Story'),
-              date: new Date().toISOString().split('T')[0],
-              description: story,
-              imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80', // Book placeholder
-              tags: ['Story', 'AI Generated']
-          });
-          setSaved(true);
-          setTimeout(() => setSaved(false), 3000); // Reset status after 3s
-      } catch (error) {
-          console.error("Failed to save story", error);
-      } finally {
-          setIsSaving(false);
-      }
   };
 
   return (
@@ -142,27 +114,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
                 <BookOpen className="w-5 h-5 mr-2" />
                 <span className="font-bold">{t('result_title')}</span>
               </div>
-              
-              {currentProfileId && !loading && (
-                  <button 
-                    onClick={handleSaveStory}
-                    disabled={isSaving || saved}
-                    className={`flex items-center text-xs font-bold px-3 py-1.5 rounded-lg transition-colors
-                        ${saved 
-                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
-                            : 'bg-indigo-50 text-indigo-600 dark:bg-slate-700 dark:text-indigo-300 hover:bg-indigo-100'
-                        }`}
-                  >
-                      {isSaving ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                      ) : saved ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      ) : (
-                          <Save className="w-3.5 h-3.5 mr-1" />
-                      )}
-                      {saved ? (language === 'mm' ? 'သိမ်းပြီး' : 'Saved') : (language === 'mm' ? 'သိမ်းမည်' : 'Save')}
-                  </button>
-              )}
           </div>
           <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
             <p className="text-slate-600 dark:text-slate-300 leading-loose whitespace-pre-line text-lg">

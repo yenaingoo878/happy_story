@@ -244,7 +244,6 @@ function App() {
                      <StoryGenerator 
                         language={language} 
                         defaultChildName={currentProfile?.name}
-                        currentProfileId={currentProfileId}
                      />
                  )}
 
