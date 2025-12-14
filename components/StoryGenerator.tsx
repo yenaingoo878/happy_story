@@ -28,7 +28,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
     if (!topic.trim()) return;
     
     setLoading(true);
-    setStory(''); 
+    setStory(''); // Clear previous
     
     try {
         const streamResponse = await generateBedtimeStoryStream(topic, childName, language);
@@ -109,11 +109,9 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
 
       {story && (
         <div className="p-6 bg-white dark:bg-slate-800 animate-fade-in transition-colors">
-          <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center text-purple-600 dark:text-purple-400">
-                <BookOpen className="w-5 h-5 mr-2" />
-                <span className="font-bold">{t('result_title')}</span>
-              </div>
+          <div className="flex items-center mb-4 text-purple-600 dark:text-purple-400">
+            <BookOpen className="w-5 h-5 mr-2" />
+            <span className="font-bold">{t('result_title')}</span>
           </div>
           <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
             <p className="text-slate-600 dark:text-slate-300 leading-loose whitespace-pre-line text-lg">

@@ -151,3 +151,4 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onGuestMo
     </div>
   );
 };
+
