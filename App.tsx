@@ -13,7 +13,7 @@ import { TabView, Language, Memory } from './types';
 import { getTranslation } from './translations';
 import { 
   LayoutGrid, BookOpen, LineChart, Image as ImageIcon, Settings, 
-  Plus, User, LogOut
+  Plus, User, LogOut, ChevronRight, Sparkles, Activity
 } from 'lucide-react';
 
 // Initialize DB immediately
@@ -118,6 +118,8 @@ function App() {
   }
   
   const currentProfile = profiles.find(p => p.id === currentProfileId);
+  const today = new Date();
+  const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-24 transition-colors duration-300 font-sans">
@@ -189,44 +191,106 @@ function App() {
              {/* Content Area */}
              <div className="animate-fade-in">
                  {activeTab === TabView.HOME && (
-                     <div className="space-y-6">
-                        {/* Latest Memory Teaser */}
-                        {memories.length > 0 && (
-                            <div>
-                                <div className="flex justify-between items-center mb-3 px-1">
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">{t('latest_arrival')}</h3>
-                                </div>
-                                <MemoryCard memory={memories[0]} />
-                            </div>
-                        )}
+                     <div className="space-y-4">
+                        {/* Header for Dashboard */}
+                        <div className="px-2">
+                             <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
+                                {currentProfile?.name ? (language === 'mm' ? `မင်္ဂလာပါ ${currentProfile.name}` : `Hello, ${currentProfile.name}`) : t('greeting')}
+                             </h1>
+                             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm flex items-center gap-2">
+                                 {formattedDate}
+                             </p>
+                        </div>
 
-                        {/* Navigation Cards */}
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* Dashboard Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            
+                            {/* 1. Latest Memory / Placeholder (Spans 2) */}
+                            {memories.length > 0 ? (
+                                <div 
+                                    onClick={() => setSelectedMemory(memories[0])}
+                                    className="col-span-2 relative h-48 md:h-64 rounded-[32px] overflow-hidden shadow-sm cursor-pointer group"
+                                >
+                                    <img 
+                                        src={memories[0].imageUrl} 
+                                        alt={memories[0].title} 
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 pointer-events-none">
+                                        <span className="text-white/80 text-xs font-bold mb-1 uppercase tracking-wider">{t('latest_arrival')}</span>
+                                        <h3 className="text-white font-bold text-lg line-clamp-1">{memories[0].title}</h3>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="col-span-2 h-48 md:h-64 rounded-[32px] bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border border-transparent dark:border-slate-700">
+                                    <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
+                                    <p className="text-xs font-bold">{t('no_photos')}</p>
+                                </div>
+                            )}
+
+                            {/* 2. Story Card */}
                             <button 
                                 onClick={() => setActiveTab(TabView.STORY)}
-                                className="bg-gradient-to-br from-indigo-500 to-purple-600 p-5 rounded-2xl text-white shadow-lg shadow-indigo-200 dark:shadow-none text-left flex flex-col justify-between h-40 transition-transform active:scale-95"
+                                className="col-span-1 h-48 md:h-64 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] p-5 text-white shadow-lg shadow-indigo-200 dark:shadow-none text-left flex flex-col justify-between relative overflow-hidden transition-transform active:scale-95 border border-transparent dark:border-slate-700"
                             >
-                                <div className="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                    <BookOpen className="w-5 h-5 text-white" />
+                                <Sparkles className="w-6 h-6 text-yellow-300 opacity-80" />
+                                <div className="absolute -right-4 -bottom-4 opacity-20 rotate-12 pointer-events-none">
+                                    <BookOpen className="w-24 h-24" />
                                 </div>
-                                <div>
+                                <div className="relative z-10">
                                     <h3 className="font-bold text-lg leading-tight mb-1">{t('create_story')}</h3>
-                                    <p className="text-xs text-indigo-100 opacity-90">{t('story_subtitle')}</p>
+                                    <div className="flex items-center text-xs font-medium text-indigo-100">
+                                        {t('start')} <ChevronRight className="w-3 h-3 ml-1" />
+                                    </div>
                                 </div>
                             </button>
 
+                            {/* 3. Growth Card */}
                             <button 
                                 onClick={() => setActiveTab(TabView.GROWTH)}
-                                className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 text-left flex flex-col justify-between h-40 transition-transform active:scale-95 shadow-sm"
+                                className="col-span-1 h-48 md:h-64 bg-white dark:bg-slate-800 rounded-[32px] p-5 text-left flex flex-col justify-between border border-slate-100 dark:border-slate-700 shadow-sm transition-transform active:scale-95 relative overflow-hidden"
                             >
-                                <div className="bg-rose-50 dark:bg-rose-900/30 w-10 h-10 rounded-full flex items-center justify-center">
-                                    <LineChart className="w-5 h-5 text-rose-500" />
+                                <div className="flex justify-between items-start w-full">
+                                    <Activity className="w-6 h-6 text-teal-500" />
+                                    <span className="text-[10px] font-bold bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full">+2cm</span>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 leading-tight mb-1">{t('growth_tracker')}</h3>
-                                    <p className="text-xs text-slate-400">{t('growth_subtitle')}</p>
+                                    <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mb-1">{t('current_height')}</p>
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-2xl">
+                                        {growthData.length > 0 ? growthData[growthData.length - 1].height : 0} 
+                                        <span className="text-sm text-slate-500 dark:text-slate-400 font-normal ml-1">cm</span>
+                                    </h3>
                                 </div>
                             </button>
+                        </div>
+
+                        {/* Recent Memories List */}
+                        <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-slate-700 dark:text-slate-200">{t('memories')}</h3>
+                                <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-rose-500 text-xs font-bold hover:text-rose-600 transition-colors">
+                                    {t('see_all')}
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {memories.slice(0, 3).map(mem => (
+                                    <div 
+                                        key={mem.id} 
+                                        onClick={() => setSelectedMemory(mem)}
+                                        className="flex items-center p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors cursor-pointer group"
+                                    >
+                                        <img src={mem.imageUrl} alt={mem.title} className="w-12 h-12 rounded-xl object-cover mr-4 bg-slate-100 dark:bg-slate-700 ring-1 ring-slate-100 dark:ring-slate-700" />
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-bold text-sm text-slate-700 dark:text-slate-200 truncate">{mem.title}</h4>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">{new Date(mem.date).toLocaleDateString()}</p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                ))}
+                                {memories.length === 0 && (
+                                    <p className="text-xs text-slate-400 text-center py-4 col-span-full">{t('no_photos')}</p>
+                                )}
+                            </div>
                         </div>
                      </div>
                  )}
