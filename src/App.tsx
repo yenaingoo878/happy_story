@@ -8,7 +8,6 @@ import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
 import { MemoryCard } from './components/MemoryCard';
 import { MemoryDetailModal } from './components/MemoryDetailModal';
-import { AddMemoryForm } from './components/AddMemoryForm';
 import { TabView, Language, Memory } from './types';
 import { getTranslation } from './translations';
 import { 
@@ -27,7 +26,7 @@ function App() {
   const [currentProfileId, setCurrentProfileId] = useState<string>('');
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
 
-  // Fetch profiles using Dexie hook
+  // Fetch profiles using Dexie hook to fix 'profiles' undefined error
   const profiles = useLiveQuery(() => db.profile.toArray()) || [];
   
   // Fetch data for current profile
@@ -231,21 +230,8 @@ function App() {
                      </div>
                  )}
 
-                 {activeTab === TabView.ADD_MEMORY && (
-                     <AddMemoryForm 
-                        language={language}
-                        currentProfileId={currentProfileId}
-                        onClose={() => setActiveTab(TabView.HOME)}
-                        onSave={() => setActiveTab(TabView.GALLERY)}
-                     />
-                 )}
-
                  {activeTab === TabView.STORY && (
-                     <StoryGenerator 
-                        language={language} 
-                        defaultChildName={currentProfile?.name}
-                        currentProfileId={currentProfileId}
-                     />
+                     <StoryGenerator language={language} defaultChildName={currentProfile?.name} />
                  )}
 
                  {activeTab === TabView.GROWTH && (

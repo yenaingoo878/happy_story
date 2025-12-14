@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'little-moments-v1';
+const CACHE_NAME = 'little-moments-v4'; // Increment version to force update
 const URLS_TO_CACHE = [
-  './',
-  './index.html',
-  './index.tsx',
-  './manifest.json',
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon.png',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap'
 ];
@@ -26,6 +26,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Clearing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -36,43 +37,45 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests like API calls (Supabase/Gemini) from caching logic mostly, 
-  // but allow CDNs to be cached by the generic fallback.
-  
+  // 1. Handle API calls (Network Only)
+  // We don't want to cache API calls to Supabase or Gemini blindly
+  if (event.request.url.includes('supabase.co') || event.request.url.includes('generativelanguage.googleapis.com')) {
+      return; 
+  }
+
+  // 2. Handle Navigation/HTML (Network First, fall back to Cache)
+  // Ensures user gets latest version if online
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // 3. Handle Static Assets (Stale-While-Revalidate)
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
+      .then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then(
+           (networkResponse) => {
+               // Update cache with new version if valid
+               if(networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                   const responseToCache = networkResponse.clone();
+                   caches.open(CACHE_NAME).then((cache) => {
+                       cache.put(event.request, responseToCache);
+                   });
+               }
+               return networkResponse;
+           }
+        ).catch(() => {
+            // Network failed, do nothing (we will return cachedResponse)
+        });
 
-        return fetch(event.request).then(
-          (response) => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                // Don't cache POST requests or API calls usually, but for this simple structure
-                // we mostly care about static assets. 
-                if (event.request.method === 'GET') {
-                    try {
-                        cache.put(event.request, responseToCache);
-                    } catch (err) {
-                        // Quota exceeded or other error
-                    }
-                }
-              });
-
-            return response;
-          }
-        );
+        // Return cached response immediately if available, otherwise wait for network
+        return cachedResponse || fetchPromise;
       })
   );
 });

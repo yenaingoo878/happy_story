@@ -19,12 +19,16 @@ db.version(3).stores({
 
 export { db };
 
-// Helper for ID generation
+// Helper for ID generation (Ensures valid UUID format for Postgres)
 export const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  return Date.now().toString() + Math.random().toString(36).substring(2);
+  // Fallback for UUID v4 compliance (Postgres strict uuid type requires this format)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 };
 
 // --- Initialization Logic ---
@@ -32,8 +36,9 @@ export const initDB = async () => {
   const profileCount = await db.profile.count();
   if (profileCount === 0) {
       // Create a default profile if none exist
+      const defaultId = generateId(); 
       await db.profile.add({
-          id: 'main',
+          id: defaultId,
           name: '',
           dob: '',
           gender: 'boy',
@@ -60,7 +65,26 @@ export const syncData = async () => {
         // --- 1. PUSH (Local -> Cloud) ---
         // Upload local changes that haven't been synced yet
         
-        // Memories
+        // PRIORITY 1: Profile (Must be synced FIRST because other tables reference it via Foreign Key)
+        const unsyncedProfile = await db.profile.where('synced').equals(0).toArray();
+        // Only push profiles that actually have a name (ignore the default empty one created by initDB)
+        const validProfilesToPush = unsyncedProfile.filter(p => p.name && p.name.trim() !== '');
+        
+        if (validProfilesToPush.length > 0) {
+            console.log(`Pushing ${validProfilesToPush.length} profiles...`);
+            const { error } = await supabase.from('child_profile').upsert(
+                validProfilesToPush.map(p => {
+                    const { synced, ...rest } = p;
+                    return rest;
+                })
+            );
+            if (error) console.error("Error pushing profiles:", error);
+            else {
+                await db.profile.bulkPut(validProfilesToPush.map(p => ({ ...p, synced: 1 })));
+            }
+        }
+        
+        // PRIORITY 2: Memories
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         if (unsyncedMemories.length > 0) {
             console.log(`Pushing ${unsyncedMemories.length} memories...`);
@@ -76,7 +100,7 @@ export const syncData = async () => {
             }
         }
 
-        // Growth
+        // PRIORITY 3: Growth Data
         const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
         if (unsyncedGrowth.length > 0) {
             console.log(`Pushing ${unsyncedGrowth.length} growth records...`);
@@ -92,22 +116,6 @@ export const syncData = async () => {
             }
         }
 
-        // Profile
-        const unsyncedProfile = await db.profile.where('synced').equals(0).toArray();
-        if (unsyncedProfile.length > 0) {
-            console.log(`Pushing ${unsyncedProfile.length} profiles...`);
-            const { error } = await supabase.from('child_profile').upsert(
-                unsyncedProfile.map(p => {
-                    const { synced, ...rest } = p;
-                    return rest;
-                })
-            );
-            if (error) console.error("Error pushing profiles:", error);
-            else {
-                await db.profile.bulkPut(unsyncedProfile.map(p => ({ ...p, synced: 1 })));
-            }
-        }
-
         // --- 2. PULL (Cloud -> Local) ---
         // Download data from Supabase to ensure we have the latest from other devices
         
@@ -117,10 +125,18 @@ export const syncData = async () => {
         else if (remoteProfiles) {
             await db.transaction('rw', db.profile, async () => {
                 const localUnsynced = await db.profile.where('synced').equals(0).toArray();
-                const unsyncedIds = new Set(localUnsynced.map(p => p.id));
+                
+                // IMPORTANT FIX: 
+                // Don't consider the default empty profile (name='') as a "local change" that needs protection.
+                // This allows the cloud profile to overwrite the empty default one upon re-login.
+                const realUnsyncedIds = new Set(
+                    localUnsynced
+                        .filter(p => p.name && p.name.trim().length > 0)
+                        .map(p => p.id)
+                );
                 
                 const toSave = remoteProfiles
-                    .filter(p => !unsyncedIds.has(p.id))
+                    .filter(p => !realUnsyncedIds.has(p.id))
                     .map(p => ({ ...p, synced: 1 }));
                 
                 if (toSave.length > 0) {

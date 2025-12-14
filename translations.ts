@@ -32,6 +32,16 @@ export const translations = {
   update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
   cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
   date_label: { en: "Date", mm: "နေ့စွဲ" },
+  tags_label: { en: "Tags", mm: "မှတ်ချက်စကားလုံးများ (Tags)" },
+  add_tag_placeholder: { en: "Add tag...", mm: "Tag ရိုက်ထည့်ပါ..." },
+  add: { en: "Add", mm: "ထည့်မယ်" },
+
+  // Search & Filter
+  search_placeholder: { en: "Search title or description...", mm: "ခေါင်းစဉ် (သို့) အကြောင်းအရာ ရှာရန်..." },
+  filter_date_start: { en: "From", mm: "မှ" },
+  filter_date_end: { en: "To", mm: "ထိ" },
+  all_tags: { en: "All Tags", mm: "Tag အားလုံး" },
+  filter_options: { en: "Filter Options", mm: "စစ်ထုတ်ရန်" },
 
   // Story Generator
   story_title: { en: "Bedtime Story", mm: "အိပ်ရာဝင် ပုံပြင်" },
@@ -61,7 +71,7 @@ export const translations = {
   // Gallery
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },
   gallery_subtitle: { en: "Precious Moments", mm: "အမှတ်တရ ပုံရိပ်လွှာများ" },
-  no_photos: { en: "No photos yet", mm: "ဓာတ်ပုံများ မရှိသေးပါ" },
+  no_photos: { en: "No photos found", mm: "ဓာတ်ပုံများ မတွေ့ရှိပါ" },
 
   // Settings
   settings_title: { en: "Settings", mm: "ဆက်တင်များ" },
@@ -80,7 +90,13 @@ export const translations = {
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
   sign_out: { en: "Sign Out", mm: "အကောင့်ထွက်မည်" },
+  signing_out: { en: "Signing out...", mm: "အကောင့်ထွက်နေသည်..." },
   account: { en: "Account", mm: "အကောင့်" },
+  
+  // Profile Gender
+  gender: { en: "Gender", mm: "ကျား/မ" },
+  boy: { en: "Boy", mm: "သားသား" },
+  girl: { en: "Girl", mm: "မီးမီး" },
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
@@ -126,9 +142,15 @@ export const translations = {
   have_account: { en: "Already have an account?", mm: "အကောင့်ရှိပြီးသားလား?" },
   no_account: { en: "Don't have an account?", mm: "အကောင့် မရှိသေးဘူးလား?" },
   auth_error: { en: "Authentication failed", mm: "အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ" },
-  loading: { en: "Loading...", mm: "လုပ်ဆောင်နေသည်..." }
+  loading: { en: "Loading...", mm: "လုပ်ဆောင်နေသည်..." },
+  saving: { en: "Saving...", mm: "သိမ်းဆည်းနေသည်..." },
+  saved_success: { en: "Saved successfully!", mm: "အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
+  if (!translations[key]) {
+      console.warn(`Missing translation for key: ${key}`);
+      return key || "Missing";
+  }
   return translations[key][lang];
 };
