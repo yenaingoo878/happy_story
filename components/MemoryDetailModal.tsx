@@ -30,7 +30,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" 
         onClick={onClose}
       />
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-2xl rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
         
         {/* Close Button */}
         <button 
@@ -41,7 +41,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
         </button>
 
         {/* Image Section */}
-        <div className="relative h-72 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0">
+        <div className="relative h-72 sm:h-96 bg-slate-100 dark:bg-slate-800 shrink-0">
           <img 
             src={memory.imageUrl} 
             alt={memory.title} 

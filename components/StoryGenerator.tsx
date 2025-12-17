@@ -48,7 +48,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, defaul
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors max-w-2xl mx-auto">
       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 dark:border-b dark:border-slate-700 p-6">
         <div className="flex items-center mb-2">
           <Sparkles className="text-indigo-400 w-5 h-5 mr-2" />

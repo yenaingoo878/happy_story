@@ -115,7 +115,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
             {editMemory && <button onClick={onCancel} className="text-sm text-slate-500">{t('cancel_btn')}</button>}

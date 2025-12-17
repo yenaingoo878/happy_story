@@ -23,13 +23,13 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           <p className="text-slate-500 dark:text-slate-400 text-sm transition-colors">{t('gallery_subtitle')}</p>
        </div>
        
-       <div className="grid grid-cols-2 gap-3">
+       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {memories.map((memory, index) => (
             <div 
               key={memory.id} 
               onClick={() => onMemoryClick(memory)}
               className={`group relative rounded-2xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md border border-transparent dark:border-slate-700 cursor-pointer
-                ${index % 3 === 0 ? 'col-span-2 aspect-[2/1]' : 'col-span-1 aspect-square'}
+                aspect-square
               `}
             >
                <img 

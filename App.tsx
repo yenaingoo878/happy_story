@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2 } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -333,7 +333,7 @@ function App() {
         const currentFormattedDate = new Date().toLocaleDateString('en-GB');
 
         return (
-          <div className="space-y-4 pb-32 animate-fade-in">
+          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-2">
                <div>
                   <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
@@ -355,75 +355,83 @@ function App() {
                )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Responsive Grid System */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               
-              {latestMemory ? (
+              {/* Latest Memory - Takes 2 cols on both mobile and desktop (but occupies 2/3 width on desktop) */}
+              <div className="col-span-2 md:col-span-2">
+                  {latestMemory ? (
+                      <div 
+                        className="relative h-64 md:h-80 rounded-[32px] overflow-hidden shadow-sm group cursor-pointer border border-transparent dark:border-slate-700"
+                        onClick={() => setSelectedMemory(latestMemory)}
+                      >
+                        <img 
+                          src={latestMemory?.imageUrl} 
+                          alt="Latest" 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
+                          <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 border border-white/20">
+                            {t('latest_arrival')}
+                          </span>
+                          <h3 className="text-white text-xl font-bold leading-tight drop-shadow-sm">{latestMemory?.title}</h3>
+                          <p className="text-white/80 text-sm mt-1 line-clamp-1 drop-shadow-sm">{latestMemory?.description}</p>
+                        </div>
+                      </div>
+                  ) : (
+                      <div className="h-64 md:h-80 rounded-[32px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+                          {t('no_photos')}
+                      </div>
+                  )}
+              </div>
+
+              {/* Stacked Cards for Story and Growth - 1 col on mobile (split), 1 col on desktop (stacked) */}
+              <div className="col-span-2 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
                   <div 
-                    className="col-span-2 relative h-64 rounded-[32px] overflow-hidden shadow-sm group cursor-pointer border border-transparent dark:border-slate-700"
-                    onClick={() => setSelectedMemory(latestMemory)}
+                    onClick={() => setActiveTab(TabView.STORY)}
+                    className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] p-5 text-white flex flex-col justify-between h-40 md:h-[9.5rem] shadow-sm relative overflow-hidden cursor-pointer active:scale-95 transition-transform border border-transparent dark:border-slate-700"
                   >
-                    <img 
-                      src={latestMemory?.imageUrl} 
-                      alt="Latest" 
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
-                      <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 border border-white/20">
-                        {t('latest_arrival')}
-                      </span>
-                      <h3 className="text-white text-xl font-bold leading-tight drop-shadow-sm">{latestMemory?.title}</h3>
-                      <p className="text-white/80 text-sm mt-1 line-clamp-1 drop-shadow-sm">{latestMemory?.description}</p>
+                    <Sparkles className="w-6 h-6 text-yellow-300 opacity-80" />
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                      <BookOpen className="w-24 h-24" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg leading-tight">{t('create_story')}</h3>
+                      <div className="flex items-center mt-2 text-xs font-medium text-white/80">
+                        {t('start')} <ChevronRight className="w-3 h-3 ml-1" />
+                      </div>
                     </div>
                   </div>
-              ) : (
-                  <div className="col-span-2 relative h-64 rounded-[32px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">
-                      {t('no_photos')}
-                  </div>
-              )}
 
-              <div 
-                onClick={() => setActiveTab(TabView.STORY)}
-                className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] p-5 text-white flex flex-col justify-between h-40 shadow-sm relative overflow-hidden cursor-pointer active:scale-95 transition-transform border border-transparent dark:border-slate-700"
-              >
-                <Sparkles className="w-6 h-6 text-yellow-300 opacity-80" />
-                <div className="absolute top-0 right-0 p-2 opacity-10">
-                  <BookOpen className="w-24 h-24" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg leading-tight">{t('create_story')}</h3>
-                  <div className="flex items-center mt-2 text-xs font-medium text-white/80">
-                    {t('start')} <ChevronRight className="w-3 h-3 ml-1" />
+                  <div 
+                    onClick={() => setActiveTab(TabView.GROWTH)}
+                    className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-5 flex flex-col justify-between h-40 md:h-[9.5rem] shadow-sm cursor-pointer active:scale-95 transition-transform"
+                  >
+                    <div className="flex justify-between items-start">
+                      <Activity className="w-6 h-6 text-teal-500" />
+                      <span className="text-xs font-bold bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full">+2cm</span>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 dark:text-slate-500 text-xs font-medium">{t('current_height')}</p>
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100 text-2xl">
+                        {growthData.length > 0 ? growthData[growthData.length - 1]?.height : 0} <span className="text-sm text-slate-500 dark:text-slate-400 font-normal">cm</span>
+                      </h3>
+                    </div>
                   </div>
-                </div>
               </div>
 
-              <div 
-                onClick={() => setActiveTab(TabView.GROWTH)}
-                className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-5 flex flex-col justify-between h-40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-              >
-                <div className="flex justify-between items-start">
-                  <Activity className="w-6 h-6 text-teal-500" />
-                  <span className="text-xs font-bold bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-2 py-1 rounded-full">+2cm</span>
-                </div>
-                <div>
-                  <p className="text-slate-400 dark:text-slate-500 text-xs font-medium">{t('current_height')}</p>
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-2xl">
-                    {growthData.length > 0 ? growthData[growthData.length - 1]?.height : 0} <span className="text-sm text-slate-500 dark:text-slate-400 font-normal">cm</span>
-                  </h3>
-                </div>
-              </div>
-
-              <div className="col-span-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-6 shadow-sm">
+              {/* Memories List - Spans full width on both mobile and desktop */}
+              <div className="col-span-2 md:col-span-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-slate-700 dark:text-slate-200">{t('memories')}</h3>
                   <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-primary text-xs font-bold">{t('see_all')}</button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 grid md:grid-cols-2 md:gap-4 md:space-y-0">
                   {memories.slice(1, 3).map(mem => (
                     <div 
                       key={mem.id} 
                       onClick={() => setSelectedMemory(mem)}
-                      className="flex items-center justify-between group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-xl transition-colors -mx-2"
+                      className="flex items-center justify-between group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-xl transition-colors -mx-2 md:mx-0 md:border md:border-slate-50 md:dark:border-slate-700"
                     >
                       <div className="flex items-center space-x-4">
                         <img src={mem.imageUrl} className="w-12 h-12 rounded-2xl object-cover ring-1 ring-slate-100 dark:ring-slate-700" alt={mem.title} />
@@ -448,7 +456,7 @@ function App() {
       case TabView.GALLERY:
       case TabView.SETTINGS:
         return (
-            <div className="pb-32 animate-fade-in">
+            <div className="pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
                 {activeTab === TabView.ADD_MEMORY && (
                     <AddMemory 
                       language={language} 
@@ -464,7 +472,7 @@ function App() {
                 )}
 
                 {activeTab === TabView.GROWTH && (
-                    <div>
+                    <div className="max-w-4xl mx-auto">
                         <div className="mb-6"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('growth_title')}</h1></div>
                         <GrowthChart data={growthData} language={language} />
                         <div className="mt-6 grid grid-cols-2 gap-4">
@@ -515,13 +523,53 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 max-w-md mx-auto relative shadow-2xl overflow-hidden font-sans transition-colors duration-300">
-      <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent z-50 max-w-md mx-auto" />
-      <main className="px-5 pt-8 min-h-screen box-border">
+    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 font-sans transition-colors duration-300 flex flex-col md:flex-row">
+      {/* Mobile Top Bar Background */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent z-50 md:hidden" />
+      
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6">
+          <div className="flex items-center gap-3 mb-10 pl-2">
+             <div className="w-10 h-10 bg-gradient-to-br from-primary to-rose-400 rounded-full flex items-center justify-center shadow-md">
+                <Baby className="w-6 h-6 text-white" />
+             </div>
+             <h1 className="font-bold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1>
+          </div>
+
+          <nav className="flex-1 space-y-2">
+            {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                    <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                            isActive 
+                            ? 'bg-primary/10 text-primary font-bold shadow-sm' 
+                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400'
+                        }`}
+                    >
+                        <tab.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-slate-400'}`} />
+                        <span className="text-sm">{t(tab.label)}</span>
+                    </button>
+                );
+            })}
+          </nav>
+          
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
+             <button onClick={() => supabase.auth.signOut()} className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-colors text-sm font-bold">
+                <LogOut className="w-5 h-5"/>
+                {t('logout')}
+             </button>
+          </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 px-5 pt-8 min-h-screen box-border md:ml-64 md:p-10 max-w-[1920px]">
         {renderContent()}
       </main>
 
-      {/* Modals are kept the same structure as original for brevity */}
+      {/* Modals */}
       {selectedMemory && (
         <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => requestDeleteMemory(selectedMemory!.id)} />
       )}
@@ -580,8 +628,8 @@ function App() {
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full p-2 flex items-center gap-1 z-50 max-w-sm w-[90%] mx-auto transition-colors duration-300">
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full p-2 flex items-center gap-1 z-50 max-w-sm w-[90%] mx-auto transition-colors duration-300 md:hidden">
         {tabs.map((tab) => {
            const isActive = activeTab === tab.id;
            return (

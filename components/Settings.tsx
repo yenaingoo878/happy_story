@@ -143,7 +143,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   if (view === 'GROWTH') {
       return (
-        <div>
+        <div className="max-w-2xl mx-auto">
             <button onClick={() => setView('MAIN')} className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
             <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm mb-4">
@@ -169,7 +169,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
   if (view === 'MEMORIES') {
       return (
-        <div>
+        <div className="max-w-2xl mx-auto">
             <button onClick={() => setView('MAIN')} className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
             <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">{t('manage_memories')}</h2>
             <div className="space-y-2">
@@ -188,7 +188,7 @@ export const Settings: React.FC<SettingsProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto">
         <div className="mb-6"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
         
         {/* Security Lock Overlay for Details */}
