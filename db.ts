@@ -76,9 +76,14 @@ export const syncData = async () => {
         // --- PROFILES ---
         const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
         for (const p of unsyncedProfiles) {
-            const payload = cleanForSync(p);
-            // CRITICAL FIX: Changed 'child_profiles' to 'child_profile' to match SQL schema
+            // SAFE SYNC: Exclude new fields that might not exist in Supabase schema yet
+            // This prevents 'PGRST204: Could not find column' errors
+            const { country, hospitalName, birthLocation, birthTime, ...rest } = p;
+            const payload = cleanForSync(rest);
+            
+            // Note: To sync these fields, please add 'country', 'hospitalName', etc. to your Supabase table
             const { error } = await supabase.from('child_profile').upsert(payload);
+            
             if (!error) {
                 await db.profiles.update(p.id!, { synced: 1 });
             } else {
@@ -86,28 +91,33 @@ export const syncData = async () => {
             }
         }
 
-        // 2. PULL Remote Changes from Supabase (Simple Strategy: Overwrite local if remote exists)
+        // 2. PULL Remote Changes from Supabase
         
-        // Profiles
-        // CRITICAL FIX: Changed 'child_profiles' to 'child_profile'
+        // Profiles - SMART MERGE
+        // We fetch remote data but merge it with local data to ensure we don't lose local-only fields (like country)
         const { data: profiles, error: profileError } = await supabase.from('child_profile').select('*');
         if (profiles && !profileError) {
-            const localProfiles = profiles.map(p => ({ ...p, synced: 1 }));
-            await db.profiles.bulkPut(localProfiles as ChildProfile[]);
+             for (const remote of profiles) {
+                 const local = await db.profiles.get(remote.id);
+                 // If local exists, merge remote into local (preserving local extra fields)
+                 // If local doesn't exist, just use remote
+                 const merged = local ? { ...local, ...remote } : remote;
+                 await db.profiles.put({ ...merged, synced: 1 } as ChildProfile);
+             }
         }
 
         // Growth
         const { data: growth, error: growthError } = await supabase.from('growth_data').select('*');
         if (growth && !growthError) {
-            const localGrowth = growth.map(g => ({ ...g, synced: 1 }));
-            await db.growth.bulkPut(localGrowth as GrowthData[]);
+            // For growth and memories, simple bulk overwrite is usually fine as they are append-only mostly
+            // But doing loop put is safer for Dexie consistency
+            await db.growth.bulkPut(growth.map(g => ({ ...g, synced: 1 } as GrowthData)));
         }
 
         // Memories
         const { data: memories, error: memError } = await supabase.from('memories').select('*');
         if (memories && !memError) {
-            const localMemories = memories.map(m => ({ ...m, synced: 1 }));
-            await db.memories.bulkPut(localMemories as Memory[]);
+            await db.memories.bulkPut(memories.map(m => ({ ...m, synced: 1 } as Memory)));
         }
         
         console.log("Sync Complete");
@@ -196,7 +206,6 @@ export const DataService = {
     deleteProfile: async (id: string) => {
         await db.profiles.delete(id);
          if (navigator.onLine) {
-            // Fixed table name here as well
             await supabase.from('child_profile').delete().eq('id', id);
         }
     }
