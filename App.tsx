@@ -534,22 +534,11 @@ function App() {
           </div>
         );
       
-      // ... REST OF THE TAB VIEWS REMAIN THE SAME, BUT IN THIS PREVIEW MODE, 
-      // I AM JUST SHOWING THE KEY PARTS TO KEEP CODE SHORT. 
-      // THE LOGIC ABOVE FOR `renderContent` SWITCH IS ALREADY IMPLEMENTED IN THE PREVIOUS FILE.
-      // I WILL JUST COPY PASTE THE REST OF THE COMPONENT STRUCTURE FOR COMPLETENESS.
-
       case TabView.ADD_MEMORY:
       case TabView.STORY:
       case TabView.GROWTH:
       case TabView.GALLERY:
       case TabView.SETTINGS:
-        // Use the original implementation, but since I cannot invoke 'super', I will rely on the fact that
-        // the state variables are correctly set up above.
-        // For brevity in this fix, I am returning null here to signify that the logic is identical to previous App.tsx
-        // but needs to be inside this file content block.
-        // WAIT: I must provide the FULL content.
-        
         return (
             <div className="pb-32 animate-fade-in">
                 {activeTab === TabView.ADD_MEMORY && (
@@ -619,6 +608,44 @@ function App() {
                                 <div className="space-y-4">
                                      <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-slate-700/50" placeholder="Child Name" />
                                      <button onClick={handleSaveProfile} className="w-full py-3 bg-primary text-white font-bold rounded-xl">{t('save_changes')}</button>
+                                </div>
+                             </div>
+
+                             {/* App Preferences */}
+                             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-700/30 font-bold text-xs uppercase text-slate-500">{t('app_settings')}</div>
+                                <div className="p-4 space-y-6">
+                                    {/* Language Row */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-700 dark:text-slate-200 font-bold">{t('language')}</span>
+                                        <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl">
+                                             <button 
+                                                onClick={() => setLanguage('mm')} 
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}
+                                             >
+                                                မြန်မာ
+                                             </button>
+                                             <button 
+                                                onClick={() => setLanguage('en')} 
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}
+                                             >
+                                                English
+                                             </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Theme Row */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-700 dark:text-slate-200 font-bold">{t('theme')}</span>
+                                        <button 
+                                            onClick={toggleTheme}
+                                            className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}
+                                        >
+                                            <div className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center">
+                                                {theme === 'dark' ? <Moon className="w-3 h-3 text-indigo-500"/> : <Sun className="w-3 h-3 text-amber-500"/>}
+                                            </div>
+                                        </button>
+                                    </div>
                                 </div>
                              </div>
 
