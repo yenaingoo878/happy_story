@@ -36,6 +36,15 @@ export interface ChildProfile {
   synced?: number;
 }
 
+export interface EventReminder {
+  id: string;
+  childId: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  isRecurring: boolean; // True if it repeats every year
+  synced?: number;
+}
+
 export interface StoryState {
   isLoading: boolean;
   content: string;

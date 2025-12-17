@@ -12,6 +12,23 @@ export const translations = {
   memories: { en: "Memories", mm: "အမှတ်တရများ" },
   see_all: { en: "See All", mm: "အားလုံးကြည့်ရန်" },
   
+  // Birthday & Events
+  birthday_tomorrow_title: { en: "Birthday Coming Up!", mm: "မွေးနေ့ရောက်တော့မယ်!" },
+  birthday_tomorrow_msg: { en: "Tomorrow is {name}'s Birthday! Get ready for the big day.", mm: "မနက်ဖြန် {name} ရဲ့ မွေးနေ့ရောက်ပါတော့မယ်။" },
+  happy_birthday_title: { en: "Happy Birthday!", mm: "မွေးနေ့ရက်မြတ် ဖြစ်ပါစေ!" },
+  happy_birthday_msg: { en: "Wishing {name} a wonderful birthday filled with joy!", mm: "ချစ်လှစွာသော {name} လေး ပျော်ရွှင်စရာမွေးနေ့လေးဖြစ်ပါစေ။" },
+  important_dates: { en: "Upcoming & Important Dates", mm: "အမှတ်တရ နေ့ရက်များ" },
+  add_event: { en: "Add Reminder", mm: "အမှတ်တရနေ့ ထည့်မယ်" },
+  no_events: { en: "No upcoming events", mm: "အမှတ်တရနေ့များ မရှိသေးပါ" },
+  event_today: { en: "Happening Today!", mm: "ယနေ့ ကျရောက်သောနေ့" },
+  
+  // Event Form
+  new_event_title: { en: "New Event", mm: "အမှတ်တရနေ့သစ်" },
+  event_name: { en: "Event Title", mm: "အကြောင်းအရာခေါင်းစဉ်" },
+  event_date: { en: "Date", mm: "နေ့ရက်" },
+  recurring: { en: "Repeat Yearly", mm: "နှစ်စဉ်အသိပေးပါ" },
+  save_event: { en: "Save Date", mm: "သိမ်းဆည်းမည်" },
+
   // Auth
   welcome_title: { en: "Little Moments", mm: "Little Moments" },
   welcome_subtitle: { en: "Capture your child's precious journey.", mm: "သင့်ကလေး၏ ကြီးထွားမှုအဆင့်ဆင့်ကို မှတ်တမ်းတင်လိုက်ပါ။" },
@@ -85,6 +102,8 @@ export const translations = {
   settings_title: { en: "Settings", mm: "ဆက်တင်များ" },
   settings_subtitle: { en: "Preferences & Profile", mm: "အသုံးပြုသူ နှင့် ကလေးအချက်အလက်" },
   about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
+  edit_profile: { en: "Edit Details", mm: "အချက်အလက်ပြင်ရန်" },
+  close_edit: { en: "Close Editing", mm: "ပြင်ဆင်မှုပိတ်ရန်" },
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
   currently_active: { en: "Currently Active", mm: "လက်ရှိရွေးချယ်ထားသည်" },
@@ -109,8 +128,8 @@ export const translations = {
   location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },
   country_placeholder: { en: "e.g. Myanmar", mm: "ဥပမာ - မြန်မာ" },
   
-  save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
-  profile_saved: { en: "Profile Saved", mm: "အချက်အလက် သိမ်းဆည်းပြီးပါပြီ" },
+  save_changes: { en: "Save", mm: "သိမ်းဆည်းမည်" },
+  profile_saved: { en: "Saved", mm: "သိမ်းပြီး" },
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
@@ -141,11 +160,11 @@ export const translations = {
   
   // Security Management
   security_title: { en: "Security", mm: "လုံခြုံရေး" },
-  change_passcode: { en: "Change Passcode", mm: "လျှို့ဝှက်နံပါတ် ပြောင်းမည်" },
-  remove_passcode: { en: "Turn off Passcode", mm: "လျှို့ဝှက်နံပါတ် ဖြုတ်မည်" },
+  change_passcode: { en: "Change PIN", mm: "နံပါတ်ပြောင်း" },
+  remove_passcode: { en: "Turn off PIN", mm: "နံပါတ်ဖြုတ်" },
   enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
   enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
-  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" }
+  setup_passcode: { en: "Setup PIN", mm: "နံပါတ်သတ်မှတ်" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {

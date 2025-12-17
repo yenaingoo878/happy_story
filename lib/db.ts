@@ -1,24 +1,25 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase } from './supabaseClient';
-import { Memory, GrowthData, ChildProfile } from '../types';
+import { Memory, GrowthData, ChildProfile, EventReminder } from '../types';
 
 // Define the interface for the database to ensure type safety
-// Using intersection type to avoid class extension issues with Dexie in some environments
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
+  events: Table<EventReminder>;
 };
 
 // Create Dexie instance directly
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
 // Define schema
-db.version(1).stores({
+db.version(2).stores({
   memories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced' 
+  profiles: 'id, name, synced',
+  events: 'id, childId, date, synced' // New table for reminders
 });
 
 export { db };
@@ -84,28 +85,36 @@ export const syncData = async () => {
         // --- PROFILES ---
         const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
         for (const p of unsyncedProfiles) {
-            // Updated: Now sending ALL profile fields to Supabase including country and bloodType
             const payload = cleanForSync(p);
-            
             const { error } = await supabase.from('child_profile').upsert(payload);
-            
             if (!error) {
                 await db.profiles.update(p.id!, { synced: 1 });
             } else {
                 console.error("Sync error profiles:", error);
             }
         }
+        
+        // --- EVENTS ---
+        // Note: You need to create an 'events' table in Supabase if you want these synced remotely.
+        // For now, we'll keep them local-first or assume table exists if errors occur.
+        /* 
+        const unsyncedEvents = await db.events.where('synced').equals(0).toArray();
+        for (const e of unsyncedEvents) {
+            const payload = cleanForSync(e);
+            const { error } = await supabase.from('events').upsert(payload);
+            if (!error) {
+                await db.events.update(e.id, { synced: 1 });
+            }
+        }
+        */
 
         // 2. PULL Remote Changes from Supabase
         
         // Profiles - SMART MERGE
-        // We fetch remote data but merge it with local data to ensure we don't lose local-only fields (like country)
         const { data: profiles, error: profileError } = await supabase.from('child_profile').select('*');
         if (profiles && !profileError) {
              for (const remote of profiles) {
                  const local = await db.profiles.get(remote.id);
-                 // If local exists, merge remote into local (preserving local extra fields)
-                 // If local doesn't exist, just use remote
                  const merged = local ? { ...local, ...remote } : remote;
                  await db.profiles.put({ ...merged, synced: 1 } as ChildProfile);
              }
@@ -114,8 +123,6 @@ export const syncData = async () => {
         // Growth
         const { data: growth, error: growthError } = await supabase.from('growth_data').select('*');
         if (growth && !growthError) {
-            // For growth and memories, simple bulk overwrite is usually fine as they are append-only mostly
-            // But doing loop put is safer for Dexie consistency
             await db.growth.bulkPut(growth.map(g => ({ ...g, synced: 1 } as GrowthData)));
         }
 
@@ -136,15 +143,12 @@ export const DataService = {
     // --- STORAGE ---
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         try {
-            // Sanitize filename
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            
-            // Path: childId/tag/filename
             const filePath = `${childId}/${tag}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
-                .from('images') // Ensure you have a bucket named 'images'
+                .from('images') 
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
@@ -153,10 +157,6 @@ export const DataService = {
             return data.publicUrl;
         } catch (error) {
             console.error("Upload failed:", error);
-            // Fallback for offline mode: return a local object URL (temporary)
-            // or just throw if strictly online required. 
-            // For Guest Mode without Supabase, we might want to convert to Base64 (not implemented here for simplicity)
-            // or just warn the user.
              if (!navigator.onLine) {
                  return URL.createObjectURL(file);
              }
@@ -174,12 +174,11 @@ export const DataService = {
     
     addMemory: async (memory: Memory) => {
         await db.memories.put({ ...memory, synced: 0 });
-        syncData(); // Trigger background sync
+        syncData();
     },
     
     deleteMemory: async (id: string) => {
         await db.memories.delete(id);
-        // Also delete from Supabase
         if (navigator.onLine) {
              const { data: { session } } = await supabase.auth.getSession();
              if (session) {
@@ -229,5 +228,22 @@ export const DataService = {
                 await supabase.from('child_profile').delete().eq('id', id);
             }
         }
+    },
+
+    // --- EVENTS (New) ---
+    getEvents: async (childId?: string) => {
+        if (childId) {
+            return await db.events.where('childId').equals(childId).sortBy('date');
+        }
+        return await db.events.orderBy('date').toArray();
+    },
+
+    addEvent: async (event: EventReminder) => {
+        await db.events.put({ ...event, synced: 0 });
+        // syncData(); // Enable if remote sync is ready
+    },
+
+    deleteEvent: async (id: string) => {
+        await db.events.delete(id);
     }
 };

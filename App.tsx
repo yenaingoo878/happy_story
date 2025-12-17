@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, Plus, CalendarHeart, Repeat } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -8,7 +8,7 @@ import { MemoryDetailModal } from './components/MemoryDetailModal';
 import { AuthScreen } from './components/AuthScreen';
 import { AddMemory } from './components/AddMemory';
 import { Settings as SettingsComponent } from './components/Settings';
-import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
+import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, EventReminder } from './types';
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase } from './lib/supabaseClient';
@@ -34,7 +34,7 @@ function App() {
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
   // Delete Confirmation State
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE', id: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'EVENT', id: string } | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Application Data State
@@ -45,10 +45,18 @@ function App() {
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
   
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
+  const [events, setEvents] = useState<EventReminder[]>([]); // New Events State
   const [isLoading, setIsLoading] = useState(true);
   
   // Edit Memory State for AddMemory Component
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
+
+  // Birthday Banner State
+  const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
+
+  // Event Modal State
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [newEvent, setNewEvent] = useState<{title: string, date: string, isRecurring: boolean}>({ title: '', date: '', isRecurring: false });
 
   // Preferences
   const [language, setLanguage] = useState<Language>(() => {
@@ -77,6 +85,7 @@ function App() {
           setProfiles([]);
           setMemories([]);
           setGrowthData([]);
+          setEvents([]);
       }
     });
 
@@ -130,11 +139,66 @@ function App() {
   
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
+  // --- Logic for Birthday & Events ---
+  
+  const getBirthdayStatus = () => {
+    if (!activeProfile.dob) return 'NONE';
+    
+    const today = new Date();
+    const dob = new Date(activeProfile.dob);
+    const currentYear = today.getFullYear();
+    
+    // Create Date objects for birthday in current year
+    const bdayThisYear = new Date(currentYear, dob.getMonth(), dob.getDate());
+    
+    // Reset hours for comparison
+    today.setHours(0,0,0,0);
+    bdayThisYear.setHours(0,0,0,0);
+    
+    const oneDay = 24 * 60 * 60 * 1000;
+    const diff = (bdayThisYear.getTime() - today.getTime()) / oneDay;
+
+    if (diff === 0) return 'TODAY';
+    if (diff === 1) return 'TOMORROW';
+    
+    // Handle year wrap around (e.g. today is Dec 31, bday is Jan 1)
+    if (today.getMonth() === 11 && today.getDate() === 31 && dob.getMonth() === 0 && dob.getDate() === 1) {
+        return 'TOMORROW';
+    }
+    
+    return 'NONE';
+  };
+
+  const getSortedEvents = () => {
+      // Return events, prioritizing today's events, then upcoming
+      return [...events].sort((a, b) => {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          return dateA - dateB;
+      });
+  };
+
+  const checkTodaysEvents = () => {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const todayShort = today.substring(5); // MM-DD
+      
+      return events.filter(e => {
+          if (e.isRecurring) {
+              return e.date.endsWith(todayShort);
+          }
+          return e.date === today;
+      });
+  };
+
+  // --- End Logic ---
+
   const loadChildData = async (childId: string) => {
       const mems = await DataService.getMemories(childId);
       const growth = await DataService.getGrowth(childId);
+      const evts = await DataService.getEvents(childId);
       setMemories(mems);
       setGrowthData(growth);
+      setEvents(evts);
   };
 
   const refreshData = async () => {
@@ -169,6 +233,7 @@ function App() {
         if (!activeProfileId) {
              setMemories([]);
              setGrowthData([]);
+             setEvents([]);
         }
         return;
       }
@@ -197,6 +262,7 @@ function App() {
       setProfiles([]);
       setMemories([]);
       setGrowthData([]);
+      setEvents([]);
   };
 
   const toggleLanguage = () => {
@@ -301,6 +367,30 @@ function App() {
       setActiveTab(TabView.HOME);
   };
 
+  // Event Handling
+  const handleSaveEvent = async () => {
+      if(!newEvent.title || !newEvent.date || !activeProfileId) return;
+
+      const event: EventReminder = {
+          id: crypto.randomUUID(),
+          childId: activeProfileId,
+          title: newEvent.title,
+          date: newEvent.date,
+          isRecurring: newEvent.isRecurring,
+          synced: 0
+      };
+
+      await DataService.addEvent(event);
+      await loadChildData(activeProfileId);
+      setShowEventModal(false);
+      setNewEvent({title: '', date: '', isRecurring: false});
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+      setItemToDelete({ type: 'EVENT', id });
+      setShowConfirmModal(true);
+  };
+
   // Request to delete - Shows Modal
   const requestDeleteMemory = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation(); 
@@ -335,6 +425,8 @@ function App() {
         await DataService.deleteGrowth(itemToDelete.id);
      } else if (itemToDelete.type === 'PROFILE') {
         await DataService.deleteProfile(itemToDelete.id);
+     } else if (itemToDelete.type === 'EVENT') {
+        await DataService.deleteEvent(itemToDelete.id);
      }
 
      await refreshData();
@@ -368,9 +460,69 @@ function App() {
       case TabView.HOME:
         const latestMemory = memories[0];
         const currentFormattedDate = new Date().toLocaleDateString('en-GB');
+        
+        const birthdayStatus = getBirthdayStatus();
+        const todaysEvents = checkTodaysEvents();
+        const sortedEvents = getSortedEvents();
 
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
+            {/* Birthday Banners */}
+            {showBirthdayBanner && (
+               <>
+               {birthdayStatus === 'TOMORROW' && (
+                <div className="bg-gradient-to-r from-amber-200 to-yellow-400 rounded-2xl p-4 text-amber-900 shadow-md relative mb-2 animate-zoom-in">
+                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                       <X className="w-4 h-4"/>
+                   </button>
+                   <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 bg-white/30 rounded-full flex items-center justify-center shrink-0">
+                           <Calendar className="w-6 h-6 animate-pulse" />
+                       </div>
+                       <div>
+                           <h3 className="font-bold text-lg">{t('birthday_tomorrow_title')}</h3>
+                           <p className="text-sm opacity-90 leading-tight">{t('birthday_tomorrow_msg').replace('{name}', activeProfile.name)}</p>
+                       </div>
+                   </div>
+                </div>
+               )}
+
+               {birthdayStatus === 'TODAY' && (
+                <div className="bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in">
+                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                       <X className="w-4 h-4"/>
+                   </button>
+                   <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                           <Gift className="w-6 h-6 animate-bounce" />
+                       </div>
+                       <div>
+                           <h3 className="font-bold text-lg">{t('happy_birthday_title')}</h3>
+                           <p className="text-sm opacity-90 leading-tight">{t('happy_birthday_msg').replace('{name}', activeProfile.name)}</p>
+                       </div>
+                   </div>
+                </div>
+               )}
+               </>
+            )}
+
+            {/* Event Today Banner */}
+            {todaysEvents.length > 0 && (
+                 <div className="bg-gradient-to-r from-indigo-400 to-blue-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in">
+                   <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                           <Bell className="w-6 h-6 animate-pulse" />
+                       </div>
+                       <div>
+                           <h3 className="font-bold text-lg">{t('event_today')}</h3>
+                           <ul className="text-sm opacity-90 leading-tight list-disc list-inside">
+                               {todaysEvents.map(e => <li key={e.id}>{e.title}</li>)}
+                           </ul>
+                       </div>
+                   </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-2">
                <div>
                   <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
@@ -394,6 +546,51 @@ function App() {
                       <img src={activeProfile.profileImage} alt="Profile" className="w-full h-full object-cover"/>
                   </div>
                )}
+            </div>
+
+            {/* Important Dates Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-[28px] p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+                <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <CalendarHeart className="w-5 h-5 text-rose-400" />
+                        {t('important_dates')}
+                    </h3>
+                    <button 
+                        onClick={() => setShowEventModal(true)}
+                        className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    >
+                        <Plus className="w-3 h-3"/> {t('add_event')}
+                    </button>
+                </div>
+                
+                {sortedEvents.length > 0 ? (
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        {sortedEvents.map(event => (
+                            <div key={event.id} className="flex-shrink-0 bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 w-40 border border-slate-100 dark:border-slate-700 relative group">
+                                <button 
+                                    onClick={() => handleDeleteEvent(event.id)}
+                                    className="absolute top-1 right-1 p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                >
+                                    <Trash2 className="w-3 h-3"/>
+                                </button>
+                                <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">
+                                    {formatDateDisplay(event.date)}
+                                </div>
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{event.title}</h4>
+                                {event.isRecurring && (
+                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
+                                        <Repeat className="w-3 h-3"/>
+                                        <span>Yearly</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-4 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/30 rounded-xl border-dashed border-2 border-slate-100 dark:border-slate-700">
+                        {t('no_events')}
+                    </div>
+                )}
             </div>
 
             {/* Responsive Grid System */}
@@ -634,6 +831,60 @@ function App() {
               </div>
            </div>
         </div>
+      )}
+
+      {/* Event Add Modal */}
+      {showEventModal && (
+         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEventModal(false)}/>
+            <div className="relative bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-zoom-in">
+               <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-500">
+                        <CalendarHeart className="w-5 h-5"/>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{t('new_event_title')}</h3>
+               </div>
+               
+               <div className="space-y-4 mb-6">
+                   <div>
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('event_name')}</label>
+                       <input 
+                         type="text" 
+                         value={newEvent.title} 
+                         onChange={e => setNewEvent({...newEvent, title: e.target.value})}
+                         className="w-full mt-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100"
+                       />
+                   </div>
+                   <div>
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('event_date')}</label>
+                       <input 
+                         type="date" 
+                         value={newEvent.date} 
+                         onChange={e => setNewEvent({...newEvent, date: e.target.value})}
+                         className="w-full mt-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100"
+                       />
+                   </div>
+                   <div className="flex items-center gap-2 pt-1">
+                       <input 
+                          type="checkbox" 
+                          id="recurring"
+                          checked={newEvent.isRecurring} 
+                          onChange={e => setNewEvent({...newEvent, isRecurring: e.target.checked})}
+                          className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
+                       />
+                       <label htmlFor="recurring" className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('recurring')}</label>
+                   </div>
+               </div>
+
+               <button 
+                  onClick={handleSaveEvent}
+                  disabled={!newEvent.title || !newEvent.date}
+                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                   {t('save_event')}
+               </button>
+            </div>
+         </div>
       )}
 
       {/* Passcode Modal */}
