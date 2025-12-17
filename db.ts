@@ -6,15 +6,18 @@ class LittleMomentsDB extends Dexie {
   memories!: Table<Memory>;
   growth!: Table<GrowthData>;
   profiles!: Table<ChildProfile>;
+
+  constructor() {
+    super('LittleMomentsDB');
+    this.version(1).stores({
+      memories: 'id, childId, date, synced',
+      growth: 'id, childId, month, synced',
+      profiles: 'id, name, synced' 
+    });
+  }
 }
 
-export const db = new LittleMomentsDB('LittleMomentsDB');
-
-db.version(1).stores({
-  memories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced' 
-});
+export const db = new LittleMomentsDB();
 
 export const initDB = async () => {
   try {

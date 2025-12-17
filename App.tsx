@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2 } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
@@ -5,9 +6,11 @@ import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
 import { MemoryDetailModal } from './components/MemoryDetailModal';
+import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
 import { getTranslation } from './translations';
 import { initDB, DataService, syncData } from './db';
+import { supabase } from './supabaseClient';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
@@ -19,9 +22,9 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Auth State - MOCKED for Preview
-  const [session, setSession] = useState<any>({ user: { email: 'preview@guest.com' } });
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default TRUE for preview
+  // Auth State
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Security State
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
@@ -50,6 +53,77 @@ function App() {
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
   const [isEditingGrowth, setIsEditingGrowth] = useState(false);
 
+  // Preferences
+  const [language, setLanguage] = useState<Language>(() => {
+     return (localStorage.getItem('language') as Language) || 'mm';
+  });
+
+  const [theme, setTheme] = useState<Theme>(() => {
+     return (localStorage.getItem('theme') as Theme) || 'light';
+  });
+
+  const t = (key: any) => getTranslation(language, key);
+
+  // Auth Initialization
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+      
+      if (!session) {
+          // Cleanup on logout
+          setProfiles([]);
+          setMemories([]);
+          setGrowthData([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Data Loading - Depends on Session
+  useEffect(() => {
+    if (session) {
+        const loadData = async () => {
+          setIsLoading(true);
+          await initDB();
+          await refreshData();
+          setIsLoading(false);
+        };
+        loadData();
+    }
+    
+    const handleOnline = () => { setIsOnline(true); if(session) syncData(); };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+  }, [session]);
+
+  // Theme & Language
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
   const getTodayLocal = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -72,16 +146,6 @@ function App() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   
-  const [language, setLanguage] = useState<Language>(() => {
-     return (localStorage.getItem('language') as Language) || 'mm';
-  });
-
-  const [theme, setTheme] = useState<Theme>(() => {
-     return (localStorage.getItem('theme') as Theme) || 'light';
-  });
-
-  const t = (key: any) => getTranslation(language, key);
-
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
   const loadChildData = async (childId: string) => {
@@ -119,36 +183,6 @@ function App() {
       }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      await initDB();
-      await refreshData();
-      setIsLoading(false);
-    };
-    loadData();
-    
-    window.addEventListener('online', () => { setIsOnline(true); syncData(); });
-    window.addEventListener('offline', () => setIsOnline(false));
-
-    return () => {
-        window.removeEventListener('online', () => setIsOnline(true));
-        window.removeEventListener('offline', () => setIsOnline(false));
-    };
-  }, []);
-
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
-
   const handleManualSync = async () => {
       setIsSyncing(true);
       await syncData();
@@ -168,7 +202,6 @@ function App() {
       await DataService.saveProfile(profileToSave);
       await refreshData();
       
-      // If it was a new profile, switch to it
       if (isNew || activeProfileId === '') {
           setActiveProfileId(profileToSave.id || '');
           loadChildData(profileToSave.id || '');
@@ -310,7 +343,6 @@ function App() {
       
       setIsUploading(true);
       try {
-          // Upload to: {childId}/memories/{filename}
           const url = await DataService.uploadImage(file, activeProfileId, 'memories');
           setNewMemory(prev => ({ ...prev, imageUrl: url }));
       } catch (error) {
@@ -325,13 +357,9 @@ function App() {
   const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
-          // If creating a new profile, we need a temp ID or handle it differently
-          // For now, let's assume we use a temp ID if not exists
           const targetId = editingProfile.id || 'temp_' + Date.now();
-          
           setIsUploading(true);
           try {
-              // Upload to: {childId}/profile/{filename}
               const url = await DataService.uploadImage(file, targetId, 'profile');
               setEditingProfile(prev => ({ ...prev, id: prev.id || targetId, profileImage: url }));
           } catch (error) {
@@ -392,7 +420,6 @@ function App() {
     if (!newMemory.title) return;
     if (!activeProfileId) return; 
 
-    // If no image uploaded, use a random placeholder (or handle empty case)
     const finalImageUrl = newMemory.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
 
     if (editingId) {
@@ -459,6 +486,14 @@ function App() {
     { id: TabView.GROWTH, icon: Activity, label: 'nav_growth' },
     { id: TabView.SETTINGS, icon: Settings, label: 'nav_settings' },
   ];
+
+  if (authLoading) {
+      return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
+  }
+
+  if (!session) {
+      return <AuthScreen language={language} setLanguage={setLanguage} />;
+  }
 
   const renderContent = () => {
     if (isLoading) {
@@ -711,6 +746,13 @@ function App() {
                                     <button onClick={() => setSettingsView('GROWTH')} className="w-full p-3 flex justify-between hover:bg-slate-50 rounded-xl">{t('manage_growth')}<ChevronRight/></button>
                                     <button onClick={() => setSettingsView('MEMORIES')} className="w-full p-3 flex justify-between hover:bg-slate-50 rounded-xl">{t('manage_memories')}<ChevronRight/></button>
                                 </div>
+                             </div>
+
+                             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mt-6">
+                                <button onClick={() => supabase.auth.signOut()} className="w-full p-4 flex items-center justify-center text-rose-500 font-bold gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                    <LogOut className="w-5 h-5"/>
+                                    {t('logout')}
+                                </button>
                              </div>
                         </div>
                     ) : settingsView === 'GROWTH' ? (
