@@ -22,6 +22,7 @@ function App() {
   
   // Auth State
   const [session, setSession] = useState<any>(null);
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
   // Security State
@@ -71,8 +72,8 @@ function App() {
       setSession(session);
       setAuthLoading(false);
       
-      if (!session) {
-          // Cleanup on logout
+      if (!session && !isGuestMode) {
+          // Cleanup on logout if not guest
           setProfiles([]);
           setMemories([]);
           setGrowthData([]);
@@ -80,11 +81,11 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isGuestMode]);
 
-  // Data Loading - Depends on Session
+  // Data Loading - Depends on Session OR Guest Mode
   useEffect(() => {
-    if (session) {
+    if (session || isGuestMode) {
         const loadData = async () => {
           setIsLoading(true);
           await initDB();
@@ -104,7 +105,7 @@ function App() {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
     };
-  }, [session]);
+  }, [session, isGuestMode]);
 
   // Theme & Language
   useEffect(() => {
@@ -137,7 +138,24 @@ function App() {
   };
 
   const refreshData = async () => {
-      const fetchedProfiles = await DataService.getProfiles();
+      let fetchedProfiles = await DataService.getProfiles();
+      
+      // Auto-create profile for Guest Mode if none exist
+      if (fetchedProfiles.length === 0) {
+          const defaultProfile: ChildProfile = {
+              id: crypto.randomUUID(),
+              name: 'My Child',
+              dob: new Date().toISOString().split('T')[0],
+              gender: 'boy',
+              hospitalName: '',
+              birthLocation: '',
+              country: '',
+              synced: 0
+          };
+          await DataService.saveProfile(defaultProfile);
+          fetchedProfiles = [defaultProfile];
+      }
+
       setProfiles(fetchedProfiles);
 
       let targetId = activeProfileId;
@@ -161,10 +179,24 @@ function App() {
   };
 
   const handleManualSync = async () => {
+      if (!session) {
+          alert("Please sign in to sync your data.");
+          return;
+      }
       setIsSyncing(true);
       await syncData();
       await refreshData();
       setIsSyncing(false);
+  };
+
+  const handleLogout = async () => {
+      if (session) {
+          await supabase.auth.signOut();
+      }
+      setIsGuestMode(false);
+      setProfiles([]);
+      setMemories([]);
+      setGrowthData([]);
   };
 
   const toggleLanguage = () => {
@@ -322,8 +354,9 @@ function App() {
       return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   }
 
-  if (!session) {
-      return <AuthScreen language={language} setLanguage={setLanguage} />;
+  // Show Auth Screen if no session AND not in guest mode
+  if (!session && !isGuestMode) {
+      return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => setIsGuestMode(true)} />;
   }
 
   const renderContent = () => {
@@ -346,9 +379,13 @@ function App() {
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2">
                       {currentFormattedDate}
-                      <span onClick={handleManualSync} className={`cursor-pointer ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>
-                          {isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}
-                      </span>
+                      {session ? (
+                          <span onClick={handleManualSync} className={`cursor-pointer ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>
+                              {isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}
+                          </span>
+                      ) : (
+                          <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">Offline Mode</span>
+                      )}
                   </p>
                </div>
                
@@ -519,6 +556,8 @@ function App() {
                       onDeleteMemory={(id) => requestDeleteMemory(id)}
                       onDeleteGrowth={(id) => requestDeleteGrowth(id)}
                       onDeleteProfile={(id) => requestDeleteProfile(id)}
+                      isGuestMode={isGuestMode}
+                      onGuestLogout={handleLogout}
                     />
                 )}
             </div>
@@ -561,9 +600,9 @@ function App() {
           </nav>
           
           <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
-             <button onClick={() => supabase.auth.signOut()} className="w-full flex items-center gap-3 px-4 py-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl transition-colors text-sm font-bold">
+             <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-bold ${isGuestMode ? 'text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/10' : 'text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10'}`}>
                 <LogOut className="w-5 h-5"/>
-                {t('logout')}
+                {isGuestMode ? "Sign In to Sync" : t('logout')}
              </button>
           </div>
       </aside>

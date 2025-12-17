@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Loader2, Save } from 'lucide-react';
+import { Camera, Loader2, Save, Tag, X } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -33,11 +33,14 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  const [formState, setFormState] = useState<{title: string; desc: string; date: string; imageUrl?: string}>({ 
+  const [formState, setFormState] = useState<{title: string; desc: string; date: string; imageUrl?: string; tags: string[]}>({ 
     title: '', 
     desc: '', 
-    date: getTodayLocal() 
+    date: getTodayLocal(),
+    tags: []
   });
+
+  const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
     if (editMemory) {
@@ -45,14 +48,16 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: editMemory.title,
             desc: editMemory.description,
             date: editMemory.date,
-            imageUrl: editMemory.imageUrl
+            imageUrl: editMemory.imageUrl,
+            tags: editMemory.tags || []
         });
     } else {
         setFormState({ 
             title: '', 
             desc: '', 
             date: getTodayLocal(),
-            imageUrl: undefined 
+            imageUrl: undefined,
+            tags: []
         });
     }
   }, [editMemory]);
@@ -78,6 +83,21 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     }
   };
 
+  const handleAddTag = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = tagInput.trim();
+      if (val && !formState.tags.includes(val)) {
+        setFormState(prev => ({ ...prev, tags: [...prev.tags, val] }));
+      }
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setFormState(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tagToRemove) }));
+  };
+
   const handleSave = async () => {
     if (!formState.title) return;
     if (!activeProfileId) return; 
@@ -85,6 +105,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     setIsSaving(true);
     try {
         const finalImageUrl = formState.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
+        const finalTags = formState.tags.length > 0 ? formState.tags : [];
 
         if (editMemory) {
           const updated: Memory = { 
@@ -94,6 +115,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             description: formState.desc, 
             imageUrl: finalImageUrl,
             date: formState.date,
+            tags: finalTags,
             synced: 0 // Mark as dirty
           };
           await DataService.addMemory(updated); 
@@ -105,7 +127,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             description: formState.desc, 
             date: formState.date, 
             imageUrl: finalImageUrl,
-            tags: ['New Memory'],
+            tags: finalTags,
             synced: 0
           };
           await DataService.addMemory(memory);
@@ -147,25 +169,50 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
                 </div>
                 <div className="space-y-4">
-                <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
-                <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
-                <textarea value={formState.desc} onChange={e => setFormState({...formState, desc: e.target.value})} placeholder={t('form_desc_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none h-32 resize-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
-                <button 
-                    onClick={handleSave} 
-                    disabled={isUploading || isSaving || !formState.title} 
-                    className={`w-full py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-lg shadow-primary/30 active:scale-95 transition-transform'}`}
-                >
-                    {isSaving ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin"/>
-                            {t('saving')}
-                        </>
-                    ) : (
-                        <>
-                            {editMemory ? t('update_btn') : t('record_btn')}
-                        </>
-                    )}
-                </button>
+                  <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
+                  <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
+                  
+                  {/* Tags Input */}
+                  <div>
+                      <div className="flex flex-wrap gap-2 mb-2 min-h-[24px]">
+                          {formState.tags.map(tag => (
+                              <span key={tag} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                                  #{tag}
+                                  <button onClick={() => removeTag(tag)} className="ml-1 hover:text-rose-500"><X className="w-3 h-3"/></button>
+                              </span>
+                          ))}
+                      </div>
+                      <div className="relative">
+                          <Tag className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                          <input 
+                              type="text" 
+                              value={tagInput}
+                              onChange={e => setTagInput(e.target.value)}
+                              onKeyDown={handleAddTag}
+                              placeholder={t('tags_placeholder')}
+                              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50 text-sm"
+                              disabled={isSaving}
+                          />
+                      </div>
+                  </div>
+
+                  <textarea value={formState.desc} onChange={e => setFormState({...formState, desc: e.target.value})} placeholder={t('form_desc_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none h-32 resize-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
+                  <button 
+                      onClick={handleSave} 
+                      disabled={isUploading || isSaving || !formState.title} 
+                      className={`w-full py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-lg shadow-primary/30 active:scale-95 transition-transform'}`}
+                  >
+                      {isSaving ? (
+                          <>
+                              <Loader2 className="w-5 h-5 animate-spin"/>
+                              {t('saving')}
+                          </>
+                      ) : (
+                          <>
+                              {editMemory ? t('update_btn') : t('record_btn')}
+                          </>
+                      )}
+                  </button>
                 </div>
         </div>
     </div>

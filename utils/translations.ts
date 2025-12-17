@@ -47,6 +47,7 @@ export const translations = {
   update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
   cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
   date_label: { en: "Date", mm: "နေ့စွဲ" },
+  tags_placeholder: { en: "Add tags (press Enter)...", mm: "တဂ်ထည့်ရန် (Enter နှိပ်ပါ)..." },
   saving: { en: "Saving...", mm: "သိမ်းဆည်းနေသည်..." },
   uploading: { en: "Uploading...", mm: "ပုံတင်နေသည်..." },
 
@@ -86,6 +87,11 @@ export const translations = {
   about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
+  currently_active: { en: "Currently Active", mm: "လက်ရှိရွေးချယ်ထားသည်" },
+  switch_profile: { en: "Switch Profile", mm: "အကောင့်ပြောင်းရန်" },
+  add_new_profile: { en: "Add New", mm: "အသစ်ထည့်မည်" },
+  age_years: { en: "yrs", mm: "နှစ်" },
+  age_months: { en: "mos", mm: "လ" },
   
   // New Profile Fields
   child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },

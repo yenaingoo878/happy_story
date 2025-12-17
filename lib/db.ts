@@ -45,6 +45,13 @@ const cleanForSync = (doc: any) => {
 export const syncData = async () => {
     if (!navigator.onLine) return;
 
+    // IMPORTANT: Check if user is logged in before syncing
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        console.log("No active session, skipping sync.");
+        return;
+    }
+
     console.log("Starting Sync...");
 
     try {
@@ -146,6 +153,13 @@ export const DataService = {
             return data.publicUrl;
         } catch (error) {
             console.error("Upload failed:", error);
+            // Fallback for offline mode: return a local object URL (temporary)
+            // or just throw if strictly online required. 
+            // For Guest Mode without Supabase, we might want to convert to Base64 (not implemented here for simplicity)
+            // or just warn the user.
+             if (!navigator.onLine) {
+                 return URL.createObjectURL(file);
+             }
             throw error;
         }
     },
@@ -167,7 +181,10 @@ export const DataService = {
         await db.memories.delete(id);
         // Also delete from Supabase
         if (navigator.onLine) {
-            await supabase.from('memories').delete().eq('id', id);
+             const { data: { session } } = await supabase.auth.getSession();
+             if (session) {
+                await supabase.from('memories').delete().eq('id', id);
+             }
         }
     },
 
@@ -187,7 +204,10 @@ export const DataService = {
     deleteGrowth: async (id: string) => {
         await db.growth.delete(id);
          if (navigator.onLine) {
-            await supabase.from('growth_data').delete().eq('id', id);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.from('growth_data').delete().eq('id', id);
+            }
         }
     },
     
@@ -204,7 +224,10 @@ export const DataService = {
     deleteProfile: async (id: string) => {
         await db.profiles.delete(id);
          if (navigator.onLine) {
-            await supabase.from('child_profile').delete().eq('id', id);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.from('child_profile').delete().eq('id', id);
+            }
         }
     }
 };

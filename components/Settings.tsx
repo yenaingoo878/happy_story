@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check, Star } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -32,6 +32,10 @@ interface SettingsProps {
   onDeleteMemory: (id: string) => void;
   onDeleteGrowth: (id: string) => void;
   onDeleteProfile: (id: string) => void;
+
+  // Guest Mode
+  isGuestMode?: boolean;
+  onGuestLogout?: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -39,7 +43,8 @@ export const Settings: React.FC<SettingsProps> = ({
   profiles, activeProfileId, onProfileChange, onRefreshData,
   passcode, isDetailsUnlocked, onUnlockRequest,
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
-  growthData, memories, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile
+  growthData, memories, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile,
+  isGuestMode, onGuestLogout
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>('MAIN');
@@ -71,6 +76,26 @@ export const Settings: React.FC<SettingsProps> = ({
         return () => clearTimeout(timer);
     }
   }, [saveSuccess]);
+
+  const calculateAge = (dobString: string) => {
+    if (!dobString) return '';
+    const birthDate = new Date(dobString);
+    const today = new Date();
+    
+    let years = today.getFullYear() - birthDate.getFullYear();
+    let months = today.getMonth() - birthDate.getMonth();
+    
+    if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+        years--;
+        months += 12;
+    }
+    
+    if (years === 0) {
+        return `${months} ${t('age_months')}`;
+    }
+    
+    return `${years} ${t('age_years')}, ${months} ${t('age_months')}`;
+  };
 
   const triggerProfileImageInput = () => {
     if(!isUploading && !isSavingProfile) profileImageInputRef.current?.click();
@@ -168,6 +193,16 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const handleAuthAction = () => {
+      if (isGuestMode && onGuestLogout) {
+          onGuestLogout();
+      } else {
+          supabase.auth.signOut();
+      }
+  };
+
+  const currentProfile = profiles.find(p => p.id === activeProfileId);
+
   if (view === 'GROWTH') {
       return (
         <div className="max-w-2xl mx-auto">
@@ -221,8 +256,8 @@ export const Settings: React.FC<SettingsProps> = ({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-        <div className="mb-6"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
+    <div className="space-y-8 max-w-2xl mx-auto">
+        <div className="mb-2"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
         
         {/* Security Lock Overlay for Details */}
         {passcode && !isDetailsUnlocked ? (
@@ -239,162 +274,211 @@ export const Settings: React.FC<SettingsProps> = ({
                 {t('tap_to_unlock')}
             </button>
             
-            {/* Show profile switcher even when locked, but clicking triggers unlock */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 mt-4 max-w-full justify-center">
+            {/* Show profile switcher preview even when locked (blurred or just list) */}
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 mt-4 max-w-full justify-center opacity-50 pointer-events-none">
                 {profiles.map(p => (
-                    <button key={p.id} onClick={() => selectProfileToEdit(p)} className={`flex flex-col items-center flex-shrink-0 transition-all opacity-60`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden border-slate-200`}>
-                            {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-6 h-6 text-slate-300"/>}
-                        </div>
-                    </button>
+                    <div key={p.id} className="w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center bg-slate-100">
+                       <Baby className="w-5 h-5 text-slate-400"/>
+                    </div>
                 ))}
             </div>
         </div>
         ) : (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
-            {/* Hide button if unlocked */}
-            {passcode && isDetailsUnlocked && (
-                <button onClick={onHideDetails} className="absolute top-4 right-4 text-xs text-slate-400 hover:text-primary flex items-center gap-1">
-                    <Lock className="w-3 h-3"/> {t('hide_details')}
-                </button>
-            )}
-
-            <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-4">
-            {profiles.map(p => (
-                <button key={p.id} onClick={() => selectProfileToEdit(p)} className={`flex flex-col items-center flex-shrink-0 transition-all ${editingProfile.id === p.id ? 'opacity-100 scale-105' : 'opacity-60'}`}>
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200'}`}>
-                        {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-8 h-8 text-slate-300"/>}
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{p.name || 'New'}</span>
-                </button>
-            ))}
-            <button onClick={createNewProfile} disabled={isSavingProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100 disabled:opacity-30">
-                <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-6 h-6 text-slate-400"/></div>
-                <span className="text-[10px] font-bold text-slate-500">Add</span>
-            </button>
-            </div>
-            
-            <div className="space-y-4">
-                <div className="flex justify-center mb-2 relative">
-                    <div className={`relative group ${!isUploading && !isSavingProfile ? 'cursor-pointer' : 'cursor-wait opacity-80'}`} onClick={triggerProfileImageInput}>
-                    <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-600">
-                        {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary"/> : 
-                            editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-10 h-10 text-slate-300"/>}
-                    </div>
-                    <div className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-white shadow-sm"><Camera className="w-3 h-3"/></div>
-                    <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" disabled={isUploading || isSavingProfile} />
-                    </div>
-                    
-                    {/* Delete Profile Button (only if ID exists) */}
-                    {editingProfile.id && !isSavingProfile && (
-                        <button onClick={() => onDeleteProfile(editingProfile.id!)} className="absolute top-0 right-0 p-2 text-rose-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-full">
-                            <Trash2 className="w-4 h-4" />
+        <div className="animate-fade-in">
+            {/* Active Profile Hero Card */}
+            {currentProfile && (
+                <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-slate-800/50 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 mb-8 transition-all">
+                    {/* Hide button */}
+                     {passcode && (
+                        <button onClick={onHideDetails} className="absolute top-4 right-4 text-xs text-slate-400 hover:text-primary flex items-center gap-1 z-10 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full">
+                            <Lock className="w-3 h-3"/> {t('hide_details')}
                         </button>
                     )}
+                    
+                    <div className="flex items-center gap-5 relative z-10">
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-[3px] border-white dark:border-slate-700 shadow-md overflow-hidden shrink-0 bg-white dark:bg-slate-700">
+                             {currentProfile.profileImage ? (
+                                <img src={currentProfile.profileImage} className="w-full h-full object-cover"/>
+                             ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-600">
+                                    <Baby className="w-8 h-8 text-slate-300 dark:text-slate-400"/>
+                                </div>
+                             )}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{t('currently_active')}</span>
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-tight mb-1">{currentProfile.name}</h2>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                <span>{calculateAge(currentProfile.dob)}</span>
+                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                <span className={currentProfile.gender === 'boy' ? 'text-blue-400' : 'text-pink-400'}>
+                                    {currentProfile.gender === 'boy' ? t('boy') : t('girl')}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {/* Decorative Background Icon */}
+                    <Baby className="absolute -bottom-6 -right-6 w-40 h-40 text-slate-100 dark:text-slate-700/50 rotate-12 z-0" strokeWidth={1} />
                 </div>
+            )}
 
-                <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_name_label')}</label>
-                    <div className="relative mt-1">
-                    <Baby className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder="e.g. Baby" />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_dob')}</label>
-                        <div className="relative mt-1">
-                        <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('birth_time')}</label>
-                        <div className="relative mt-1">
-                        <Clock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('gender_label')}</label>
-                        <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 mt-1 h-[46px]">
-                            <button 
-                            onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
-                            disabled={isSavingProfile}
-                            className={`flex-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
-                            >
-                            {t('boy')}
-                            </button>
-                            <button 
-                            onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
-                            disabled={isSavingProfile}
-                            className={`flex-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
-                            >
-                            {t('girl')}
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('blood_type')}</label>
-                        <div className="relative mt-1">
-                        <Droplet className="absolute left-3 top-3.5 w-4 h-4 text-rose-400" />
-                        <select 
-                            value={editingProfile.bloodType || ''} 
-                            onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})}
-                            disabled={isSavingProfile}
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm appearance-none disabled:opacity-50"
-                        >
-                            <option value="">-</option>
-                            <option value="A+">A+</option>
-                            <option value="A-">A-</option>
-                            <option value="B+">B+</option>
-                            <option value="B-">B-</option>
-                            <option value="O+">O+</option>
-                            <option value="O-">O-</option>
-                            <option value="AB+">AB+</option>
-                            <option value="AB-">AB-</option>
-                        </select>
-                        </div>
-                    </div>
+            {/* Switcher & Add New Section */}
+            <div className="mb-8">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('switch_profile')}</h3>
+                    <button onClick={createNewProfile} disabled={isSavingProfile} className="text-xs font-bold text-primary flex items-center hover:underline">
+                        <UserPlus className="w-3 h-3 mr-1"/> {t('add_new_profile')}
+                    </button>
                 </div>
                 
-                <div>
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('hospital_name')}</label>
-                    <div className="relative mt-1">
-                    <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder={t('hospital_placeholder')} />
-                    </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {profiles.map(p => (
+                        <button 
+                            key={p.id} 
+                            onClick={() => selectProfileToEdit(p)} 
+                            className={`group flex items-center gap-3 pr-4 pl-1 py-1 rounded-full border transition-all duration-300 flex-shrink-0 ${
+                                editingProfile.id === p.id 
+                                ? 'bg-white dark:bg-slate-800 border-primary shadow-sm ring-1 ring-primary/20' 
+                                : 'bg-transparent border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border-2 ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200 dark:border-slate-600'}`}>
+                                {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-5 h-5 text-slate-300"/>}
+                            </div>
+                            <span className={`text-sm font-bold ${editingProfile.id === p.id ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500'}`}>
+                                {p.name}
+                            </span>
+                            {editingProfile.id === p.id && <div className="w-2 h-2 bg-primary rounded-full ml-1"></div>}
+                        </button>
+                    ))}
                 </div>
+            </div>
+            
+            {/* Edit Form */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 relative">
+                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
+                    <Pencil className="w-4 h-4 text-slate-400"/>
+                    {editingProfile.id ? t('about_child') : t('add_new_profile')}
+                 </h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-4">
+                    <div className="flex justify-center mb-6 relative">
+                        <div className={`relative group ${!isUploading && !isSavingProfile ? 'cursor-pointer' : 'cursor-wait opacity-80'}`} onClick={triggerProfileImageInput}>
+                        <div className="w-28 h-28 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-4 border-white dark:border-slate-600 shadow-sm ring-1 ring-slate-100 dark:ring-transparent">
+                            {isUploading ? <Loader2 className="w-8 h-8 animate-spin text-primary"/> : 
+                                editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Camera className="w-8 h-8 text-slate-300"/>}
+                        </div>
+                        <div className="absolute bottom-1 right-1 bg-slate-800 text-white p-2 rounded-full shadow-md"><Camera className="w-3 h-3"/></div>
+                        <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" disabled={isUploading || isSavingProfile} />
+                        </div>
+                        
+                        {/* Delete Profile Button (only if ID exists) */}
+                        {editingProfile.id && !isSavingProfile && (
+                            <button onClick={() => onDeleteProfile(editingProfile.id!)} className="absolute top-0 right-0 p-2 text-rose-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-full" title={t('delete')}>
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+
                     <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('city_label')}</label>
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('child_name_label')}</label>
                         <div className="relative mt-1">
-                        <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('location_placeholder')} />
+                        <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder="e.g. Baby" />
                         </div>
                     </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('country_label')}</label>
-                        <div className="relative mt-1">
-                        <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('country_placeholder')} />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('child_dob')}</label>
+                            <div className="relative mt-1">
+                            <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('birth_time')}</label>
+                            <div className="relative mt-1">
+                            <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <button 
-                    onClick={handleSaveProfile} 
-                    disabled={isSavingProfile}
-                    className={`w-full py-3.5 text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4 transition-all active:scale-95 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-primary hover:bg-rose-400'} ${isSavingProfile ? 'cursor-not-allowed opacity-80' : ''}`}
-                >
-                    {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin"/> : saveSuccess ? <Check className="w-5 h-5"/> : <Save className="w-5 h-5"/>}
-                    {isSavingProfile ? t('saving') : saveSuccess ? t('profile_saved') : t('save_changes')}
-                </button>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('gender_label')}</label>
+                            <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-2xl p-1 mt-1 h-[54px]">
+                                <button 
+                                onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
+                                disabled={isSavingProfile}
+                                className={`flex-1 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                >
+                                {t('boy')}
+                                </button>
+                                <button 
+                                onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
+                                disabled={isSavingProfile}
+                                className={`flex-1 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
+                                >
+                                {t('girl')}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('blood_type')}</label>
+                            <div className="relative mt-1">
+                            <select 
+                                value={editingProfile.bloodType || ''} 
+                                onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})}
+                                disabled={isSavingProfile}
+                                className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 text-sm appearance-none disabled:opacity-50"
+                            >
+                                <option value="">-</option>
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                            </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('hospital_name')}</label>
+                        <div className="relative mt-1">
+                        <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder={t('hospital_placeholder')} />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('city_label')}</label>
+                            <div className="relative mt-1">
+                            <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('location_placeholder')} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-3 uppercase tracking-wider">{t('country_label')}</label>
+                            <div className="relative mt-1">
+                            <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} disabled={isSavingProfile} className="w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary transition-all text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('country_placeholder')} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={handleSaveProfile} 
+                        disabled={isSavingProfile}
+                        className={`w-full py-4 text-white font-bold rounded-2xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4 transition-all active:scale-95 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-primary hover:bg-rose-400'} ${isSavingProfile ? 'cursor-not-allowed opacity-80' : ''}`}
+                    >
+                        {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin"/> : saveSuccess ? <Check className="w-5 h-5"/> : <Save className="w-5 h-5"/>}
+                        {isSavingProfile ? t('saving') : saveSuccess ? t('profile_saved') : t('save_changes')}
+                    </button>
+                </div>
             </div>
         </div>
         )}
@@ -482,9 +566,9 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mt-6">
-        <button onClick={() => supabase.auth.signOut()} className="w-full p-4 flex items-center justify-center text-rose-500 font-bold gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+        <button onClick={handleAuthAction} className={`w-full p-4 flex items-center justify-center font-bold gap-2 transition-colors ${isGuestMode ? 'text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/10' : 'text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}`}>
             <LogOut className="w-5 h-5"/>
-            {t('logout')}
+            {isGuestMode ? "Sign In to Sync" : t('logout')}
         </button>
         </div>
     </div>

@@ -1,16 +1,17 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, UserCircle2 } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../utils/translations';
 
 interface AuthScreenProps {
   language: Language;
   setLanguage: (lang: Language) => void;
+  onGuestLogin: () => void; // New prop for guest mode
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, onGuestLogin }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -101,6 +102,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
             </div>
           )}
 
+          {/* Guest Mode Button */}
+          <button 
+            onClick={onGuestLogin}
+            className="w-full py-3.5 mb-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            <UserCircle2 className="w-5 h-5" />
+            <span>{language === 'mm' ? 'အကောင့်မဝင်ဘဲ အသုံးပြုမည်' : 'Continue as Guest'}</span>
+          </button>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+              <span className="bg-white dark:bg-slate-800 px-3 text-slate-400 dark:text-slate-500">{language === 'mm' ? 'သို့မဟုတ်' : 'OR'}</span>
+            </div>
+         </div>
+
          {/* Google Login Button */}
          <button 
            onClick={handleGoogleLogin}
@@ -119,15 +138,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
            )}
            <span className="text-sm font-bold">{googleLoading ? t('logging_in') : t('signin_google')}</span>
          </button>
-
-         <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
-              <span className="bg-white dark:bg-slate-800 px-3 text-slate-400 dark:text-slate-500">{t('or_email')}</span>
-            </div>
-         </div>
 
          {/* Email/Password Form */}
          <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
