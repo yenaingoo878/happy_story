@@ -27,6 +27,7 @@ export const initDB = async () => {
         await db.open();
       }
       console.log("Local Database Initialized");
+      // Only sync if Supabase is actually set up
       if (isSupabaseConfigured()) {
         syncData(); 
       }
@@ -41,11 +42,11 @@ const cleanForSync = (doc: any) => {
 };
 
 export const syncData = async () => {
-    // Abort if Supabase is not configured or user is offline
+    // CRITICAL: Exit immediately if Supabase is not configured or offline
     if (!navigator.onLine || !isSupabaseConfigured()) return;
 
     try {
-        // FIX: Cast supabase.auth to any to resolve getSession property error
+        // Guarded call to Supabase auth
         const authResult = await (supabase.auth as any).getSession();
         const session = authResult?.data?.session || authResult?.session;
         if (!session) return;

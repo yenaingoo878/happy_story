@@ -2,11 +2,16 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-// FIX: Initialize Gemini API client using process.env.API_KEY directly as per guidelines
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// The key is expected to be valid, but we handle it defensively
+const apiKey = process.env.API_KEY;
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
+  if (!apiKey) {
+    throw new Error(language === 'mm' ? "AI API Key မရှိပါ။" : "AI API Key is missing.");
+  }
+
   try {
+    const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -17,7 +22,6 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
       Do not include markdown formatting or bold text, just plain text paragraphs.
     `;
 
-    // FIX: Use gemini-3-flash-preview for text generation tasks as per guidelines
     const response = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
       contents: prompt,
@@ -35,7 +39,12 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
+    if (!apiKey) {
+      return language === 'mm' ? "AI အင်္ဂါရပ်များကို အသုံးပြုရန် API Key လိုအပ်ပါသည်။" : "AI features require an API Key.";
+    }
+
     try {
+        const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -47,7 +56,6 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
           Focus on the steady progress. Do not give medical advice, just general encouragement about their growth trend.
         `;
 
-        // FIX: Use gemini-3-flash-preview for text generation tasks as per guidelines
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
@@ -61,7 +69,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
     } catch (error) {
         console.error("Error analyzing growth:", error);
         return language === 'mm' 
-            ? "ကွန်ဟက်ချိတ်ဆက်မှု အခက်အခဲရှိနေပါသည်။" 
-            : "Connection error. Please try again.";
+            ? "ကွန်ဟက်ချိတ်ဆက်မှု သို့မဟုတ် API Key အမှားရှိနေပါသည်။" 
+            : "Connection or API Key error. Please try again.";
     }
 }
