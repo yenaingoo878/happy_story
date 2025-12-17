@@ -1,38 +1,7 @@
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Fix: Cast process to any as 'cwd' property might be missing on Process type definition in this context
-  const env = loadEnv(mode, (process as any).cwd(), '');
-
-  return {
-    plugins: [
-      react()
-    ],
-    define: {
-      // Polyfill process.env.API_KEY so it is available at runtime
-      // Support both API_KEY and GEMINI_API_KEY
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.GEMINI_API_KEY || '')
-    },
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-      // Increase warning limit to prevent build warnings for large vendor files
-      chunkSizeWarningLimit: 2000,
-      rollupOptions: {
-        output: {
-          // Use a simple vendor chunk strategy to avoid circular dependency issues
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-          }
-        }
-      }
-    },
-    server: {
-      port: 3000,
-    }
-  };
-});
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})

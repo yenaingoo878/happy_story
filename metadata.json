@@ -1,5 +1,5 @@
 {
-  "name": "Little Moments",
+  "name": "Little Moments (အမှတ်တရလေးများ)",
   "description": "A beautiful and clean web app to track a child's growth, store precious memories, and generate bedtime stories using AI.",
   "requestFramePermissions": [
     "camera",
