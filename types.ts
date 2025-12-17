@@ -27,10 +27,11 @@ export interface ChildProfile {
   name: string;
   profileImage?: string; // Added profile image
   dob: string;
-  birthTime?: string;
+  birthTime?: string; // Time of birth
   hospitalName?: string;
   birthLocation?: string; // Maps to City
   country?: string; // Added Country
+  bloodType?: string; // Added Blood Type
   gender: 'boy' | 'girl';
   synced?: number;
 }

@@ -88,6 +88,8 @@ export const translations = {
   // New Profile Fields
   child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },
   child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
+  birth_time: { en: "Time of Birth", mm: "မွေးဖွားချိန်" },
+  blood_type: { en: "Blood Type", mm: "သွေးအမျိုးအစား" },
   gender_label: { en: "Gender", mm: "ကျား/မ" },
   boy: { en: "Boy", mm: "သားသား" },
   girl: { en: "Girl", mm: "မီးမီး" },

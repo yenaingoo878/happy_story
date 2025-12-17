@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2, MapPin, Building2, Globe, Heart } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2, MapPin, Building2, Globe, Heart, Clock, Droplet } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -50,7 +50,9 @@ function App() {
     gender: 'boy',
     hospitalName: '',
     birthLocation: '',
-    country: ''
+    country: '',
+    birthTime: '',
+    bloodType: ''
   }); 
 
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
@@ -226,7 +228,9 @@ function App() {
          gender: 'boy',
          hospitalName: '',
          birthLocation: '',
-         country: ''
+         country: '',
+         birthTime: '',
+         bloodType: ''
       });
       setIsDetailsUnlocked(false);
   };
@@ -694,98 +698,190 @@ function App() {
                     settingsView === 'MAIN' ? (
                         <div className="space-y-6">
                              <div className="mb-6"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
-                             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-4">
-                                   {profiles.map(p => (
-                                      <button key={p.id} onClick={() => selectProfileToEdit(p)} className={`flex flex-col items-center flex-shrink-0 transition-all ${editingProfile.id === p.id ? 'opacity-100 scale-105' : 'opacity-60'}`}>
-                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200'}`}>
-                                            {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-8 h-8 text-slate-300"/>}
-                                         </div>
-                                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{p.name || 'New'}</span>
-                                      </button>
-                                   ))}
-                                   <button onClick={createNewProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100">
-                                       <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-6 h-6 text-slate-400"/></div>
-                                       <span className="text-[10px] font-bold text-slate-500">Add</span>
-                                   </button>
+                             
+                             {/* Security Lock Overlay for Details */}
+                             {passcode && !isDetailsUnlocked ? (
+                                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center text-center space-y-4">
+                                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                                        <Lock className="w-8 h-8 text-slate-400"/>
+                                    </div>
+                                    <h3 className="font-bold text-lg">{t('private_info')}</h3>
+                                    <p className="text-sm text-slate-500">{t('locked_msg')}</p>
+                                    <button 
+                                      onClick={handleUnlockClick}
+                                      className="px-6 py-2 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-rose-400 transition-colors"
+                                    >
+                                      {t('tap_to_unlock')}
+                                    </button>
                                 </div>
-                                
-                                <div className="space-y-4">
-                                     <div className="flex justify-center mb-2">
-                                        <div className="relative group cursor-pointer" onClick={triggerProfileImageInput}>
-                                           <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-600">
-                                              {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary"/> : 
-                                                editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-10 h-10 text-slate-300"/>}
-                                           </div>
-                                           <div className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-white shadow-sm"><Camera className="w-3 h-3"/></div>
-                                           <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
-                                        </div>
-                                     </div>
+                             ) : (
+                                <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+                                    {/* Hide button if unlocked */}
+                                    {passcode && isDetailsUnlocked && (
+                                       <button onClick={() => setIsDetailsUnlocked(false)} className="absolute top-4 right-4 text-xs text-slate-400 hover:text-primary flex items-center gap-1">
+                                          <Lock className="w-3 h-3"/> {t('hide_details')}
+                                       </button>
+                                    )}
 
-                                     <div>
-                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_name_label')}</label>
-                                        <div className="relative mt-1">
-                                           <Baby className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                                           <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder="e.g. Baby" />
-                                        </div>
-                                     </div>
-
-                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_dob')}</label>
-                                            <div className="relative mt-1">
-                                              <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                                              <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                                    <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-4">
+                                    {profiles.map(p => (
+                                        <button key={p.id} onClick={() => selectProfileToEdit(p)} className={`flex flex-col items-center flex-shrink-0 transition-all ${editingProfile.id === p.id ? 'opacity-100 scale-105' : 'opacity-60'}`}>
+                                            <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200'}`}>
+                                                {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-8 h-8 text-slate-300"/>}
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{p.name || 'New'}</span>
+                                        </button>
+                                    ))}
+                                    <button onClick={createNewProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100">
+                                        <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-6 h-6 text-slate-400"/></div>
+                                        <span className="text-[10px] font-bold text-slate-500">Add</span>
+                                    </button>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        <div className="flex justify-center mb-2">
+                                            <div className="relative group cursor-pointer" onClick={triggerProfileImageInput}>
+                                            <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-600">
+                                                {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary"/> : 
+                                                    editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-10 h-10 text-slate-300"/>}
+                                            </div>
+                                            <div className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-white shadow-sm"><Camera className="w-3 h-3"/></div>
+                                            <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
                                             </div>
                                         </div>
+
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('gender_label')}</label>
-                                            <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 mt-1 h-[46px]">
-                                                <button 
-                                                  onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
-                                                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_name_label')}</label>
+                                            <div className="relative mt-1">
+                                            <Baby className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                            <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder="e.g. Baby" />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_dob')}</label>
+                                                <div className="relative mt-1">
+                                                <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                                <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('birth_time')}</label>
+                                                <div className="relative mt-1">
+                                                <Clock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                                <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('gender_label')}</label>
+                                                <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 mt-1 h-[46px]">
+                                                    <button 
+                                                    onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
+                                                    className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                                    >
+                                                    {t('boy')}
+                                                    </button>
+                                                    <button 
+                                                    onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
+                                                    className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
+                                                    >
+                                                    {t('girl')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('blood_type')}</label>
+                                                <div className="relative mt-1">
+                                                <Droplet className="absolute left-3 top-3.5 w-4 h-4 text-rose-400" />
+                                                <select 
+                                                    value={editingProfile.bloodType || ''} 
+                                                    onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})}
+                                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm appearance-none"
                                                 >
-                                                  {t('boy')}
-                                                </button>
-                                                <button 
-                                                  onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
-                                                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
-                                                >
-                                                  {t('girl')}
-                                                </button>
+                                                    <option value="">-</option>
+                                                    <option value="A+">A+</option>
+                                                    <option value="A-">A-</option>
+                                                    <option value="B+">B+</option>
+                                                    <option value="B-">B-</option>
+                                                    <option value="O+">O+</option>
+                                                    <option value="O-">O-</option>
+                                                    <option value="AB+">AB+</option>
+                                                    <option value="AB-">AB-</option>
+                                                </select>
+                                                </div>
                                             </div>
                                         </div>
-                                     </div>
-                                     
-                                     <div>
-                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('hospital_name')}</label>
-                                        <div className="relative mt-1">
-                                           <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                                           <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder={t('hospital_placeholder')} />
-                                        </div>
-                                     </div>
-
-                                     <div className="grid grid-cols-2 gap-4">
+                                        
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('city_label')}</label>
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('hospital_name')}</label>
                                             <div className="relative mt-1">
-                                               <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                                               <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('location_placeholder')} />
+                                            <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                            <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder={t('hospital_placeholder')} />
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('country_label')}</label>
-                                            <div className="relative mt-1">
-                                               <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                                               <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('country_placeholder')} />
-                                            </div>
-                                        </div>
-                                     </div>
 
-                                     <button onClick={handleSaveProfile} className="w-full py-3.5 bg-primary hover:bg-rose-400 transition-colors text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4">
-                                         <Save className="w-4 h-4"/>
-                                         {t('save_changes')}
-                                     </button>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('city_label')}</label>
+                                                <div className="relative mt-1">
+                                                <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                                <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('location_placeholder')} />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('country_label')}</label>
+                                                <div className="relative mt-1">
+                                                <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                                <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('country_placeholder')} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button onClick={handleSaveProfile} className="w-full py-3.5 bg-primary hover:bg-rose-400 transition-colors text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4">
+                                            <Save className="w-4 h-4"/>
+                                            {t('save_changes')}
+                                        </button>
+                                    </div>
+                                </div>
+                             )}
+
+                             {/* Security Settings */}
+                             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-700/30 font-bold text-xs uppercase text-slate-500 flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-slate-400"/>
+                                    {t('security_title')}
+                                </div>
+                                <div className="p-2">
+                                    {!passcode ? (
+                                        <button onClick={openPasscodeSetup} className="w-full p-3 flex justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl text-left">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-4 h-4"/></div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span>
+                                            </div>
+                                            <ChevronRight className="text-slate-300"/>
+                                        </button>
+                                    ) : (
+                                        <>
+                                        <button onClick={openChangePasscode} className="w-full p-3 flex justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl text-left mb-1">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500"><KeyRound className="w-4 h-4"/></div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span>
+                                            </div>
+                                            <ChevronRight className="text-slate-300"/>
+                                        </button>
+                                        <button onClick={openRemovePasscode} className="w-full p-3 flex justify-between hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-xl text-left">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500"><Unlock className="w-4 h-4"/></div>
+                                                <span className="font-bold text-slate-700 dark:text-slate-200">{t('remove_passcode')}</span>
+                                            </div>
+                                            <ChevronRight className="text-slate-300"/>
+                                        </button>
+                                        </>
+                                    )}
                                 </div>
                              </div>
 
@@ -899,6 +995,60 @@ function App() {
         <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => requestDeleteMemory(selectedMemory!.id)} />
       )}
       
+      {/* Passcode Modal */}
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPasscodeModal(false)}/>
+           <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-zoom-in">
+              <h3 className="text-xl font-bold text-center text-slate-800 dark:text-slate-100 mb-6">{getModalTitle()}</h3>
+              <div className="flex justify-center mb-6">
+                 <div className="flex gap-4">
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-500 ${passcodeInput.length > i ? 'bg-primary border-primary' : ''}`}></div>
+                    ))}
+                 </div>
+              </div>
+              {passcodeError && <p className="text-rose-500 text-xs text-center mb-4 animate-pulse">{t('wrong_passcode')}</p>}
+              
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                    <button 
+                       key={num} 
+                       onClick={() => {
+                           if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num);
+                       }}
+                       className="h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xl text-slate-700 dark:text-slate-200 active:scale-95 transition-transform"
+                    >
+                        {num}
+                    </button>
+                 ))}
+                 <div className="col-start-2">
+                    <button 
+                       onClick={() => {
+                           if (passcodeInput.length < 4) setPasscodeInput(prev => prev + '0');
+                       }}
+                       className="w-full h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xl text-slate-700 dark:text-slate-200 active:scale-95 transition-transform"
+                    >
+                        0
+                    </button>
+                 </div>
+                 <div className="col-start-3">
+                     <button 
+                       onClick={() => setPasscodeInput(prev => prev.slice(0, -1))}
+                       className="w-full h-14 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 active:scale-95 transition-transform"
+                    >
+                        <Trash2 className="w-6 h-6"/>
+                    </button>
+                 </div>
+              </div>
+              <div className="flex gap-2">
+                  <button onClick={() => setShowPasscodeModal(false)} className="flex-1 py-3 text-slate-500 font-bold">{t('cancel_btn')}</button>
+                  <button onClick={handlePasscodeSubmit} className="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30">{t('confirm')}</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full p-2 flex items-center gap-1 z-50 max-w-sm w-[90%] mx-auto transition-colors duration-300">
         {tabs.map((tab) => {

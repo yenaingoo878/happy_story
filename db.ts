@@ -78,7 +78,8 @@ export const syncData = async () => {
         for (const p of unsyncedProfiles) {
             // SAFE SYNC: Exclude new fields that might not exist in Supabase schema yet
             // This prevents 'PGRST204: Could not find column' errors
-            const { country, hospitalName, birthLocation, birthTime, ...rest } = p;
+            // Added birthTime and bloodType to exclusion list
+            const { country, hospitalName, birthLocation, birthTime, bloodType, ...rest } = p;
             const payload = cleanForSync(rest);
             
             // Note: To sync these fields, please add 'country', 'hospitalName', etc. to your Supabase table
