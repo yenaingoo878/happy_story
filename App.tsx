@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete } from 'lucide-react';
 // Lazy load components to reduce initial bundle size
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -196,11 +196,19 @@ function App() {
           fetchedProfiles = [defaultProfile];
       }
 
+      // Sort profiles: Put "My Child" at the end, so real profiles come first
+      fetchedProfiles.sort((a, b) => {
+          if (a.name === 'My Child') return 1;
+          if (b.name === 'My Child') return -1;
+          return 0; // Maintain default DB sort (usually creation order)
+      });
+
       setProfiles(fetchedProfiles);
 
       let targetId = activeProfileId;
 
       if (fetchedProfiles.length > 0) {
+          // If no active profile, or current active profile is not in the list (deleted), pick the first one
           if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
              targetId = fetchedProfiles[0].id || '';
              setActiveProfileId(targetId);
@@ -296,39 +304,47 @@ function App() {
   };
 
   const handlePasscodeSubmit = () => {
-    if (passcodeInput.length !== 4) {
-       setPasscodeError(true);
-       setTimeout(() => setPasscodeError(false), 500);
-       return;
-    }
-
-    if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
-          localStorage.setItem('app_passcode', passcodeInput);
-          setPasscode(passcodeInput);
-          setIsDetailsUnlocked(true);
-          setShowPasscodeModal(false);
-          setPasscodeInput('');
-       return;
-    }
-
-    if (passcodeInput === passcode) {
-       if (passcodeMode === 'UNLOCK') {
-          setIsDetailsUnlocked(true);
-          setShowPasscodeModal(false);
-       } else if (passcodeMode === 'CHANGE_VERIFY') {
-          setPasscodeMode('CHANGE_NEW');
-          setPasscodeInput('');
-       } else if (passcodeMode === 'REMOVE') {
-          localStorage.removeItem('app_passcode');
-          setPasscode(null);
-          setIsDetailsUnlocked(true); 
-          setShowPasscodeModal(false);
-       }
-    } else {
-       setPasscodeError(true);
-       setTimeout(() => setPasscodeError(false), 500);
-    }
+    // Logic for submit is now mostly handled in the NumberPad click
+    // But we keep this if needed for Enter key etc.
   };
+  
+  // Effect to handle auto-submit when passcode reaches 4 digits
+  useEffect(() => {
+      if (passcodeInput.length === 4) {
+          const timeout = setTimeout(() => {
+              if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
+                  localStorage.setItem('app_passcode', passcodeInput);
+                  setPasscode(passcodeInput);
+                  setIsDetailsUnlocked(true);
+                  setShowPasscodeModal(false);
+                  setPasscodeInput('');
+                  return;
+              }
+
+              if (passcodeInput === passcode) {
+                  if (passcodeMode === 'UNLOCK') {
+                      setIsDetailsUnlocked(true);
+                      setShowPasscodeModal(false);
+                  } else if (passcodeMode === 'CHANGE_VERIFY') {
+                      setPasscodeMode('CHANGE_NEW');
+                      setPasscodeInput('');
+                  } else if (passcodeMode === 'REMOVE') {
+                      localStorage.removeItem('app_passcode');
+                      setPasscode(null);
+                      setIsDetailsUnlocked(true); 
+                      setShowPasscodeModal(false);
+                  }
+              } else {
+                  setPasscodeError(true);
+                  setPasscodeInput(''); // Clear input on error
+                  setTimeout(() => setPasscodeError(false), 800);
+              }
+          }, 200); // Slight delay for visual feedback
+
+          return () => clearTimeout(timeout);
+      }
+  }, [passcodeInput, passcodeMode, passcode]);
+
   
   const getModalTitle = () => {
       switch(passcodeMode) {
@@ -743,55 +759,83 @@ function App() {
         </div>
       )}
 
-      {/* Passcode Modal */}
+      {/* Modern iOS Style Passcode Modal */}
       {showPasscodeModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPasscodeModal(false)}/>
-           <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-zoom-in">
-              <h3 className="text-xl font-bold text-center text-slate-800 dark:text-slate-100 mb-6">{getModalTitle()}</h3>
-              <div className="flex justify-center mb-6">
-                 <div className="flex gap-4">
-                    {[0, 1, 2, 3].map(i => (
-                        <div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-500 ${passcodeInput.length > i ? 'bg-primary border-primary' : ''}`}></div>
-                    ))}
-                 </div>
-              </div>
-              {passcodeError && <p className="text-rose-500 text-xs text-center mb-4 animate-pulse">{t('wrong_passcode')}</p>}
+        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center">
+           {/* Background Blur */}
+           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-md" onClick={() => setShowPasscodeModal(false)}/>
+           
+           <div className="relative w-full md:w-[380px] md:rounded-[40px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl md:shadow-2xl flex flex-col h-[90vh] md:h-auto md:max-h-[800px] overflow-hidden rounded-t-[32px] md:border border-white/20 dark:border-slate-700 transition-all duration-300 ease-out animate-slide-up">
               
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                    <button 
-                       key={num} 
-                       onClick={() => {
-                           if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num);
-                       }}
-                       className="h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xl text-slate-700 dark:text-slate-200 active:scale-95 transition-transform"
-                    >
-                        {num}
-                    </button>
+              {/* Header */}
+              <div className="pt-8 pb-4 px-6 text-center">
+                 <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-8 md:hidden"></div>
+                 <div className="mb-6 flex justify-center">
+                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-primary">
+                        <Settings className="w-6 h-6"/>
+                    </div>
+                 </div>
+                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">{getModalTitle()}</h3>
+                 {passcodeError && <p className="text-rose-500 text-xs animate-pulse font-medium">{t('wrong_passcode')}</p>}
+              </div>
+
+              {/* Dots Display */}
+              <div className="flex justify-center mb-8 gap-4">
+                 {[0, 1, 2, 3].map(i => (
+                    <div 
+                        key={i} 
+                        className={`w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 transition-all duration-200 ${
+                            passcodeInput.length > i 
+                            ? 'bg-slate-800 dark:bg-slate-100 scale-110 border-transparent' 
+                            : 'bg-transparent'
+                        }`}
+                    />
                  ))}
-                 <div className="col-start-2">
-                    <button 
+              </div>
+
+              {/* Keypad */}
+              <div className="px-8 pb-8 flex-1 flex flex-col justify-end md:justify-center">
+                 <div className="grid grid-cols-3 gap-y-6 gap-x-6 max-w-[280px] mx-auto">
+                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                        <button 
+                           key={num} 
+                           onClick={() => {
+                               if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num);
+                           }}
+                           className="w-[72px] h-[72px] rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:bg-slate-300 dark:active:bg-slate-600 flex items-center justify-center text-2xl font-medium text-slate-800 dark:text-slate-100 transition-colors duration-150 shadow-sm"
+                        >
+                            {num}
+                        </button>
+                     ))}
+                     
+                     {/* Bottom Row */}
+                     <div className="flex items-center justify-center">
+                        <button 
+                           onClick={() => setShowPasscodeModal(false)}
+                           className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                        >
+                            {t('cancel_btn')}
+                        </button>
+                     </div>
+
+                     <button 
                        onClick={() => {
                            if (passcodeInput.length < 4) setPasscodeInput(prev => prev + '0');
                        }}
-                       className="w-full h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 font-bold text-xl text-slate-700 dark:text-slate-200 active:scale-95 transition-transform"
+                       className="w-[72px] h-[72px] rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:bg-slate-300 dark:active:bg-slate-600 flex items-center justify-center text-2xl font-medium text-slate-800 dark:text-slate-100 transition-colors duration-150 shadow-sm"
                     >
                         0
                     </button>
+
+                     <div className="flex items-center justify-center">
+                        <button 
+                           onClick={() => setPasscodeInput(prev => prev.slice(0, -1))}
+                           className="w-[72px] h-[72px] rounded-full flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 active:scale-95 transition-transform"
+                        >
+                            <Delete className="w-6 h-6"/>
+                        </button>
+                     </div>
                  </div>
-                 <div className="col-start-3">
-                     <button 
-                       onClick={() => setPasscodeInput(prev => prev.slice(0, -1))}
-                       className="w-full h-14 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 active:scale-95 transition-transform"
-                    >
-                        <Trash2 className="w-6 h-6"/>
-                    </button>
-                 </div>
-              </div>
-              <div className="flex gap-2">
-                  <button onClick={() => setShowPasscodeModal(false)} className="flex-1 py-3 text-slate-500 font-bold">{t('cancel_btn')}</button>
-                  <button onClick={handlePasscodeSubmit} className="flex-1 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30">{t('confirm')}</button>
               </div>
            </div>
         </div>

@@ -427,11 +427,11 @@ export const Settings: React.FC<SettingsProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('child_dob')}</label>
-                                    <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
+                                    <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100 min-h-[48px] appearance-none" />
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('birth_time')}</label>
-                                    <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
+                                    <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100 min-h-[48px] appearance-none" />
                                 </div>
                             </div>
                             
@@ -439,14 +439,14 @@ export const Settings: React.FC<SettingsProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('gender_label')}</label>
-                                    <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 h-[38px]">
+                                    <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 h-[38px] min-h-[48px]">
                                         <button onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})} disabled={isSavingProfile} className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}>{t('boy')}</button>
                                         <button onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})} disabled={isSavingProfile} className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}>{t('girl')}</button>
                                     </div>
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('blood_type')}</label>
-                                    <select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100">
+                                    <select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100 min-h-[48px]">
                                         <option value="">-</option>
                                         <option value="A+">A+</option>
                                         <option value="A-">A-</option>

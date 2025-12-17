@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,4 +27,19 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #A0AEC0; 
+}
+
+/* iOS Date Input Fixes */
+input[type="date"] {
+  display: block;
+  -webkit-appearance: none;
+  min-height: 2.5rem; /* Ensure touch target */
+  background-color: transparent;
+}
+
+input[type="time"] {
+    display: block;
+    -webkit-appearance: none;
+    min-height: 2.5rem;
+    background-color: transparent;
 }
