@@ -3,11 +3,12 @@ import { supabase } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile } from './types';
 
 // Define the interface for the database to ensure type safety
-export interface LittleMomentsDB extends Dexie {
+// Using intersection type to avoid class extension issues with Dexie in some environments
+export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
-}
+};
 
 // Create Dexie instance directly
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
@@ -23,7 +24,9 @@ export { db };
 
 export const initDB = async () => {
   try {
-      await db.open();
+      if (!db.isOpen()) {
+        await db.open();
+      }
       console.log("Local Database Initialized");
       // Initial Sync
       syncData(); 
@@ -32,58 +35,86 @@ export const initDB = async () => {
   }
 };
 
+// Helper function to remove local-only fields like 'synced' before sending to Supabase
+const cleanForSync = (doc: any) => {
+    const { synced, ...rest } = doc;
+    return rest;
+};
+
 export const syncData = async () => {
     if (!navigator.onLine) return;
 
     console.log("Starting Sync...");
 
-    // 1. PUSH Local Changes to Supabase
-    const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
-    for (const mem of unsyncedMemories) {
-        const { error } = await supabase.from('memories').upsert({ ...mem, synced: 1 });
-        if (!error) {
-            await db.memories.update(mem.id, { synced: 1 });
+    try {
+        // 1. PUSH Local Changes to Supabase
+        
+        // --- MEMORIES ---
+        const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
+        for (const mem of unsyncedMemories) {
+            const payload = cleanForSync(mem);
+            const { error } = await supabase.from('memories').upsert(payload);
+            if (!error) {
+                await db.memories.update(mem.id, { synced: 1 });
+            } else {
+                console.error("Sync error memories:", error);
+            }
         }
-    }
 
-    const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
-    for (const g of unsyncedGrowth) {
-        const { error } = await supabase.from('growth_data').upsert({ ...g, synced: 1 });
-        if (!error) {
-            await db.growth.update(g.id!, { synced: 1 });
+        // --- GROWTH ---
+        const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
+        for (const g of unsyncedGrowth) {
+            const payload = cleanForSync(g);
+            const { error } = await supabase.from('growth_data').upsert(payload);
+            if (!error) {
+                await db.growth.update(g.id!, { synced: 1 });
+            } else {
+                console.error("Sync error growth:", error);
+            }
         }
-    }
 
-    const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
-    for (const p of unsyncedProfiles) {
-        const { error } = await supabase.from('child_profiles').upsert({ ...p, synced: 1 });
-        if (!error) {
-            await db.profiles.update(p.id!, { synced: 1 });
+        // --- PROFILES ---
+        const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
+        for (const p of unsyncedProfiles) {
+            const payload = cleanForSync(p);
+            // CRITICAL FIX: Changed 'child_profiles' to 'child_profile' to match SQL schema
+            const { error } = await supabase.from('child_profile').upsert(payload);
+            if (!error) {
+                await db.profiles.update(p.id!, { synced: 1 });
+            } else {
+                console.error("Sync error profiles:", error);
+            }
         }
-    }
 
-    // 2. PULL Remote Changes from Supabase (Simple Strategy: Overwrite local if remote exists)
-    // For a production app, you'd want smarter conflict resolution/deltas.
-    
-    // Profiles
-    const { data: profiles } = await supabase.from('child_profiles').select('*');
-    if (profiles) {
-        await db.profiles.bulkPut(profiles);
-    }
+        // 2. PULL Remote Changes from Supabase (Simple Strategy: Overwrite local if remote exists)
+        
+        // Profiles
+        // CRITICAL FIX: Changed 'child_profiles' to 'child_profile'
+        const { data: profiles, error: profileError } = await supabase.from('child_profile').select('*');
+        if (profiles && !profileError) {
+            const localProfiles = profiles.map(p => ({ ...p, synced: 1 }));
+            await db.profiles.bulkPut(localProfiles as ChildProfile[]);
+        }
 
-    // Growth
-    const { data: growth } = await supabase.from('growth_data').select('*');
-    if (growth) {
-        await db.growth.bulkPut(growth);
-    }
+        // Growth
+        const { data: growth, error: growthError } = await supabase.from('growth_data').select('*');
+        if (growth && !growthError) {
+            const localGrowth = growth.map(g => ({ ...g, synced: 1 }));
+            await db.growth.bulkPut(localGrowth as GrowthData[]);
+        }
 
-    // Memories
-    const { data: memories } = await supabase.from('memories').select('*');
-    if (memories) {
-        await db.memories.bulkPut(memories);
+        // Memories
+        const { data: memories, error: memError } = await supabase.from('memories').select('*');
+        if (memories && !memError) {
+            const localMemories = memories.map(m => ({ ...m, synced: 1 }));
+            await db.memories.bulkPut(localMemories as Memory[]);
+        }
+        
+        console.log("Sync Complete");
+        
+    } catch (err) {
+        console.error("Sync process failed:", err);
     }
-    
-    console.log("Sync Complete");
 };
 
 export const DataService = {
@@ -165,7 +196,8 @@ export const DataService = {
     deleteProfile: async (id: string) => {
         await db.profiles.delete(id);
          if (navigator.onLine) {
-            await supabase.from('child_profiles').delete().eq('id', id);
+            // Fixed table name here as well
+            await supabase.from('child_profile').delete().eq('id', id);
         }
     }
 };
