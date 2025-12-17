@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { Memory, Language } from '../types';
-import { getTranslation } from '../translations';
-import { DataService } from '../db';
+import { getTranslation } from '../utils/translations';
+import { DataService } from '../lib/db';
 
 interface AddMemoryProps {
   language: Language;

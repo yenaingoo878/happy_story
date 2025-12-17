@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateBedtimeStoryStream } from '../services/geminiService';
 import { Wand2, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 import { Language } from '../types';
-import { getTranslation } from '../translations';
+import { getTranslation } from '../utils/translations';
 import { GenerateContentResponse } from '@google/genai';
 
 interface StoryGeneratorProps {

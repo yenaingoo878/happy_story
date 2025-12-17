@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Language } from '../types';
-import { getTranslation } from '../translations';
+import { getTranslation } from '../utils/translations';
 
 interface AuthScreenProps {
   language: Language;

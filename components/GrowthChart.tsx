@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GrowthData, Language } from '../types';
-import { getTranslation } from '../translations';
+import { getTranslation } from '../utils/translations';
 import { analyzeGrowthData } from '../services/geminiService';
 import { Sparkles, Loader2 } from 'lucide-react';
 

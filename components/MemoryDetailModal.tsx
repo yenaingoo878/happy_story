@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Memory, Language } from '../types';
 import { X, Calendar, Tag } from 'lucide-react';
-import { getTranslation } from '../translations';
+import { getTranslation } from '../utils/translations';
 
 interface MemoryDetailModalProps {
   memory: Memory | null;

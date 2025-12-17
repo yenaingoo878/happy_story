@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
-import { getTranslation } from '../translations';
-import { DataService } from '../db';
-import { supabase } from '../supabaseClient';
+import { getTranslation } from '../utils/translations';
+import { DataService } from '../lib/db';
+import { supabase } from '../lib/supabaseClient';
 
 interface SettingsProps {
   language: Language;

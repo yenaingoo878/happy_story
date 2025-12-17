@@ -9,9 +9,9 @@ import { AuthScreen } from './components/AuthScreen';
 import { AddMemory } from './components/AddMemory';
 import { Settings as SettingsComponent } from './components/Settings';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
-import { getTranslation } from './translations';
-import { initDB, DataService, syncData } from './db';
-import { supabase } from './supabaseClient';
+import { getTranslation } from './utils/translations';
+import { initDB, DataService, syncData } from './lib/db';
+import { supabase } from './lib/supabaseClient';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
