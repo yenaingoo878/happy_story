@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2 } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -15,8 +15,9 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileImageInputRef = useRef<HTMLInputElement>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
-  const [isOnline, setIsOnline] = useState(true); // Default to Online for UI check
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Auth State - MOCKED for Preview
   const [session, setSession] = useState<any>({ user: { email: 'preview@guest.com' } });
@@ -106,9 +107,10 @@ function App() {
              if (active) setEditingProfile(active);
           }
       } else {
-        setActiveProfileId('');
-        setMemories([]);
-        setGrowthData([]);
+        if (!activeProfileId) {
+             setMemories([]);
+             setGrowthData([]);
+        }
         return;
       }
 
@@ -124,7 +126,14 @@ function App() {
       setIsLoading(false);
     };
     loadData();
-    // Disabled Offline listener for Mock Mode simplicity
+    
+    window.addEventListener('online', () => { setIsOnline(true); syncData(); });
+    window.addEventListener('offline', () => setIsOnline(false));
+
+    return () => {
+        window.removeEventListener('online', () => setIsOnline(true));
+        window.removeEventListener('offline', () => setIsOnline(false));
+    };
   }, []);
 
   useEffect(() => {
@@ -141,21 +150,30 @@ function App() {
   }, [language]);
 
   const handleManualSync = async () => {
-      alert("Sync is disabled in Preview Mode");
+      setIsSyncing(true);
+      await syncData();
+      await refreshData();
+      setIsSyncing(false);
   };
 
   const handleSaveProfile = async () => {
       if (!editingProfile.name.trim()) return;
+      
+      const isNew = !editingProfile.id;
       const profileToSave = {
          ...editingProfile,
-         id: editingProfile.id || Date.now().toString()
+         id: editingProfile.id || crypto.randomUUID()
       };
+      
       await DataService.saveProfile(profileToSave);
       await refreshData();
-      setActiveProfileId(profileToSave.id || '');
-      if (profileToSave.id !== activeProfileId) {
+      
+      // If it was a new profile, switch to it
+      if (isNew || activeProfileId === '') {
+          setActiveProfileId(profileToSave.id || '');
           loadChildData(profileToSave.id || '');
       }
+      setSettingsView('MAIN');
   };
 
   const createNewProfile = () => {
@@ -282,34 +300,55 @@ function App() {
     setActiveTab(TabView.HOME);
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewMemory(prev => ({ ...prev, imageUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      if (!activeProfileId) {
+          alert("Please create or select a profile first.");
+          return;
+      }
+      
+      setIsUploading(true);
+      try {
+          // Upload to: {childId}/memories/{filename}
+          const url = await DataService.uploadImage(file, activeProfileId, 'memories');
+          setNewMemory(prev => ({ ...prev, imageUrl: url }));
+      } catch (error) {
+          console.error("Image upload failed", error);
+          alert("Image upload failed. Please try again.");
+      } finally {
+          setIsUploading(false);
+      }
     }
   };
   
-  const handleProfileImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (file) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              setEditingProfile(prev => ({ ...prev, profileImage: reader.result as string }));
-          };
-          reader.readAsDataURL(file);
+          // If creating a new profile, we need a temp ID or handle it differently
+          // For now, let's assume we use a temp ID if not exists
+          const targetId = editingProfile.id || 'temp_' + Date.now();
+          
+          setIsUploading(true);
+          try {
+              // Upload to: {childId}/profile/{filename}
+              const url = await DataService.uploadImage(file, targetId, 'profile');
+              setEditingProfile(prev => ({ ...prev, id: prev.id || targetId, profileImage: url }));
+          } catch (error) {
+              console.error("Profile image upload failed", error);
+              alert("Failed to upload image.");
+          } finally {
+              setIsUploading(false);
+          }
       }
   };
 
   const triggerFileInput = () => {
-    fileInputRef.current?.click();
+    if (!isUploading) fileInputRef.current?.click();
   };
   
   const triggerProfileImageInput = () => {
-      if(isDetailsUnlocked) {
+      if(isDetailsUnlocked && !isUploading) {
         profileImageInputRef.current?.click();
       }
   };
@@ -353,6 +392,7 @@ function App() {
     if (!newMemory.title) return;
     if (!activeProfileId) return; 
 
+    // If no image uploaded, use a random placeholder (or handle empty case)
     const finalImageUrl = newMemory.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
 
     if (editingId) {
@@ -364,13 +404,14 @@ function App() {
             title: newMemory.title, 
             description: newMemory.desc, 
             imageUrl: finalImageUrl,
-            date: newMemory.date 
+            date: newMemory.date,
+            synced: 0 // Mark as dirty
           };
           await DataService.addMemory(updated); 
       }
     } else {
       const memory: Memory = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         childId: activeProfileId,
         title: newMemory.title, 
         description: newMemory.desc, 
@@ -390,7 +431,7 @@ function App() {
   const handleAddGrowthRecord = async () => {
     if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
       let updatedData: GrowthData = {
-          id: newGrowth.id || Date.now().toString(),
+          id: newGrowth.id || crypto.randomUUID(),
           childId: activeProfileId,
           month: Number(newGrowth.month),
           height: Number(newGrowth.height),
@@ -421,7 +462,7 @@ function App() {
 
   const renderContent = () => {
     if (isLoading) {
-        return <div className="flex h-screen items-center justify-center text-slate-400">Loading Mock Data...</div>;
+        return <div className="flex h-screen items-center justify-center text-slate-400">Loading Data...</div>;
     }
 
     switch (activeTab) {
@@ -433,10 +474,13 @@ function App() {
                <div>
                   <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">
                     {activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}
-                    <span className="text-xs ml-2 bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-yellow-200">Preview</span>
+                    {isUploading && <span className="text-xs ml-2 text-primary animate-pulse">Uploading...</span>}
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2">
                       {formattedDate}
+                      <span onClick={handleManualSync} className={`cursor-pointer ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>
+                          {isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}
+                      </span>
                   </p>
                </div>
                
@@ -549,14 +593,26 @@ function App() {
                         </div>
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
                              <div onClick={triggerFileInput} className="w-full h-48 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 cursor-pointer flex items-center justify-center overflow-hidden relative">
-                                {newMemory.imageUrl ? <img src={newMemory.imageUrl} className="w-full h-full object-cover"/> : <div className="text-center"><Camera className="w-8 h-8 mx-auto text-slate-300 mb-2"/><span className="text-sm text-slate-400">{t('choose_photo')}</span></div>}
+                                {isUploading ? (
+                                    <div className="flex flex-col items-center justify-center">
+                                        <Loader2 className="w-8 h-8 text-primary animate-spin mb-2"/>
+                                        <span className="text-sm text-slate-400">Uploading...</span>
+                                    </div>
+                                ) : newMemory.imageUrl ? (
+                                    <img src={newMemory.imageUrl} className="w-full h-full object-cover"/> 
+                                ) : (
+                                    <div className="text-center">
+                                        <Camera className="w-8 h-8 mx-auto text-slate-300 mb-2"/>
+                                        <span className="text-sm text-slate-400">{t('choose_photo')}</span>
+                                    </div>
+                                )}
                                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                              </div>
                              <div className="space-y-4">
                                 <input type="text" value={newMemory.title} onChange={e => setNewMemory({...newMemory, title: e.target.value})} placeholder={t('form_title_placeholder')} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none"/>
                                 <input type="date" value={newMemory.date} onChange={e => setNewMemory({...newMemory, date: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none"/>
                                 <textarea value={newMemory.desc} onChange={e => setNewMemory({...newMemory, desc: e.target.value})} placeholder={t('form_desc_placeholder')} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none h-32 resize-none"/>
-                                <button onClick={handleSaveMemory} className="w-full py-3 bg-primary text-white font-bold rounded-xl">{editingId ? t('update_btn') : t('record_btn')}</button>
+                                <button onClick={handleSaveMemory} disabled={isUploading} className={`w-full py-3 text-white font-bold rounded-xl ${isUploading ? 'bg-slate-300' : 'bg-primary'}`}>{editingId ? t('update_btn') : t('record_btn')}</button>
                              </div>
                         </div>
                     </div>
