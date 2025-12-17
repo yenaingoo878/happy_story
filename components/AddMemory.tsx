@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Loader2, Save, Tag, X } from 'lucide-react';
+import { Camera, Loader2, Save, Tag, X, Image as ImageIcon } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -22,6 +22,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -141,9 +142,19 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     }
   };
 
-  const triggerFileInput = () => {
+  const triggerGalleryInput = () => {
     if (!isUploading && !isSaving) fileInputRef.current?.click();
   };
+  
+  const triggerCameraInput = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isUploading && !isSaving) cameraInputRef.current?.click();
+  };
+
+  const removeImage = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setFormState(prev => ({...prev, imageUrl: undefined}));
+  }
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -152,21 +163,55 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             {editMemory && <button onClick={onCancel} disabled={isSaving} className="text-sm text-slate-500 disabled:opacity-50">{t('cancel_btn')}</button>}
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                <div onClick={triggerFileInput} className={`w-full h-48 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 flex items-center justify-center overflow-hidden relative ${isUploading || isSaving ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                <div className={`w-full h-56 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 flex items-center justify-center overflow-hidden relative transition-all ${isUploading ? 'opacity-70 cursor-wait' : ''}`}>
+                
                 {isUploading ? (
                     <div className="flex flex-col items-center justify-center">
                         <Loader2 className="w-8 h-8 text-primary animate-spin mb-2"/>
                         <span className="text-sm text-slate-400">{t('uploading')}</span>
                     </div>
                 ) : formState.imageUrl ? (
-                    <img src={formState.imageUrl} className="w-full h-full object-cover"/> 
+                    <div className="relative w-full h-full group">
+                        <img src={formState.imageUrl} className="w-full h-full object-cover"/>
+                        <button onClick={removeImage} className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="w-4 h-4"/>
+                        </button>
+                    </div>
                 ) : (
-                    <div className="text-center">
-                        <Camera className="w-8 h-8 mx-auto text-slate-300 mb-2"/>
-                        <span className="text-sm text-slate-400">{t('choose_photo')}</span>
+                    <div className="flex flex-col gap-4 w-full px-8">
+                        <div className="text-center mb-2">
+                             <span className="text-sm text-slate-400 font-medium">{t('choose_photo')}</span>
+                        </div>
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={triggerCameraInput}
+                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500">
+                                    <Camera className="w-5 h-5"/>
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('take_photo')}</span>
+                            </button>
+                            
+                            <button 
+                                onClick={triggerGalleryInput}
+                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500">
+                                    <ImageIcon className="w-5 h-5"/>
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('upload_photo')}</span>
+                            </button>
+                        </div>
                     </div>
                 )}
+                
+                {/* Gallery Input */}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
+                
+                {/* Camera Input - capture="environment" forces back camera on mobile */}
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
+                
                 </div>
                 <div className="space-y-4">
                   <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>

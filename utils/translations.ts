@@ -44,6 +44,8 @@ export const translations = {
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },
   edit_memory_title: { en: "Edit Memory", mm: "အမှတ်တရ ပြင်ဆင်ရန်" },
   choose_photo: { en: "Choose Photo", mm: "ဓာတ်ပုံရွေးချယ်ပါ" },
+  take_photo: { en: "Take Photo", mm: "ဓာတ်ပုံရိုက်မည်" },
+  upload_photo: { en: "Gallery", mm: "ပုံတင်မည်" },
   form_title: { en: "Title", mm: "ခေါင်းစဉ်" },
   form_title_placeholder: { en: "e.g., Day at the pool", mm: "ဥပမာ - ရေကူးကန်သွားတဲ့နေ့" },
   form_desc: { en: "Description", mm: "အကြောင်းအရာ" },
@@ -85,6 +87,7 @@ export const translations = {
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },
   gallery_subtitle: { en: "Precious Moments", mm: "အမှတ်တရ ပုံရိပ်လွှာများ" },
   no_photos: { en: "No photos yet", mm: "ဓာတ်ပုံများ မရှိသေးပါ" },
+  search_placeholder: { en: "Search memories...", mm: "အမှတ်တရများ ရှာဖွေရန်..." },
 
   // Settings
   settings_title: { en: "Settings", mm: "ဆက်တင်များ" },
