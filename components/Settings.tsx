@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -317,6 +317,33 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
         )}
 
+        {/* Preferences (Language & Theme) - Moved Outside Passcode Protection */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden p-3 space-y-3">
+            <div className="flex justify-between items-center px-2">
+                <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Globe className="w-3.5 h-3.5"/></div>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span>
+                </div>
+                <div className="flex bg-slate-100 dark:bg-slate-700/50 p-0.5 rounded-lg">
+                        <button onClick={() => setLanguage('mm')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>MM</button>
+                        <button onClick={() => setLanguage('en')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>EN</button>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center px-2">
+                <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-3.5 h-3.5"/></div>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span>
+                </div>
+                <button 
+                    onClick={toggleTheme}
+                    className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}
+                >
+                    <div className="w-5 h-5 bg-white rounded-full shadow-md"></div>
+                </button>
+            </div>
+        </div>
+
         {/* Security Lock Overlay */}
         {passcode && !isDetailsUnlocked ? (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center text-center space-y-3 animate-fade-in">
@@ -386,17 +413,25 @@ export const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </div>
 
+                            {/* Row 1: Name */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('child_name_label')}</label>
+                                <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
+                            </div>
+
+                            {/* Row 2: DOB & Birth Time */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('child_name_label')}</label>
-                                    <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
-                                </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('child_dob')}</label>
                                     <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
                                 </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('birth_time')}</label>
+                                    <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" />
+                                </div>
                             </div>
                             
+                            {/* Row 3: Gender & Blood Type */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('gender_label')}</label>
@@ -418,6 +453,24 @@ export const Settings: React.FC<SettingsProps> = ({
                                         <option value="AB+">AB+</option>
                                         <option value="AB-">AB-</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            {/* Row 4: Hospital */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('hospital_name')}</label>
+                                <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" placeholder={t('hospital_placeholder')} />
+                            </div>
+
+                            {/* Row 5: City & Country */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('city_label')}</label>
+                                    <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" placeholder={t('location_placeholder')} />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('country_label')}</label>
+                                    <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} disabled={isSavingProfile} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none focus:border-primary text-sm dark:text-slate-100" placeholder={t('country_placeholder')} />
                                 </div>
                             </div>
 
@@ -460,33 +513,6 @@ export const Settings: React.FC<SettingsProps> = ({
                         </button>
                         </>
                     )}
-                </div>
-
-                {/* Preferences */}
-                <div className="p-3 space-y-3">
-                    <div className="flex justify-between items-center px-2">
-                        <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Globe className="w-3.5 h-3.5"/></div>
-                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span>
-                        </div>
-                        <div className="flex bg-slate-100 dark:bg-slate-700/50 p-0.5 rounded-lg">
-                                <button onClick={() => setLanguage('mm')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>MM</button>
-                                <button onClick={() => setLanguage('en')} className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>EN</button>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center px-2">
-                        <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-3.5 h-3.5"/></div>
-                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span>
-                        </div>
-                        <button 
-                            onClick={toggleTheme}
-                            className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}
-                        >
-                            <div className="w-5 h-5 bg-white rounded-full shadow-md"></div>
-                        </button>
-                    </div>
                 </div>
 
                 {/* Data Management */}
