@@ -136,6 +136,15 @@ export const Settings: React.FC<SettingsProps> = ({
             onProfileChange(profileToSave.id || '');
         }
         setSaveSuccess(true);
+        
+        // Auto-lock if passcode is set
+        if (passcode) {
+            setTimeout(() => {
+                onHideDetails();
+                // We keep saveSuccess true briefly for visual feedback before locking
+            }, 1000);
+        }
+
     } catch (error) {
         console.error("Failed to save profile", error);
         alert("Failed to save profile.");
@@ -259,9 +268,55 @@ export const Settings: React.FC<SettingsProps> = ({
     <div className="space-y-8 max-w-2xl mx-auto">
         <div className="mb-2"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
         
+        {/* Active Profile Hero Card - Always Visible */}
+        {currentProfile && (
+            <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-slate-800/50 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 mb-8 transition-all">
+                {/* Hide button - only if unlocked */}
+                 {passcode && isDetailsUnlocked && (
+                    <button onClick={onHideDetails} className="absolute top-4 right-4 text-xs text-slate-400 hover:text-primary flex items-center gap-1 z-10 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full transition-colors">
+                        <Lock className="w-3 h-3"/> {t('hide_details')}
+                    </button>
+                )}
+                {/* Lock indicator - if locked */}
+                 {passcode && !isDetailsUnlocked && (
+                    <div className="absolute top-4 right-4 text-xs text-slate-400 flex items-center gap-1 z-10 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full transition-colors">
+                        <Lock className="w-3 h-3"/>
+                    </div>
+                )}
+                
+                <div className="flex items-center gap-5 relative z-10">
+                    <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-[3px] border-white dark:border-slate-700 shadow-md overflow-hidden shrink-0 bg-white dark:bg-slate-700">
+                         {currentProfile.profileImage ? (
+                            <img src={currentProfile.profileImage} className="w-full h-full object-cover"/>
+                         ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-600">
+                                <Baby className="w-8 h-8 text-slate-300 dark:text-slate-400"/>
+                            </div>
+                         )}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{t('currently_active')}</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-tight mb-1">{currentProfile.name}</h2>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                            <span>{calculateAge(currentProfile.dob)}</span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                            <span className={currentProfile.gender === 'boy' ? 'text-blue-400' : 'text-pink-400'}>
+                                {currentProfile.gender === 'boy' ? t('boy') : t('girl')}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                
+                {/* Decorative Background Icon */}
+                <Baby className="absolute -bottom-6 -right-6 w-40 h-40 text-slate-100 dark:text-slate-700/50 rotate-12 z-0" strokeWidth={1} />
+            </div>
+        )}
+
         {/* Security Lock Overlay for Details */}
         {passcode && !isDetailsUnlocked ? (
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center text-center space-y-4">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center text-center space-y-4 animate-fade-in">
             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
                 <Lock className="w-8 h-8 text-slate-400"/>
             </div>
@@ -273,58 +328,9 @@ export const Settings: React.FC<SettingsProps> = ({
             >
                 {t('tap_to_unlock')}
             </button>
-            
-            {/* Show profile switcher preview even when locked (blurred or just list) */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 mt-4 max-w-full justify-center opacity-50 pointer-events-none">
-                {profiles.map(p => (
-                    <div key={p.id} className="w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center bg-slate-100">
-                       <Baby className="w-5 h-5 text-slate-400"/>
-                    </div>
-                ))}
-            </div>
         </div>
         ) : (
         <div className="animate-fade-in">
-            {/* Active Profile Hero Card */}
-            {currentProfile && (
-                <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-slate-800/50 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700 mb-8 transition-all">
-                    {/* Hide button */}
-                     {passcode && (
-                        <button onClick={onHideDetails} className="absolute top-4 right-4 text-xs text-slate-400 hover:text-primary flex items-center gap-1 z-10 bg-white/50 dark:bg-black/20 px-2 py-1 rounded-full">
-                            <Lock className="w-3 h-3"/> {t('hide_details')}
-                        </button>
-                    )}
-                    
-                    <div className="flex items-center gap-5 relative z-10">
-                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-[3px] border-white dark:border-slate-700 shadow-md overflow-hidden shrink-0 bg-white dark:bg-slate-700">
-                             {currentProfile.profileImage ? (
-                                <img src={currentProfile.profileImage} className="w-full h-full object-cover"/>
-                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-600">
-                                    <Baby className="w-8 h-8 text-slate-300 dark:text-slate-400"/>
-                                </div>
-                             )}
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">{t('currently_active')}</span>
-                            </div>
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 leading-tight mb-1">{currentProfile.name}</h2>
-                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                <span>{calculateAge(currentProfile.dob)}</span>
-                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                <span className={currentProfile.gender === 'boy' ? 'text-blue-400' : 'text-pink-400'}>
-                                    {currentProfile.gender === 'boy' ? t('boy') : t('girl')}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                    
-                    {/* Decorative Background Icon */}
-                    <Baby className="absolute -bottom-6 -right-6 w-40 h-40 text-slate-100 dark:text-slate-700/50 rotate-12 z-0" strokeWidth={1} />
-                </div>
-            )}
-
             {/* Switcher & Add New Section */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-3 px-1">
