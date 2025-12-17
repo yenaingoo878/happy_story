@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Baby, Loader2 } from 'lucide-react';
+import { Baby, Loader2, AlertCircle } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../translations';
 
@@ -12,10 +12,12 @@ interface AuthScreenProps {
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const t = (key: any) => getTranslation(language, key);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -25,39 +27,52 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
       });
       if (error) throw error;
     } catch (error: any) {
-      alert(error.message || "Login failed");
+      console.error(error);
+      setError(t('auth_error'));
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-purple-100 to-teal-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+      
       {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-primary/30 rounded-full blur-3xl opacity-50"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-64 h-64 bg-secondary/30 rounded-full blur-3xl opacity-50"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-72 h-72 bg-secondary/20 rounded-full blur-3xl animate-pulse delay-700"></div>
 
-      {/* Language Toggle (Floating) */}
+      {/* Language Toggle */}
       <div className="absolute top-6 right-6 z-10">
          <button 
             onClick={() => setLanguage(language === 'mm' ? 'en' : 'mm')} 
-            className="bg-white/40 backdrop-blur-md border border-white/50 text-slate-700 dark:text-slate-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-white/50 transition-all"
+            className="bg-white/40 dark:bg-black/20 backdrop-blur-md border border-white/50 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm hover:bg-white/50 transition-all"
          >
             {language === 'mm' ? 'English' : 'မြန်မာ'}
          </button>
       </div>
 
       <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-8 rounded-[40px] shadow-[0_8px_40px_rgba(0,0,0,0.12)] w-full max-w-sm text-center border border-white/60 dark:border-slate-700 relative z-0 animate-zoom-in">
+         
+         {/* Logo */}
          <div className="w-24 h-24 bg-gradient-to-br from-primary to-rose-400 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg shadow-rose-200 dark:shadow-none animate-slide-up">
             <Baby className="w-12 h-12 text-white" strokeWidth={2.5} />
          </div>
          
          <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">{t('welcome_title')}</h1>
-         <p className="text-slate-500 dark:text-slate-400 mb-10 text-sm leading-relaxed px-4">{t('welcome_subtitle')}</p>
+         <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm leading-relaxed px-4">{t('welcome_subtitle')}</p>
 
+         {/* Error Message */}
+         {error && (
+            <div className="mb-6 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-xl flex items-center justify-center text-rose-500 text-xs font-bold animate-fade-in">
+              <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
+              {error}
+            </div>
+         )}
+
+         {/* Google Button */}
          <button 
            onClick={handleGoogleLogin}
            disabled={loading}
-           className="w-full py-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-sm group"
+           className="w-full py-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-sm hover:shadow-md group relative overflow-hidden"
          >
            {loading ? (
              <Loader2 className="w-5 h-5 animate-spin text-primary" />

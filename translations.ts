@@ -18,6 +18,7 @@ export const translations = {
   signin_google: { en: "Sign in with Google", mm: "Google ဖြင့် ဝင်ရောက်ရန်" },
   logging_in: { en: "Signing in...", mm: "ဝင်ရောက်နေပါသည်..." },
   logout: { en: "Log Out", mm: "အကောင့်ထွက်မည်" },
+  auth_error: { en: "Authentication failed. Please try again.", mm: "ဝင်ရောက်၍မရပါ။ ပြန်လည်ကြိုးစားကြည့်ပါ။" },
 
   // Navigation
   nav_home: { en: "Home", mm: "ပင်မ" },
