@@ -12,23 +12,11 @@ export const translations = {
   memories: { en: "Memories", mm: "အမှတ်တရများ" },
   see_all: { en: "See All", mm: "အားလုံးကြည့်ရန်" },
   
-  // Birthday & Events
+  // Birthday
   birthday_tomorrow_title: { en: "Birthday Coming Up!", mm: "မွေးနေ့ရောက်တော့မယ်!" },
   birthday_tomorrow_msg: { en: "Tomorrow is {name}'s Birthday! Get ready for the big day.", mm: "မနက်ဖြန် {name} ရဲ့ မွေးနေ့ရောက်ပါတော့မယ်။" },
   happy_birthday_title: { en: "Happy Birthday!", mm: "မွေးနေ့ရက်မြတ် ဖြစ်ပါစေ!" },
   happy_birthday_msg: { en: "Wishing {name} a wonderful birthday filled with joy!", mm: "ချစ်လှစွာသော {name} လေး ပျော်ရွှင်စရာမွေးနေ့လေးဖြစ်ပါစေ။" },
-  important_dates: { en: "Upcoming & Important Dates", mm: "အမှတ်တရ နေ့ရက်များ" },
-  add_event: { en: "Add Reminder", mm: "အမှတ်တရနေ့ ထည့်မယ်" },
-  no_events: { en: "No upcoming events", mm: "အမှတ်တရနေ့များ မရှိသေးပါ" },
-  event_today: { en: "Happening Today!", mm: "ယနေ့ ကျရောက်သောနေ့" },
-  manage: { en: "Manage", mm: "ပြင်ဆင်ရန်" },
-  
-  // Event Form
-  new_event_title: { en: "New Event", mm: "အမှတ်တရနေ့သစ်" },
-  event_name: { en: "Event Title", mm: "အကြောင်းအရာခေါင်းစဉ်" },
-  event_date: { en: "Date", mm: "နေ့ရက်" },
-  recurring: { en: "Repeat Yearly", mm: "နှစ်စဉ်အသိပေးပါ" },
-  save_event: { en: "Save Date", mm: "သိမ်းဆည်းမည်" },
 
   // Auth
   welcome_title: { en: "Little Moments", mm: "Little Moments" },
@@ -136,7 +124,6 @@ export const translations = {
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
-  manage_events: { en: "Manage Reminders", mm: "အမှတ်တရနေ့များ စီမံရန်" },
   growth_input_title: { en: "Add/Edit Record", mm: "မှတ်တမ်း အသစ်/ပြင်ဆင်" },
   add_record: { en: "Save Record", mm: "မှတ်တမ်းတင်မည်" },
   update_record: { en: "Update", mm: "ပြင်ဆင်မည်" },

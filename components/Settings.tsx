@@ -1,10 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, CalendarHeart, Plus, Repeat } from 'lucide-react';
-import { ChildProfile, Language, Theme, GrowthData, Memory, EventReminder } from '../types';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe } from 'lucide-react';
+import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
-import { supabase } from '../lib/supabaseClient';
 
 interface SettingsProps {
   language: Language;
@@ -13,7 +12,7 @@ interface SettingsProps {
   toggleTheme: () => void;
   profiles: ChildProfile[];
   activeProfileId: string;
-  onProfileChange: (id: string) => void; // When user just selects to switch view
+  onProfileChange: (id: string) => void;
   onRefreshData: () => Promise<void>;
   
   // Security Props
@@ -28,19 +27,17 @@ interface SettingsProps {
   // Data props for sub-views
   growthData: GrowthData[];
   memories: Memory[];
-  events: EventReminder[];
   onEditMemory: (mem: Memory) => void;
   onDeleteMemory: (id: string) => void;
   onDeleteGrowth: (id: string) => void;
   onDeleteProfile: (id: string) => void;
-  onDeleteEvent: (id: string) => void;
 
   // Auth
   isGuestMode?: boolean;
-  onLogout: () => void; // Unified logout handler
+  onLogout: () => void; 
   
   // Navigation
-  initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS';
+  initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES';
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -48,11 +45,11 @@ export const Settings: React.FC<SettingsProps> = ({
   profiles, activeProfileId, onProfileChange, onRefreshData,
   passcode, isDetailsUnlocked, onUnlockRequest,
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
-  growthData, memories, events, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile, onDeleteEvent,
+  growthData, memories, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile,
   isGuestMode, onLogout, initialView
 }) => {
   const t = (key: any) => getTranslation(language, key);
-  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS'>(initialView || 'MAIN');
+  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({
     id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: ''
   });
@@ -68,10 +65,6 @@ export const Settings: React.FC<SettingsProps> = ({
   
   // Growth Form State
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
-
-  // Event Form State
-  const [newEvent, setNewEvent] = useState<{title: string, date: string, isRecurring: boolean}>({ title: '', date: '', isRecurring: false });
-  const [isSavingEvent, setIsSavingEvent] = useState(false);
 
   useEffect(() => {
     if (initialView) {
@@ -222,43 +215,12 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const handleAddEvent = async () => {
-      if(!newEvent.title || !newEvent.date || !activeProfileId) return;
-      setIsSavingEvent(true);
-      try {
-          const event: EventReminder = {
-              id: crypto.randomUUID(),
-              childId: activeProfileId,
-              title: newEvent.title,
-              date: newEvent.date,
-              isRecurring: newEvent.isRecurring,
-              synced: 0
-          };
-
-          await DataService.addEvent(event);
-          await onRefreshData();
-          setNewEvent({title: '', date: '', isRecurring: false});
-      } catch (error) {
-          console.error("Failed to save event", error);
-          alert("Failed to save event");
-      } finally {
-          setIsSavingEvent(false);
-      }
-  };
-
   const handleAuthAction = () => {
       if (onLogout) onLogout();
   };
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   
-  const formatDateDisplay = (isoDate: string | undefined) => {
-    if (!isoDate) return '';
-    const parts = isoDate.split('-');
-    if (parts.length !== 3) return isoDate;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  };
-
   // Sub-views are kept similar but can be tightened if needed. 
   if (view === 'GROWTH') {
       return (
@@ -309,71 +271,6 @@ export const Settings: React.FC<SettingsProps> = ({
                 ))}
             </div>
         </div>
-      );
-  }
-
-  if (view === 'EVENTS') {
-      return (
-          <div className="max-w-2xl mx-auto">
-              <button onClick={() => setView('MAIN')} className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
-              <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">{t('manage_events')}</h2>
-              
-              {/* Add Event Form */}
-              <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm mb-4 border border-slate-100 dark:border-slate-700">
-                  <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">{t('new_event_title')}</h3>
-                  <div className="space-y-3">
-                      <input 
-                          type="text" 
-                          placeholder={t('event_name')}
-                          value={newEvent.title} 
-                          onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                          className="w-full p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none"
-                      />
-                      <input 
-                          type="date" 
-                          value={newEvent.date} 
-                          onChange={e => setNewEvent({...newEvent, date: e.target.value})}
-                          className="w-full p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none"
-                      />
-                      <div className="flex items-center gap-2">
-                          <input 
-                             type="checkbox" 
-                             id="recurring_manage"
-                             checked={newEvent.isRecurring} 
-                             onChange={e => setNewEvent({...newEvent, isRecurring: e.target.checked})}
-                             className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
-                          />
-                          <label htmlFor="recurring_manage" className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('recurring')}</label>
-                      </div>
-                      <button 
-                          onClick={handleAddEvent}
-                          disabled={isSavingEvent || !newEvent.title || !newEvent.date}
-                          className="w-full py-2 bg-indigo-500 text-white rounded-lg font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                          {isSavingEvent ? <Loader2 className="w-4 h-4 animate-spin"/> : t('save_event')}
-                      </button>
-                  </div>
-              </div>
-
-              {/* Event List */}
-              <div className="space-y-2">
-                  {events.map(e => (
-                      <div key={e.id} className="flex justify-between p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 items-center">
-                          <div className="overflow-hidden">
-                              <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{e.title}</p>
-                              <div className="flex items-center gap-2 text-xs text-slate-400">
-                                  <span>{formatDateDisplay(e.date)}</span>
-                                  {e.isRecurring && <span className="flex items-center gap-0.5"><Repeat className="w-3 h-3"/> Yearly</span>}
-                              </div>
-                          </div>
-                          <button onClick={() => onDeleteEvent(e.id)} className="text-rose-500 p-2"><Trash2 className="w-4 h-4"/></button>
-                      </div>
-                  ))}
-                  {events.length === 0 && (
-                      <p className="text-center text-slate-400 text-sm py-4">{t('no_events')}</p>
-                  )}
-              </div>
-          </div>
       );
   }
 
@@ -624,9 +521,6 @@ export const Settings: React.FC<SettingsProps> = ({
 
                 {/* Data Management */}
                  <div className="p-3">
-                    <button onClick={() => setView('EVENTS')} className="w-full p-2 flex justify-between hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg items-center text-sm font-bold text-slate-700 dark:text-slate-200">
-                        {t('manage_events')}<ChevronRight className="w-4 h-4 text-slate-300"/>
-                    </button>
                     <button onClick={() => setView('GROWTH')} className="w-full p-2 flex justify-between hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg items-center text-sm font-bold text-slate-700 dark:text-slate-200">
                         {t('manage_growth')}<ChevronRight className="w-4 h-4 text-slate-300"/>
                     </button>

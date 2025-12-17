@@ -4,7 +4,7 @@ export type Theme = 'light' | 'dark';
 
 export interface Memory {
   id: string;
-  childId: string; // Added to link memory to specific child
+  childId: string;
   title: string;
   date: string;
   description: string;
@@ -15,7 +15,7 @@ export interface Memory {
 
 export interface GrowthData {
   id?: string;
-  childId: string; // Added to link growth data to specific child
+  childId: string;
   month: number;
   height: number; // cm
   weight: number; // kg
@@ -25,23 +25,14 @@ export interface GrowthData {
 export interface ChildProfile {
   id?: string; // Singleton ID
   name: string;
-  profileImage?: string; // Added profile image
+  profileImage?: string;
   dob: string;
-  birthTime?: string; // Time of birth
+  birthTime?: string;
   hospitalName?: string;
-  birthLocation?: string; // Maps to City
-  country?: string; // Added Country
-  bloodType?: string; // Added Blood Type
+  birthLocation?: string;
+  country?: string;
+  bloodType?: string;
   gender: 'boy' | 'girl';
-  synced?: number;
-}
-
-export interface EventReminder {
-  id: string;
-  childId: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  isRecurring: boolean; // True if it repeats every year
   synced?: number;
 }
 

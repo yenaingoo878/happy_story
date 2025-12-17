@@ -1,14 +1,13 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase } from './supabaseClient';
-import { Memory, GrowthData, ChildProfile, EventReminder } from '../types';
+import { Memory, GrowthData, ChildProfile } from '../types';
 
 // Define the interface for the database to ensure type safety
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
-  events: Table<EventReminder>;
 };
 
 // Create Dexie instance directly
@@ -18,8 +17,7 @@ const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 db.version(2).stores({
   memories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced',
-  events: 'id, childId, date, synced' // New table for reminders
+  profiles: 'id, name, synced'
 });
 
 export { db };
@@ -93,20 +91,6 @@ export const syncData = async () => {
                 console.error("Sync error profiles:", error);
             }
         }
-        
-        // --- EVENTS ---
-        // Note: You need to create an 'events' table in Supabase if you want these synced remotely.
-        // For now, we'll keep them local-first or assume table exists if errors occur.
-        /* 
-        const unsyncedEvents = await db.events.where('synced').equals(0).toArray();
-        for (const e of unsyncedEvents) {
-            const payload = cleanForSync(e);
-            const { error } = await supabase.from('events').upsert(payload);
-            if (!error) {
-                await db.events.update(e.id, { synced: 1 });
-            }
-        }
-        */
 
         // 2. PULL Remote Changes from Supabase
         
@@ -228,22 +212,5 @@ export const DataService = {
                 await supabase.from('child_profile').delete().eq('id', id);
             }
         }
-    },
-
-    // --- EVENTS (New) ---
-    getEvents: async (childId?: string) => {
-        if (childId) {
-            return await db.events.where('childId').equals(childId).sortBy('date');
-        }
-        return await db.events.orderBy('date').toArray();
-    },
-
-    addEvent: async (event: EventReminder) => {
-        await db.events.put({ ...event, synced: 0 });
-        // syncData(); // Enable if remote sync is ready
-    },
-
-    deleteEvent: async (id: string) => {
-        await db.events.delete(id);
     }
 };

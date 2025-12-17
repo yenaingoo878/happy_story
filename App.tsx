@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, CalendarHeart, Repeat, CalendarPlus } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -8,7 +8,7 @@ import { MemoryDetailModal } from './components/MemoryDetailModal';
 import { AuthScreen } from './components/AuthScreen';
 import { AddMemory } from './components/AddMemory';
 import { Settings as SettingsComponent } from './components/Settings';
-import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, EventReminder } from './types';
+import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase } from './lib/supabaseClient';
@@ -34,7 +34,7 @@ function App() {
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
   // Delete Confirmation State
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'EVENT', id: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE', id: string } | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Application Data State
@@ -45,14 +45,13 @@ function App() {
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
   
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
-  const [events, setEvents] = useState<EventReminder[]>([]); // New Events State
   const [isLoading, setIsLoading] = useState(true);
   
   // Edit Memory State for AddMemory Component
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
   
   // Settings view control
-  const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS'>('MAIN');
+  const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>('MAIN');
 
   // Birthday Banner State
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
@@ -84,7 +83,6 @@ function App() {
           setProfiles([]);
           setMemories([]);
           setGrowthData([]);
-          setEvents([]);
       }
     });
 
@@ -138,7 +136,7 @@ function App() {
   
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
-  // --- Logic for Birthday & Events ---
+  // --- Logic for Birthday ---
   
   const getBirthdayStatus = () => {
     if (!activeProfile.dob) return 'NONE';
@@ -168,36 +166,13 @@ function App() {
     return 'NONE';
   };
 
-  const getSortedEvents = () => {
-      // Return events, prioritizing today's events, then upcoming
-      return [...events].sort((a, b) => {
-          const dateA = new Date(a.date).getTime();
-          const dateB = new Date(b.date).getTime();
-          return dateA - dateB;
-      });
-  };
-
-  const checkTodaysEvents = () => {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      const todayShort = today.substring(5); // MM-DD
-      
-      return events.filter(e => {
-          if (e.isRecurring) {
-              return e.date.endsWith(todayShort);
-          }
-          return e.date === today;
-      });
-  };
-
   // --- End Logic ---
 
   const loadChildData = async (childId: string) => {
       const mems = await DataService.getMemories(childId);
       const growth = await DataService.getGrowth(childId);
-      const evts = await DataService.getEvents(childId);
       setMemories(mems);
       setGrowthData(growth);
-      setEvents(evts);
   };
 
   const refreshData = async () => {
@@ -232,7 +207,6 @@ function App() {
         if (!activeProfileId) {
              setMemories([]);
              setGrowthData([]);
-             setEvents([]);
         }
         return;
       }
@@ -274,7 +248,6 @@ function App() {
           setProfiles([]);
           setMemories([]);
           setGrowthData([]);
-          setEvents([]);
           setSession(null); 
           setIsGuestMode(false);
       }
@@ -382,11 +355,6 @@ function App() {
       setActiveTab(TabView.HOME);
   };
 
-  const requestDeleteEvent = async (id: string) => {
-      setItemToDelete({ type: 'EVENT', id });
-      setShowConfirmModal(true);
-  };
-
   // Request to delete - Shows Modal
   const requestDeleteMemory = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation(); 
@@ -421,18 +389,11 @@ function App() {
         await DataService.deleteGrowth(itemToDelete.id);
      } else if (itemToDelete.type === 'PROFILE') {
         await DataService.deleteProfile(itemToDelete.id);
-     } else if (itemToDelete.type === 'EVENT') {
-        await DataService.deleteEvent(itemToDelete.id);
      }
 
      await refreshData();
      setShowConfirmModal(false);
      setItemToDelete(null);
-  };
-
-  const navigateToSettings = (view?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS') => {
-      if (view) setSettingsInitialView(view);
-      setActiveTab(TabView.SETTINGS);
   };
 
   const tabs = [
@@ -463,8 +424,6 @@ function App() {
         const currentFormattedDate = new Date().toLocaleDateString('en-GB');
         
         const birthdayStatus = getBirthdayStatus();
-        const todaysEvents = checkTodaysEvents();
-        const sortedEvents = getSortedEvents();
 
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
@@ -505,23 +464,6 @@ function App() {
                 </div>
                )}
                </>
-            )}
-
-            {/* Event Today Banner */}
-            {todaysEvents.length > 0 && (
-                 <div className="bg-gradient-to-r from-indigo-400 to-blue-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in">
-                   <div className="flex items-center gap-3">
-                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-                           <Bell className="w-6 h-6 animate-pulse" />
-                       </div>
-                       <div>
-                           <h3 className="font-bold text-lg">{t('event_today')}</h3>
-                           <ul className="text-sm opacity-90 leading-tight list-disc list-inside">
-                               {todaysEvents.map(e => <li key={e.id}>{e.title}</li>)}
-                           </ul>
-                       </div>
-                   </div>
-                </div>
             )}
 
             <div className="flex justify-between items-center mb-2">
@@ -705,15 +647,13 @@ function App() {
                       onHideDetails={() => setIsDetailsUnlocked(false)}
                       growthData={growthData}
                       memories={memories}
-                      events={events} // Pass events
                       onEditMemory={handleEditStart}
                       onDeleteMemory={(id) => requestDeleteMemory(id)}
                       onDeleteGrowth={(id) => requestDeleteGrowth(id)}
                       onDeleteProfile={(id) => requestDeleteProfile(id)}
-                      onDeleteEvent={(id) => requestDeleteEvent(id)} // Pass delete handler
                       isGuestMode={isGuestMode}
                       onLogout={handleLogout}
-                      initialView={settingsInitialView} // Pass the view state
+                      initialView={settingsInitialView}
                     />
                 )}
             </div>
