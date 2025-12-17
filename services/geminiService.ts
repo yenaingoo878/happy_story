@@ -1,15 +1,9 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-// Safely retrieve the API key to prevent crashes if process is undefined
-const getApiKey = () => {
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env.API_KEY;
-    }
-    return '';
-};
-
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
+// Initialize the Google GenAI client with the API key from environment variables as per guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
@@ -23,8 +17,9 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
       Do not include markdown formatting or bold text, just plain text paragraphs.
     `;
 
+    // Use gemini-3-flash-preview for basic text tasks
     const response = await ai.models.generateContentStream({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         thinkingConfig: { thinkingBudget: 0 },
@@ -52,8 +47,9 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
           Focus on the steady progress. Do not give medical advice, just general encouragement about their growth trend.
         `;
 
+        // Use gemini-3-flash-preview for basic analytical text tasks
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 thinkingConfig: { thinkingBudget: 0 },
@@ -61,6 +57,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
             }
         });
 
+        // Use .text property to extract output string
         return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
     } catch (error) {
         console.error("Error analyzing growth:", error);

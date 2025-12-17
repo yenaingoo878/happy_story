@@ -14,7 +14,7 @@
   }
 }
 
-/* Custom scrollbar for cleaner look */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -29,31 +29,48 @@
   background: #A0AEC0; 
 }
 
-/* iOS Date Input Fixes & Alignment */
-input[type="date"], input[type="time"] {
+/* Date picker text alignment to start */
+input[type="date"], 
+input[type="time"],
+input[type="datetime-local"] {
   display: block;
   -webkit-appearance: none;
-  min-height: 2.5rem; /* Ensure touch target */
+  min-height: 2.5rem;
   background-color: transparent;
-  text-align: start; /* Align text to left/start */
-  text-align: left; /* Fallback */
+  text-align: start !important;
+  justify-content: flex-start !important;
+  align-items: center;
+  padding-left: 1rem;
 }
 
-/* Confetti Boom Animation */
-@keyframes confetti-explosion {
-  0% { transform: scale(0); opacity: 1; }
+/* Keyframes for the 'BOOM' Explosion */
+@keyframes boom-burst {
+  0% { transform: scale(0) translate(0, 0); opacity: 1; }
   50% { opacity: 1; }
-  100% { transform: scale(1.5) translateY(20px); opacity: 0; }
+  100% { transform: scale(1.5) translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 0; }
 }
 
-.animate-boom {
-  animation: confetti-explosion 0.8s ease-out forwards;
+/* Keyframes for Falling Confetti */
+@keyframes fall-sway {
+  0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 1; }
+  25% { transform: translateY(25vh) translateX(25px) rotate(90deg); }
+  50% { transform: translateY(50vh) translateX(-25px) rotate(180deg); }
+  75% { transform: translateY(75vh) translateX(15px) rotate(270deg); }
+  100% { transform: translateY(110vh) translateX(0) rotate(360deg); opacity: 0; }
 }
 
-.confetti-piece {
+.animate-boom-particle {
+  animation: boom-burst 1s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+.animate-fall-particle {
+  animation: fall-sway 5s linear forwards;
+}
+
+.celebration-particle {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  width: 10px;
+  height: 10px;
 }
