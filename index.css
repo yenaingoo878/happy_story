@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    background-color: #F7FAFC; /* Fallback */
+    background-color: #F7FAFC;
     font-family: 'Padauk', sans-serif;
   }
   

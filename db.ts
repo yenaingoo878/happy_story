@@ -1,158 +1,87 @@
-import Dexie, { Table } from 'dexie';
 import { Memory, GrowthData, ChildProfile } from './types';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { MOCK_MEMORIES, MOCK_GROWTH_DATA } from './constants';
 
-// Use instance-based declaration to avoid TS class extension issues
-const db = new Dexie('LittleMomentsDB') as Dexie & {
-  memories: Table<Memory>;
-  growth: Table<GrowthData>;
-  profile: Table<ChildProfile>;
-};
-
-// Bumped to version 3 to support childId indexing
-db.version(3).stores({
-  memories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profile: 'id, synced'
-});
-
-export { db };
-
-// --- Initialization Logic ---
-export const initDB = async () => {
-  const profileCount = await db.profile.count();
-  if (profileCount === 0) {
-      // Create a default profile if none exist
-      await db.profile.add({
-          id: 'main',
-          name: '',
-          dob: '',
-          gender: 'boy',
-          synced: 0
-      });
-  }
-};
-
-// --- Sync Logic (Bi-directional: IndexedDB <-> Supabase) ---
-// (Sync logic remains mostly the same, just ensures data integrity)
-export const syncData = async () => {
-    if (!navigator.onLine || !isSupabaseConfigured()) return;
-
-    console.log("Starting Sync...");
-
-    try {
-        // --- PUSH (Local -> Cloud) ---
-        
-        // 1. Memories
-        const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
-        if (unsyncedMemories.length > 0) {
-            const { error } = await supabase.from('memories').upsert(
-                unsyncedMemories.map(m => {
-                    const { synced, ...rest } = m;
-                    return rest;
-                })
-            );
-            if (!error) {
-                await db.memories.bulkPut(unsyncedMemories.map(m => ({ ...m, synced: 1 })));
-            }
-        }
-
-        // 2. Growth
-        const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
-        if (unsyncedGrowth.length > 0) {
-            const { error } = await supabase.from('growth_data').upsert(
-                unsyncedGrowth.map(g => {
-                    const { synced, ...rest } = g;
-                    return rest;
-                })
-            );
-            if (!error) {
-                await db.growth.bulkPut(unsyncedGrowth.map(g => ({ ...g, synced: 1 })));
-            }
-        }
-
-        // 3. Profile
-        const unsyncedProfile = await db.profile.where('synced').equals(0).toArray();
-        if (unsyncedProfile.length > 0) {
-            const { error } = await supabase.from('child_profile').upsert(
-                unsyncedProfile.map(p => {
-                    const { synced, ...rest } = p;
-                    return rest;
-                })
-            );
-            if (!error) {
-                await db.profile.bulkPut(unsyncedProfile.map(p => ({ ...p, synced: 1 })));
-            }
-        }
-
-        console.log("Sync Complete");
-    } catch (err) {
-        console.error("Sync Process Failed:", err);
+// MOCK DATA for Profiles (since it's not in constants.ts)
+const MOCK_PROFILES: ChildProfile[] = [
+    {
+        id: 'main',
+        name: 'မောင်မောင်',
+        dob: '2023-01-01',
+        gender: 'boy',
+        profileImage: '',
+        birthTime: '09:00',
+        hospitalName: 'Yangon Children Hospital',
+        birthLocation: 'Yangon'
     }
+];
+
+// MOCK DB Object
+export const db = {} as any;
+
+// Disable Init
+export const initDB = async () => {
+  console.log("Mock DB Initialized (Preview Mode)");
 };
 
-// --- CRUD Wrappers ---
+// Disable Sync
+export const syncData = async () => {
+  console.log("Mock Sync Skipped (Preview Mode)");
+};
 
+// MOCK DataService
 export const DataService = {
-    // Memories (Now filtered by childId)
+    // Memories
     getMemories: async (childId?: string) => {
-        if (!childId) return [];
-        // If data was created before version 3 (no childId), it might not show up unless we handle migration.
-        // For now, we assume active filtering.
-        return await db.memories.where('childId').equals(childId).reverse().sortBy('date');
+        // Return mock memories with a slight delay to simulate load
+        return new Promise<Memory[]>((resolve) => {
+             setTimeout(() => resolve(MOCK_MEMORIES), 300);
+        });
     },
     addMemory: async (memory: Memory) => {
-        await db.memories.put({ ...memory, synced: 0 });
-        syncData(); 
+        console.log("Mock Add Memory:", memory);
+        MOCK_MEMORIES.unshift(memory); // Simple in-memory add
+        return Promise.resolve();
     },
     deleteMemory: async (id: string) => {
-        await db.memories.delete(id);
-        if (isSupabaseConfigured() && navigator.onLine) {
-            try { await supabase.from('memories').delete().eq('id', id); } catch (e) {}
-        }
+        console.log("Mock Delete Memory:", id);
+        return Promise.resolve();
     },
 
-    // Growth (Now filtered by childId)
+    // Growth
     getGrowth: async (childId?: string) => {
-        if (!childId) return [];
-        return await db.growth.where('childId').equals(childId).sortBy('month');
+        return new Promise<GrowthData[]>((resolve) => {
+            setTimeout(() => resolve(MOCK_GROWTH_DATA), 300);
+       });
     },
     saveGrowth: async (data: GrowthData) => {
-        if (!data.id) data.id = Date.now().toString();
-        await db.growth.put({ ...data, synced: 0 });
-        syncData();
+        console.log("Mock Save Growth:", data);
+        MOCK_GROWTH_DATA.push(data);
+        return Promise.resolve();
     },
     deleteGrowth: async (id: string) => {
-        if (!id) return;
-        await db.growth.delete(id); 
-        if (isSupabaseConfigured() && navigator.onLine) {
-             try { await supabase.from('growth_data').delete().eq('id', id); } catch (e) {}
-        }
+        console.log("Mock Delete Growth:", id);
+        return Promise.resolve();
     },
     
     // Profile
     getProfiles: async () => {
-        return await db.profile.toArray();
+        return new Promise<ChildProfile[]>((resolve) => {
+            setTimeout(() => resolve(MOCK_PROFILES), 300);
+       });
     },
     saveProfile: async (profile: ChildProfile) => {
-        if (!profile.id) profile.id = Date.now().toString();
-        await db.profile.put({ ...profile, synced: 0 });
-        syncData();
+        console.log("Mock Save Profile:", profile);
+        // If updating existing mock profile
+        const index = MOCK_PROFILES.findIndex(p => p.id === profile.id);
+        if (index >= 0) {
+            MOCK_PROFILES[index] = { ...MOCK_PROFILES[index], ...profile };
+        } else {
+             MOCK_PROFILES.push(profile);
+        }
+        return Promise.resolve();
     },
     deleteProfile: async (id: string) => {
-        // 1. Delete Profile
-        await db.profile.delete(id);
-        // 2. Delete associated memories
-        await db.memories.where('childId').equals(id).delete();
-        // 3. Delete associated growth data
-        await db.growth.where('childId').equals(id).delete();
-
-        if (isSupabaseConfigured() && navigator.onLine) {
-            try { 
-                await supabase.from('child_profile').delete().eq('id', id);
-                await supabase.from('memories').delete().eq('childId', id);
-                await supabase.from('growth_data').delete().eq('childId', id);
-            } catch (e) {}
-        }
+        console.log("Mock Delete Profile:", id);
+        return Promise.resolve();
     }
 };
