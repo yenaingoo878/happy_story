@@ -16,25 +16,8 @@ export const translations = {
   welcome_title: { en: "Little Moments", mm: "Little Moments" },
   welcome_subtitle: { en: "Capture your child's precious journey.", mm: "သင့်ကလေး၏ ကြီးထွားမှုအဆင့်ဆင့်ကို မှတ်တမ်းတင်လိုက်ပါ။" },
   signin_google: { en: "Sign in with Google", mm: "Google ဖြင့် ဝင်ရောက်ရန်" },
-  sign_in: { en: "Sign In", mm: "ဝင်ရောက်ရန်" },
-  sign_up: { en: "Sign Up", mm: "အကောင့်သစ်ဖွင့်ရန်" },
-  email: { en: "Email", mm: "အီးမေးလ်" },
-  password: { en: "Password", mm: "စကားဝှက်" },
-  no_account: { en: "Don't have an account?", mm: "အကောင့်မရှိဘူးလား?" },
-  have_account: { en: "Already have an account?", mm: "အကောင့်ရှိပြီးသားလား?" },
-  guest_mode: { en: "Guest Mode", mm: "ဧည့်သည်အနေဖြင့် ဝင်မည်" },
-  guest_desc: { en: "Continue without account", mm: "အကောင့်မဖွင့်ဘဲ ဆက်သုံးမည်" },
-  guest_mode_active: { en: "Guest Mode Active", mm: "ဧည့်သည်စနစ်ဖြင့် သုံးနေသည်" },
-  guest_mode_warning: { en: "Data is saved on this device only.", mm: "အချက်အလက်များကို သင့်ဖုန်းထဲတွင်သာ သိမ်းထားပါမည်။" },
   logging_in: { en: "Signing in...", mm: "ဝင်ရောက်နေပါသည်..." },
   logout: { en: "Log Out", mm: "အကောင့်ထွက်မည်" },
-  sign_out: { en: "Sign Out", mm: "အကောင့်ထွက်မည်" },
-  signing_out: { en: "Signing out...", mm: "အကောင့်ထွက်နေသည်..." },
-  auth_error: { en: "Authentication failed.", mm: "ဝင်ရောက်၍မရပါ။" },
-  exiting_guest: { en: "Exiting Guest Mode...", mm: "ဧည့်သည်စနစ်မှ ထွက်နေသည်..." },
-  exit_guest_mode: { en: "Exit Guest Mode", mm: "ဧည့်သည်စနစ်မှ ထွက်မည်" },
-  logged_in_as: { en: "Logged in as", mm: "အသုံးပြုနေသူ" },
-  account: { en: "Account", mm: "အကောင့်" },
 
   // Navigation
   nav_home: { en: "Home", mm: "ပင်မ" },
@@ -56,11 +39,6 @@ export const translations = {
   update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
   cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
   date_label: { en: "Date", mm: "နေ့စွဲ" },
-  tags_label: { en: "Tags", mm: "အမှတ်အသားများ" },
-  add_tag_placeholder: { en: "Add tag...", mm: "အမှတ်အသားထည့်ရန်..." },
-  add: { en: "Add", mm: "ထည့်မည်" },
-  saving: { en: "Saving...", mm: "သိမ်းဆည်းနေသည်..." },
-  saved_success: { en: "Saved successfully!", mm: "အောင်မြင်စွာ သိမ်းဆည်းလိုက်ပါပြီ" },
 
   // Story Generator
   story_title: { en: "Bedtime Story", mm: "အိပ်ရာဝင် ပုံပြင်" },
@@ -86,23 +64,16 @@ export const translations = {
   height_label: { en: "Height", mm: "အရပ်" },
   weight_label: { en: "Weight", mm: "ကိုယ်အလေးချိန်" },
   disclaimer: { en: "* Not based on standard WHO Child Growth Standards, for reference only.", mm: "* Standard WHO Child Growth Standards အပေါ်အခြေခံထားခြင်းမရှိပါ၊ ကိုးကားရန်သာ။" },
-  growth_data_note: { en: "Growth data is for reference only.", mm: "ကြီးထွားမှု အချက်အလက်များသည် ကိုးကားရန်အတွက်သာ ဖြစ်ပါသည်။" },
 
   // Gallery
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },
   gallery_subtitle: { en: "Precious Moments", mm: "အမှတ်တရ ပုံရိပ်လွှာများ" },
   no_photos: { en: "No photos yet", mm: "ဓာတ်ပုံများ မရှိသေးပါ" },
 
-  // Settings & Profile
+  // Settings
   settings_title: { en: "Settings", mm: "ဆက်တင်များ" },
   settings_subtitle: { en: "Preferences & Profile", mm: "အသုံးပြုသူ နှင့် ကလေးအချက်အလက်" },
   about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
-  child_profile: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
-  child_name_label: { en: "Child Name", mm: "ကလေးအမည်" },
-  dob_label: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
-  gender_label: { en: "Gender", mm: "ကျား/မ" },
-  boy: { en: "Boy", mm: "သားသား" },
-  girl: { en: "Girl", mm: "မီးမီး" },
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
   child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
@@ -112,18 +83,12 @@ export const translations = {
   hospital_placeholder: { en: "e.g. City Hospital", mm: "ဥပမာ - ဗဟိုအမျိုးသမီးဆေးရုံ" },
   location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },
   save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
-  save_profile: { en: "Save Profile", mm: "သိမ်းဆည်းမည်" },
   language: { en: "Language", mm: "ဘာသာစကား" },
-  language_label: { en: "Language", mm: "ဘာသာစကား" },
-  lang_mm: { en: "Myanmar", mm: "မြန်မာ" },
-  lang_en: { en: "English", mm: "English" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
-  theme_label: { en: "Theme", mm: "အသွင်အပြင်" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
-  manage_growth_data: { en: "Manage Growth Data", mm: "ကြီးထွားမှုမှတ်တမ်း စီမံရန်" },
   growth_input_title: { en: "Add/Edit Record", mm: "မှတ်တမ်း အသစ်/ပြင်ဆင်" },
   add_record: { en: "Save Record", mm: "မှတ်တမ်းတင်မည်" },
   update_record: { en: "Update", mm: "ပြင်ဆင်မည်" },
@@ -131,31 +96,9 @@ export const translations = {
   cm: { en: "cm", mm: "စင်တီမီတာ" },
   kg: { en: "kg", mm: "ကီလို" },
   manage_memories: { en: "Memories List", mm: "အမှတ်တရများ စာရင်း" },
-  manage_memories_data: { en: "Manage Memories", mm: "အမှတ်တရများ စီမံရန်" },
-  settings_subtitle_memories: { en: "Manage your memories", mm: "အမှတ်တရများကို စီမံခန့်ခွဲပါ" },
   delete: { en: "Delete", mm: "ဖျက်မည်" },
-  delete_profile: { en: "Delete Profile", mm: "ပရိုဖိုင် ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
-  confirm_delete: { en: "Are you sure you want to delete this?", mm: "ဖျက်ရန် သေချာပါသလား?" },
-  delete_btn: { en: "Delete", mm: "ဖျက်မည်" },
-  are_you_sure: { en: "Are you sure?", mm: "သေချာပါသလား?" },
-  delete_memory_title: { en: "Delete Memory", mm: "အမှတ်တရကို ဖျက်မည်" },
-  delete_memory_message: { en: "Are you sure you want to delete this memory?", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား?" },
-  delete_growth_title: { en: "Delete Growth Record", mm: "ကြီးထွားမှုမှတ်တမ်း ဖျက်မည်" },
-  delete_growth_message: { en: "Are you sure you want to delete this record?", mm: "ဤမှတ်တမ်းကို ဖျက်ရန် သေချာပါသလား?" },
-  delete_profile_title: { en: "Delete Profile", mm: "ပရိုဖိုင် ဖျက်မည်" },
-  delete_profile_message: { en: "Are you sure you want to delete this profile?", mm: "ဤပရိုဖိုင်ကို ဖျက်ရန် သေချာပါသလား?" },
-
-  // Filters
-  search_placeholder: { en: "Search...", mm: "ရှာဖွေရန်..." },
-  search_memories_placeholder: { en: "Search memories...", mm: "အမှတ်တရများ ရှာရန်..." },
-  filter_date_start: { en: "Start Date", mm: "စတင်ရက်" },
-  end_date: { en: "End Date", mm: "ပြီးဆုံးရက်" },
-  start_date: { en: "Start Date", mm: "စတင်ရက်" },
-  filter_by_tag: { en: "Filter by Tag", mm: "Tag ဖြင့်ရှာရန်" },
-  all_tags: { en: "All Tags", mm: "အားလုံး" },
-  clear_filters: { en: "Clear Filters", mm: "Filter များဖျက်မည်" },
-  no_memories_found: { en: "No memories found", mm: "အမှတ်တရများ မတွေ့ရှိပါ" },
+  confirm_delete: { en: "Are you sure you want to delete this?", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား?" },
 
   // Security
   private_info: { en: "Private Details", mm: "ကိုယ်ရေးအချက်အလက်များ" },
@@ -166,25 +109,16 @@ export const translations = {
   confirm: { en: "Confirm", mm: "အတည်ပြုမည်" },
   wrong_passcode: { en: "Incorrect passcode", mm: "လျှို့ဝှက်နံပါတ် မှားယွင်းနေပါသည်" },
   hide_details: { en: "Hide Details", mm: "ပြန်ဖွက်ထားမည်" },
-  passcode_prompt: { en: "Enter Passcode", mm: "လျှို့ဝှက်နံပါတ် ရိုက်ထည့်ပါ" },
   
   // Security Management
-  security: { en: "Security", mm: "လုံခြုံရေး" },
   security_title: { en: "Security", mm: "လုံခြုံရေး" },
   change_passcode: { en: "Change Passcode", mm: "လျှို့ဝှက်နံပါတ် ပြောင်းမည်" },
   remove_passcode: { en: "Turn off Passcode", mm: "လျှို့ဝှက်နံပါတ် ဖြုတ်မည်" },
   enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
   enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
-  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" },
-  set_passcode: { en: "Set Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" },
-  passcode_enabled: { en: "Passcode Enabled", mm: "လျှို့ဝှက်နံပါတ် ဖွင့်ထားသည်" },
-  
-  // Sync
-  sync_status: { en: "Sync Status", mm: "Sync အခြေအနေ" },
-  online: { en: "Online", mm: "အွန်လိုင်း" },
-  offline: { en: "Offline", mm: "အော့ဖ်လိုင်း" }
+  setup_passcode: { en: "Setup Passcode", mm: "လျှို့ဝှက်နံပါတ် သတ်မှတ်မည်" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
-  return translations[key]?.[lang] || translations[key]?.['en'] || key;
+  return translations[key][lang];
 };

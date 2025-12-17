@@ -2,29 +2,22 @@ import Dexie, { Table } from 'dexie';
 import { supabase } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile } from './types';
 
-// Define the database type
-export type LittleMomentsDB = Dexie & {
-  memories: Table<Memory>;
-  growth: Table<GrowthData>;
-  profiles: Table<ChildProfile>;
-};
+class LittleMomentsDB extends Dexie {
+  memories!: Table<Memory>;
+  growth!: Table<GrowthData>;
+  profiles!: Table<ChildProfile>;
 
-// Initialize Dexie instance
-const dbInstance = new Dexie('LittleMomentsDB');
+  constructor() {
+    super('LittleMomentsDB');
+    this.version(1).stores({
+      memories: 'id, childId, date, synced',
+      growth: 'id, childId, month, synced',
+      profiles: 'id, name, synced' 
+    });
+  }
+}
 
-// Define schema
-dbInstance.version(1).stores({
-  memories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced' 
-});
-
-// Export typed database instance
-export const db = dbInstance as LittleMomentsDB;
-
-export const generateId = () => {
-  return crypto.randomUUID();
-};
+export const db = new LittleMomentsDB();
 
 export const initDB = async () => {
   try {
@@ -92,13 +85,6 @@ export const syncData = async () => {
 };
 
 export const DataService = {
-    // --- UTILS ---
-    clearLocalData: async () => {
-        await db.memories.clear();
-        await db.growth.clear();
-        await db.profiles.clear();
-    },
-
     // --- STORAGE ---
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         try {
@@ -170,10 +156,8 @@ export const DataService = {
     },
     
     saveProfile: async (profile: ChildProfile) => {
-        const id = profile.id || generateId();
-        await db.profiles.put({ ...profile, id, synced: 0 });
+        await db.profiles.put({ ...profile, synced: 0 });
         syncData();
-        return id;
     },
 
     deleteProfile: async (id: string) => {
