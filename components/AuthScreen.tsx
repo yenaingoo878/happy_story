@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation } from '../translations';
 
@@ -15,6 +14,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
   const [googleLoading, setGoogleLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,13 +32,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
       });
       if (error) throw error;
     } catch (error: any) {
-      setError(error.message || "Login failed");
+      setError(error.message || "Google Login failed");
       setGoogleLoading(false);
     }
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
@@ -95,6 +100,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
             </div>
           )}
 
+         {/* Google Login Button */}
          <button 
            onClick={handleGoogleLogin}
            disabled={loading || googleLoading}
@@ -122,6 +128,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
             </div>
          </div>
 
+         {/* Email/Password Form */}
          <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
             <div className="space-y-3">
                <div className="relative">
@@ -143,14 +150,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage })
                    <Lock className="h-4 w-4 text-slate-400" />
                  </div>
                  <input
-                   type="password"
+                   type={showPassword ? "text" : "password"}
                    required
                    minLength={6}
                    value={password}
                    onChange={(e) => setPassword(e.target.value)}
-                   className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400"
+                   className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400"
                    placeholder={t('password')}
                  />
+                 <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                 >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                 </button>
                </div>
             </div>
 
