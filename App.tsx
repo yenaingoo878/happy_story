@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete } from 'lucide-react';
 // Lazy load components to reduce initial bundle size
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
@@ -179,42 +179,28 @@ function App() {
     return 'NONE';
   };
 
-  // Full Screen Confetti Component for "Boom" and "Falling" effect
-  const BirthdayCelebration = () => {
-      const particles = useMemo(() => {
-          const colors = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-yellow-400', 'bg-rose-400', 'bg-teal-400'];
-          const explosion = Array.from({ length: 40 }).map((_, i) => ({
-              id: `exp-${i}`,
-              color: colors[Math.floor(Math.random() * colors.length)],
-              left: `${20 + Math.random() * 60}%`, // Center heavy
-              top: `${20 + Math.random() * 60}%`,
-              delay: `${Math.random() * 0.3}s`,
-              type: 'boom'
-          }));
-          const falling = Array.from({ length: 50 }).map((_, i) => ({
-              id: `fall-${i}`,
-              color: colors[Math.floor(Math.random() * colors.length)],
-              left: `${Math.random() * 100}%`,
-              top: `-10%`,
-              delay: `${Math.random() * 4}s`, // Staggered entry over 4 seconds
-              type: 'fall'
-          }));
-          return [...explosion, ...falling];
-      }, []);
+  // Confetti Component for "Boom" effect
+  const ConfettiBoom = () => {
+      // 20 particles with random colors and positions
+      const colors = ['bg-red-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-purple-400'];
+      const particles = Array.from({ length: 30 }).map((_, i) => ({
+          id: i,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          left: `${Math.random() * 100}%`,
+          delay: `${Math.random() * 0.2}s`,
+          top: `${Math.random() * 100}%`
+      }));
 
       return (
-          <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl z-10">
               {particles.map(p => (
                   <div 
                     key={p.id}
-                    className={`confetti-piece ${p.color} ${p.type === 'boom' ? 'animate-boom' : 'animate-fall'}`}
+                    className={`confetti-piece ${p.color} animate-boom`}
                     style={{ 
                         left: p.left, 
-                        top: p.type === 'boom' ? p.top : '-10%',
-                        animationDelay: p.delay,
-                        borderRadius: Math.random() > 0.5 ? '50%' : '2px',
-                        width: `${8 + Math.random() * 8}px`,
-                        height: `${8 + Math.random() * 8}px`,
+                        top: p.top, 
+                        animationDelay: p.delay 
                     }}
                   />
               ))}
@@ -499,11 +485,6 @@ function App() {
 
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
-            {/* Full Screen Birthday Animation */}
-            {remindersEnabled && showBirthdayBanner && birthdayStatus === 'TODAY' && (
-                <BirthdayCelebration />
-            )}
-
             {/* Birthday Banners - Only show if reminders are enabled */}
             {remindersEnabled && showBirthdayBanner && (
                <>
@@ -526,6 +507,7 @@ function App() {
 
                {birthdayStatus === 'TODAY' && (
                 <div className="bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in overflow-hidden">
+                   <ConfettiBoom />
                    <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors z-20">
                        <X className="w-4 h-4"/>
                    </button>
