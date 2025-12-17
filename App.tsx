@@ -254,6 +254,13 @@ function App() {
   };
 
   const handleLogout = async () => {
+      // 1. Clear Supabase tokens immediately to prevent auto-relogin loops
+      Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+              localStorage.removeItem(key);
+          }
+      });
+
       try {
           if (session) {
               // Attempt standard sign out, catch any immediate errors
@@ -264,20 +271,12 @@ function App() {
           console.error("Logout exception:", error);
       } finally {
           // Force cleanup of local state regardless of server response
-          setIsGuestMode(false);
-          setSession(null); 
           setProfiles([]);
           setMemories([]);
           setGrowthData([]);
           setEvents([]);
-          
-          // Clear Supabase tokens from localStorage manually to ensure 'logged out' state persists on refresh
-          // Supabase uses keys starting with 'sb-'
-          Object.keys(localStorage).forEach(key => {
-              if (key.startsWith('sb-')) {
-                  localStorage.removeItem(key);
-              }
-          });
+          setSession(null); 
+          setIsGuestMode(false);
       }
   };
 
@@ -788,7 +787,12 @@ function App() {
                 return (
                     <button
                         key={tab.id}
-                        onClick={() => { setActiveTab(tab.id); }}
+                        onClick={() => { 
+                            if (tab.id === TabView.SETTINGS) {
+                                setSettingsInitialView('MAIN'); 
+                            }
+                            setActiveTab(tab.id); 
+                        }}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                             isActive 
                             ? 'bg-primary/10 text-primary font-bold shadow-sm' 
@@ -900,7 +904,12 @@ function App() {
            return (
              <button
                 key={tab.id}
-                onClick={() => { setActiveTab(tab.id); }}
+                onClick={() => { 
+                    if (tab.id === TabView.SETTINGS) {
+                        setSettingsInitialView('MAIN'); 
+                    }
+                    setActiveTab(tab.id); 
+                }}
                 className={`relative flex items-center justify-center gap-2 h-12 rounded-full transition-all duration-500 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-md' : 'flex-1 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-400 dark:text-slate-500'}`}
              >
                  <tab.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-105' : 'scale-100'}`} strokeWidth={isActive ? 2.5 : 2} />
