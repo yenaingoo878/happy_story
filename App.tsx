@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, CalendarHeart, Repeat } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, CalendarHeart, Repeat, CalendarPlus } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -50,6 +50,9 @@ function App() {
   
   // Edit Memory State for AddMemory Component
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
+  
+  // Settings view control
+  const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS'>('MAIN');
 
   // Birthday Banner State
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
@@ -251,15 +254,31 @@ function App() {
   };
 
   const handleLogout = async () => {
-      if (session) {
-          await supabase.auth.signOut();
+      try {
+          if (session) {
+              // Attempt standard sign out, catch any immediate errors
+              const { error } = await supabase.auth.signOut();
+              if (error) console.warn("Supabase signOut warning:", error.message);
+          }
+      } catch (error) {
+          console.error("Logout exception:", error);
+      } finally {
+          // Force cleanup of local state regardless of server response
+          setIsGuestMode(false);
+          setSession(null); 
+          setProfiles([]);
+          setMemories([]);
+          setGrowthData([]);
+          setEvents([]);
+          
+          // Clear Supabase tokens from localStorage manually to ensure 'logged out' state persists on refresh
+          // Supabase uses keys starting with 'sb-'
+          Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('sb-')) {
+                  localStorage.removeItem(key);
+              }
+          });
       }
-      setIsGuestMode(false);
-      setSession(null); // Explicitly clear session state immediately
-      setProfiles([]);
-      setMemories([]);
-      setGrowthData([]);
-      setEvents([]);
   };
 
   const toggleLanguage = () => {
@@ -412,6 +431,11 @@ function App() {
      setItemToDelete(null);
   };
 
+  const navigateToSettings = (view?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS') => {
+      if (view) setSettingsInitialView(view);
+      setActiveTab(TabView.SETTINGS);
+  };
+
   const tabs = [
     { id: TabView.HOME, icon: Home, label: 'nav_home' },
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
@@ -526,13 +550,20 @@ function App() {
                )}
             </div>
 
-            {/* Important Dates Section */}
+            {/* Important Dates Section with Manage Link */}
             <div className="bg-white dark:bg-slate-800 rounded-[28px] p-5 shadow-sm border border-slate-100 dark:border-slate-700">
                 <div className="flex justify-between items-center mb-3">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                         <CalendarHeart className="w-5 h-5 text-rose-400" />
                         {t('important_dates')}
                     </h3>
+                    <button 
+                        onClick={() => navigateToSettings('EVENTS')} 
+                        className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1"
+                    >
+                        <CalendarPlus className="w-3 h-3" />
+                        {t('manage')}
+                    </button>
                 </div>
                 
                 {sortedEvents.length > 0 ? (
@@ -553,8 +584,14 @@ function App() {
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-4 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/30 rounded-xl border-dashed border-2 border-slate-100 dark:border-slate-700">
-                        {t('no_events')}
+                    <div className="text-center py-4 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/30 rounded-xl border-dashed border-2 border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center gap-2">
+                        <span>{t('no_events')}</span>
+                        <button 
+                            onClick={() => navigateToSettings('EVENTS')}
+                            className="text-xs text-primary font-bold underline"
+                        >
+                            {t('add_event')}
+                        </button>
                     </div>
                 )}
             </div>
@@ -723,6 +760,7 @@ function App() {
                       onDeleteEvent={(id) => requestDeleteEvent(id)} // Pass delete handler
                       isGuestMode={isGuestMode}
                       onLogout={handleLogout}
+                      initialView={settingsInitialView} // Pass the view state
                     />
                 )}
             </div>

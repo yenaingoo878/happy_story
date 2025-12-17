@@ -38,6 +38,9 @@ interface SettingsProps {
   // Auth
   isGuestMode?: boolean;
   onLogout: () => void; // Unified logout handler
+  
+  // Navigation
+  initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS';
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -46,10 +49,10 @@ export const Settings: React.FC<SettingsProps> = ({
   passcode, isDetailsUnlocked, onUnlockRequest,
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
   growthData, memories, events, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile, onDeleteEvent,
-  isGuestMode, onLogout
+  isGuestMode, onLogout, initialView
 }) => {
   const t = (key: any) => getTranslation(language, key);
-  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS'>('MAIN');
+  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'EVENTS'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({
     id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: ''
   });
@@ -69,6 +72,12 @@ export const Settings: React.FC<SettingsProps> = ({
   // Event Form State
   const [newEvent, setNewEvent] = useState<{title: string, date: string, isRecurring: boolean}>({ title: '', date: '', isRecurring: false });
   const [isSavingEvent, setIsSavingEvent] = useState(false);
+
+  useEffect(() => {
+    if (initialView) {
+      setView(initialView);
+    }
+  }, [initialView]);
 
   // Load active profile into form when selected or unlocked
   useEffect(() => {

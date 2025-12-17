@@ -21,6 +21,7 @@ export const translations = {
   add_event: { en: "Add Reminder", mm: "အမှတ်တရနေ့ ထည့်မယ်" },
   no_events: { en: "No upcoming events", mm: "အမှတ်တရနေ့များ မရှိသေးပါ" },
   event_today: { en: "Happening Today!", mm: "ယနေ့ ကျရောက်သောနေ့" },
+  manage: { en: "Manage", mm: "ပြင်ဆင်ရန်" },
   
   // Event Form
   new_event_title: { en: "New Event", mm: "အမှတ်တရနေ့သစ်" },
@@ -32,7 +33,6 @@ export const translations = {
   // Auth
   welcome_title: { en: "Little Moments", mm: "Little Moments" },
   welcome_subtitle: { en: "Capture your child's precious journey.", mm: "သင့်ကလေး၏ ကြီးထွားမှုအဆင့်ဆင့်ကို မှတ်တမ်းတင်လိုက်ပါ။" },
-  signin_google: { en: "Sign in with Google", mm: "Google ဖြင့် ဝင်ရောက်ရန်" },
   logging_in: { en: "Signing in...", mm: "ဝင်ရောက်နေပါသည်..." },
   logout: { en: "Log Out", mm: "အကောင့်ထွက်မည်" },
   email: { en: "Email", mm: "အီးမေးလ်" },
