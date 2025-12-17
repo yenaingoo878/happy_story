@@ -23,7 +23,7 @@ export interface GrowthData {
 }
 
 export interface ChildProfile {
-  id?: string; // Singleton ID
+  id?: string;
   name: string;
   profileImage?: string;
   dob: string;
@@ -33,6 +33,14 @@ export interface ChildProfile {
   country?: string;
   bloodType?: string;
   gender: 'boy' | 'girl';
+  synced?: number;
+}
+
+export interface Reminder {
+  id: string;
+  title: string;
+  date: string;
+  type: 'birthday' | 'event' | 'medical';
   synced?: number;
 }
 

@@ -1,15 +1,9 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-// Safely retrieve the API key to prevent crashes if process is undefined
-const getApiKey = () => {
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env.API_KEY;
-    }
-    return '';
-};
-
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
+// FIX: Initialize Gemini API client using process.env.API_KEY directly as per guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
@@ -23,8 +17,9 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
       Do not include markdown formatting or bold text, just plain text paragraphs.
     `;
 
+    // FIX: Use gemini-3-flash-preview for text generation tasks as per guidelines
     const response = await ai.models.generateContentStream({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         thinkingConfig: { thinkingBudget: 0 },
@@ -52,8 +47,9 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
           Focus on the steady progress. Do not give medical advice, just general encouragement about their growth trend.
         `;
 
+        // FIX: Use gemini-3-flash-preview for text generation tasks as per guidelines
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 thinkingConfig: { thinkingBudget: 0 },

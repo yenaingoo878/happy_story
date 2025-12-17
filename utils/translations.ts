@@ -131,17 +131,16 @@ export const translations = {
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
-  growth_input_title: { en: "Add/Edit Record", mm: "မှတ်တမ်း အသစ်/ပြင်ဆင်" },
-  add_record: { en: "Save Record", mm: "မှတ်တမ်းတင်မည်" },
-  update_record: { en: "Update", mm: "ပြင်ဆင်မည်" },
-  month: { en: "Month", mm: "လ" },
-  cm: { en: "cm", mm: "စင်တီမီတာ" },
-  kg: { en: "kg", mm: "ကီလို" },
   manage_memories: { en: "Memories List", mm: "အမှတ်တရများ စာရင်း" },
+  manage_reminders: { en: "Reminders List", mm: "အသိပေးချက်များ စာရင်း" },
+  add_reminder: { en: "Add Reminder", mm: "အသိပေးချက် အသစ်ထည့်ရန်" },
+  reminder_title: { en: "Title", mm: "ခေါင်းစဉ်" },
+  reminder_date: { en: "Date", mm: "နေ့စွဲ" },
+  save_reminder: { en: "Save Reminder", mm: "သိမ်းဆည်းမည်" },
   delete: { en: "Delete", mm: "ဖျက်မည်" },
   delete_title: { en: "Delete Item", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
-  confirm_delete: { en: "Are you sure you want to delete this? This action cannot be undone.", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရနိုင်ပါ။" },
+  confirm_delete: { en: "Are you sure you want to delete this? This action cannot be undone.", mm: "ဤအချက်အလက်ကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရနိုင်ပါ။" },
 
   // Security
   private_info: { en: "Private Details", mm: "ကိုယ်ရေးအချက်အလက်များ" },
