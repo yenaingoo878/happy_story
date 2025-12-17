@@ -1,13 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar } from 'lucide-react';
-import { GrowthChart } from './components/GrowthChart';
-import { StoryGenerator } from './components/StoryGenerator';
-import { GalleryGrid } from './components/GalleryGrid';
-import { MemoryDetailModal } from './components/MemoryDetailModal';
-import { AuthScreen } from './components/AuthScreen';
-import { AddMemory } from './components/AddMemory';
-import { Settings as SettingsComponent } from './components/Settings';
+// Lazy load components to reduce initial bundle size
+const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
+const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
+const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(module => ({ default: module.GalleryGrid })));
+const AddMemory = React.lazy(() => import('./components/AddMemory').then(module => ({ default: module.AddMemory })));
+const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
+const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
+
+import { AuthScreen } from './components/AuthScreen'; // Keep AuthScreen eager as it's the first thing seen
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData } from './types';
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
@@ -593,6 +595,7 @@ function App() {
       case TabView.SETTINGS:
         return (
             <div className="pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
+              <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
                 {activeTab === TabView.ADD_MEMORY && (
                     <AddMemory 
                       language={language} 
@@ -656,6 +659,7 @@ function App() {
                       initialView={settingsInitialView}
                     />
                 )}
+              </Suspense>
             </div>
         );
     }
@@ -715,7 +719,9 @@ function App() {
 
       {/* Modals */}
       {selectedMemory && (
-        <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => requestDeleteMemory(selectedMemory!.id)} />
+        <Suspense fallback={null}>
+          <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => requestDeleteMemory(selectedMemory!.id)} />
+        </Suspense>
       )}
       
       {/* Delete Confirmation Modal */}
