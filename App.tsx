@@ -55,6 +55,11 @@ function App() {
   // Settings view control
   const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>('MAIN');
 
+  // Reminder Preferences
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('reminders_enabled') !== 'false'; // Default true
+  });
+
   // Birthday Banner State
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
 
@@ -129,6 +134,12 @@ function App() {
     localStorage.setItem('language', language);
   }, [language]);
 
+  const toggleReminders = () => {
+    const newVal = !remindersEnabled;
+    setRemindersEnabled(newVal);
+    localStorage.setItem('reminders_enabled', String(newVal));
+  };
+
   const formatDateDisplay = (isoDate: string | undefined) => {
     if (!isoDate) return '';
     const parts = isoDate.split('-');
@@ -166,6 +177,35 @@ function App() {
     }
     
     return 'NONE';
+  };
+
+  // Confetti Component for "Boom" effect
+  const ConfettiBoom = () => {
+      // 20 particles with random colors and positions
+      const colors = ['bg-red-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-purple-400'];
+      const particles = Array.from({ length: 30 }).map((_, i) => ({
+          id: i,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          left: `${Math.random() * 100}%`,
+          delay: `${Math.random() * 0.2}s`,
+          top: `${Math.random() * 100}%`
+      }));
+
+      return (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl z-10">
+              {particles.map(p => (
+                  <div 
+                    key={p.id}
+                    className={`confetti-piece ${p.color} animate-boom`}
+                    style={{ 
+                        left: p.left, 
+                        top: p.top, 
+                        animationDelay: p.delay 
+                    }}
+                  />
+              ))}
+          </div>
+      );
   };
 
   // --- End Logic ---
@@ -445,15 +485,15 @@ function App() {
 
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
-            {/* Birthday Banners */}
-            {showBirthdayBanner && (
+            {/* Birthday Banners - Only show if reminders are enabled */}
+            {remindersEnabled && showBirthdayBanner && (
                <>
                {birthdayStatus === 'TOMORROW' && (
                 <div className="bg-gradient-to-r from-amber-200 to-yellow-400 rounded-2xl p-4 text-amber-900 shadow-md relative mb-2 animate-zoom-in">
-                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors z-20">
                        <X className="w-4 h-4"/>
                    </button>
-                   <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-3 relative z-10">
                        <div className="w-10 h-10 bg-white/30 rounded-full flex items-center justify-center shrink-0">
                            <Calendar className="w-6 h-6 animate-pulse" />
                        </div>
@@ -466,11 +506,12 @@ function App() {
                )}
 
                {birthdayStatus === 'TODAY' && (
-                <div className="bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in">
-                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                <div className="bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 text-white shadow-md relative mb-2 animate-zoom-in overflow-hidden">
+                   <ConfettiBoom />
+                   <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 transition-colors z-20">
                        <X className="w-4 h-4"/>
                    </button>
-                   <div className="flex items-center gap-3">
+                   <div className="flex items-center gap-3 relative z-10">
                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
                            <Gift className="w-6 h-6 animate-bounce" />
                        </div>
@@ -673,6 +714,8 @@ function App() {
                       isGuestMode={isGuestMode}
                       onLogout={handleLogout}
                       initialView={settingsInitialView}
+                      remindersEnabled={remindersEnabled}
+                      toggleReminders={toggleReminders}
                     />
                 )}
               </Suspense>

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -38,6 +38,10 @@ interface SettingsProps {
   
   // Navigation
   initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES';
+
+  // Reminders
+  remindersEnabled?: boolean;
+  toggleReminders?: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -46,7 +50,7 @@ export const Settings: React.FC<SettingsProps> = ({
   passcode, isDetailsUnlocked, onUnlockRequest,
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
   growthData, memories, onEditMemory, onDeleteMemory, onDeleteGrowth, onDeleteProfile,
-  isGuestMode, onLogout, initialView
+  isGuestMode, onLogout, initialView, remindersEnabled, toggleReminders
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES'>(initialView || 'MAIN');
@@ -346,6 +350,25 @@ export const Settings: React.FC<SettingsProps> = ({
                     <div className="w-5 h-5 bg-white rounded-full shadow-md"></div>
                 </button>
             </div>
+
+             {/* Notifications / Reminders Toggle */}
+             {toggleReminders && (
+                <div className="flex justify-between items-center px-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Bell className="w-3.5 h-3.5"/></div>
+                        <div>
+                             <span className="text-sm font-bold text-slate-700 dark:text-slate-200 block">{t('notifications')}</span>
+                             <span className="text-[10px] text-slate-400">{t('birthday_reminders')}</span>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={toggleReminders}
+                        className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center ${remindersEnabled ? 'bg-primary justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                        <div className="w-5 h-5 bg-white rounded-full shadow-md"></div>
+                    </button>
+                </div>
+             )}
         </div>
 
         {/* Security Lock Overlay */}

@@ -29,17 +29,31 @@
   background: #A0AEC0; 
 }
 
-/* iOS Date Input Fixes */
-input[type="date"] {
+/* iOS Date Input Fixes & Alignment */
+input[type="date"], input[type="time"] {
   display: block;
   -webkit-appearance: none;
   min-height: 2.5rem; /* Ensure touch target */
   background-color: transparent;
+  text-align: start; /* Align text to left/start */
+  text-align: left; /* Fallback */
 }
 
-input[type="time"] {
-    display: block;
-    -webkit-appearance: none;
-    min-height: 2.5rem;
-    background-color: transparent;
+/* Confetti Boom Animation */
+@keyframes confetti-explosion {
+  0% { transform: scale(0); opacity: 1; }
+  50% { opacity: 1; }
+  100% { transform: scale(1.5) translateY(20px); opacity: 0; }
+}
+
+.animate-boom {
+  animation: confetti-explosion 0.8s ease-out forwards;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0;
 }

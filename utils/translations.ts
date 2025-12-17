@@ -123,6 +123,10 @@ export const translations = {
   profile_saved: { en: "Saved", mm: "သိမ်းပြီး" },
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
+  notifications: { en: "Notifications", mm: "အသိပေးချက်များ" },
+  birthday_reminders: { en: "Birthday Reminders", mm: "မွေးနေ့ အသိပေးချက်" },
+  reminders_on: { en: "On", mm: "ဖွင့်" },
+  reminders_off: { en: "Off", mm: "ပိတ်" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
   
   // Manage Data
