@@ -1,6 +1,6 @@
 
 import Dexie, { Table } from 'dexie';
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder } from '../types';
 
 export type LittleMomentsDB = Dexie & {
@@ -27,7 +27,9 @@ export const initDB = async () => {
         await db.open();
       }
       console.log("Local Database Initialized");
-      syncData(); 
+      if (isSupabaseConfigured()) {
+        syncData(); 
+      }
   } catch (err) {
       console.error("Failed to open db:", err);
   }
@@ -39,14 +41,15 @@ const cleanForSync = (doc: any) => {
 };
 
 export const syncData = async () => {
-    if (!navigator.onLine) return;
-
-    // FIX: Cast supabase.auth to any to resolve getSession property error
-    const authResult = await (supabase.auth as any).getSession();
-    const session = authResult?.data?.session || authResult?.session;
-    if (!session) return;
+    // Abort if Supabase is not configured or user is offline
+    if (!navigator.onLine || !isSupabaseConfigured()) return;
 
     try {
+        // FIX: Cast supabase.auth to any to resolve getSession property error
+        const authResult = await (supabase.auth as any).getSession();
+        const session = authResult?.data?.session || authResult?.session;
+        if (!session) return;
+
         // --- PUSH ---
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         for (const mem of unsyncedMemories) {
@@ -92,6 +95,9 @@ export const syncData = async () => {
 
 export const DataService = {
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
+        if (!isSupabaseConfigured()) {
+            return URL.createObjectURL(file);
+        }
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -112,11 +118,11 @@ export const DataService = {
     },
     addMemory: async (memory: Memory) => {
         await db.memories.put({ ...memory, synced: 0 });
-        syncData();
+        if (isSupabaseConfigured()) syncData();
     },
     deleteMemory: async (id: string) => {
         await db.memories.delete(id);
-        if (navigator.onLine) await supabase.from('memories').delete().eq('id', id);
+        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('memories').delete().eq('id', id);
     },
 
     getGrowth: async (childId?: string) => {
@@ -125,11 +131,11 @@ export const DataService = {
     },
     saveGrowth: async (data: GrowthData) => {
         await db.growth.put({ ...data, synced: 0 });
-        syncData();
+        if (isSupabaseConfigured()) syncData();
     },
     deleteGrowth: async (id: string) => {
         await db.growth.delete(id);
-        if (navigator.onLine) await supabase.from('growth_data').delete().eq('id', id);
+        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('growth_data').delete().eq('id', id);
     },
     
     getProfiles: async () => {
@@ -137,11 +143,11 @@ export const DataService = {
     },
     saveProfile: async (profile: ChildProfile) => {
         await db.profiles.put({ ...profile, synced: 0 });
-        syncData();
+        if (isSupabaseConfigured()) syncData();
     },
     deleteProfile: async (id: string) => {
         await db.profiles.delete(id);
-        if (navigator.onLine) await supabase.from('child_profile').delete().eq('id', id);
+        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('child_profile').delete().eq('id', id);
     },
 
     getReminders: async () => {
@@ -149,10 +155,10 @@ export const DataService = {
     },
     saveReminder: async (reminder: Reminder) => {
         await db.reminders.put({ ...reminder, synced: 0 });
-        syncData();
+        if (isSupabaseConfigured()) syncData();
     },
     deleteReminder: async (id: string) => {
         await db.reminders.delete(id);
-        if (navigator.onLine) await supabase.from('reminders').delete().eq('id', id);
+        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('reminders').delete().eq('id', id);
     }
 };

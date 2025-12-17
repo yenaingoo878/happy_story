@@ -62,9 +62,16 @@ function App() {
   const t = (key: any) => getTranslation(language, key);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setAuthLoading(false);
+      return;
+    }
+
     // FIX: Cast supabase.auth to any to resolve getSession property error
     (supabase.auth as any).getSession().then(({ data }: any) => {
       setSession(data?.session || null);
+      setAuthLoading(false);
+    }).catch(() => {
       setAuthLoading(false);
     });
 
@@ -89,7 +96,7 @@ function App() {
   }, [isGuestMode]);
 
   useEffect(() => {
-    if (session || isGuestMode) {
+    if (session || isGuestMode || !isSupabaseConfigured()) {
         const loadData = async () => {
           setIsLoading(true);
           await initDB();
@@ -256,7 +263,7 @@ function App() {
       Object.keys(localStorage).forEach(key => { if (key.startsWith('sb-')) localStorage.removeItem(key); });
       try { 
           // FIX: Cast supabase.auth to any to resolve signOut property error
-          if (session) await (supabase.auth as any).signOut(); 
+          if (session && isSupabaseConfigured()) await (supabase.auth as any).signOut(); 
       } finally {
           setProfiles([]); setMemories([]); setGrowthData([]); setReminders([]);
           setSession(null); setIsGuestMode(false);
@@ -317,7 +324,7 @@ function App() {
   ];
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
-  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => setIsGuestMode(true)} />;
+  if (!session && !isGuestMode && isSupabaseConfigured()) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => setIsGuestMode(true)} />;
 
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400">Loading...</div>;
