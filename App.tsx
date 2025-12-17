@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, Plus, CalendarHeart, Repeat } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Bell, CalendarHeart, Repeat } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -53,10 +53,6 @@ function App() {
 
   // Birthday Banner State
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
-
-  // Event Modal State
-  const [showEventModal, setShowEventModal] = useState(false);
-  const [newEvent, setNewEvent] = useState<{title: string, date: string, isRecurring: boolean}>({ title: '', date: '', isRecurring: false });
 
   // Preferences
   const [language, setLanguage] = useState<Language>(() => {
@@ -259,6 +255,7 @@ function App() {
           await supabase.auth.signOut();
       }
       setIsGuestMode(false);
+      setSession(null); // Explicitly clear session state immediately
       setProfiles([]);
       setMemories([]);
       setGrowthData([]);
@@ -367,26 +364,7 @@ function App() {
       setActiveTab(TabView.HOME);
   };
 
-  // Event Handling
-  const handleSaveEvent = async () => {
-      if(!newEvent.title || !newEvent.date || !activeProfileId) return;
-
-      const event: EventReminder = {
-          id: crypto.randomUUID(),
-          childId: activeProfileId,
-          title: newEvent.title,
-          date: newEvent.date,
-          isRecurring: newEvent.isRecurring,
-          synced: 0
-      };
-
-      await DataService.addEvent(event);
-      await loadChildData(activeProfileId);
-      setShowEventModal(false);
-      setNewEvent({title: '', date: '', isRecurring: false});
-  };
-
-  const handleDeleteEvent = async (id: string) => {
+  const requestDeleteEvent = async (id: string) => {
       setItemToDelete({ type: 'EVENT', id });
       setShowConfirmModal(true);
   };
@@ -555,24 +533,12 @@ function App() {
                         <CalendarHeart className="w-5 h-5 text-rose-400" />
                         {t('important_dates')}
                     </h3>
-                    <button 
-                        onClick={() => setShowEventModal(true)}
-                        className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                    >
-                        <Plus className="w-3 h-3"/> {t('add_event')}
-                    </button>
                 </div>
                 
                 {sortedEvents.length > 0 ? (
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {sortedEvents.map(event => (
                             <div key={event.id} className="flex-shrink-0 bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 w-40 border border-slate-100 dark:border-slate-700 relative group">
-                                <button 
-                                    onClick={() => handleDeleteEvent(event.id)}
-                                    className="absolute top-1 right-1 p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                                >
-                                    <Trash2 className="w-3 h-3"/>
-                                </button>
                                 <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">
                                     {formatDateDisplay(event.date)}
                                 </div>
@@ -749,12 +715,14 @@ function App() {
                       onHideDetails={() => setIsDetailsUnlocked(false)}
                       growthData={growthData}
                       memories={memories}
+                      events={events} // Pass events
                       onEditMemory={handleEditStart}
                       onDeleteMemory={(id) => requestDeleteMemory(id)}
                       onDeleteGrowth={(id) => requestDeleteGrowth(id)}
                       onDeleteProfile={(id) => requestDeleteProfile(id)}
+                      onDeleteEvent={(id) => requestDeleteEvent(id)} // Pass delete handler
                       isGuestMode={isGuestMode}
-                      onGuestLogout={handleLogout}
+                      onLogout={handleLogout}
                     />
                 )}
             </div>
@@ -831,60 +799,6 @@ function App() {
               </div>
            </div>
         </div>
-      )}
-
-      {/* Event Add Modal */}
-      {showEventModal && (
-         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEventModal(false)}/>
-            <div className="relative bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-zoom-in">
-               <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-500">
-                        <CalendarHeart className="w-5 h-5"/>
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{t('new_event_title')}</h3>
-               </div>
-               
-               <div className="space-y-4 mb-6">
-                   <div>
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('event_name')}</label>
-                       <input 
-                         type="text" 
-                         value={newEvent.title} 
-                         onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                         className="w-full mt-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100"
-                       />
-                   </div>
-                   <div>
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('event_date')}</label>
-                       <input 
-                         type="date" 
-                         value={newEvent.date} 
-                         onChange={e => setNewEvent({...newEvent, date: e.target.value})}
-                         className="w-full mt-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100"
-                       />
-                   </div>
-                   <div className="flex items-center gap-2 pt-1">
-                       <input 
-                          type="checkbox" 
-                          id="recurring"
-                          checked={newEvent.isRecurring} 
-                          onChange={e => setNewEvent({...newEvent, isRecurring: e.target.checked})}
-                          className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
-                       />
-                       <label htmlFor="recurring" className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('recurring')}</label>
-                   </div>
-               </div>
-
-               <button 
-                  onClick={handleSaveEvent}
-                  disabled={!newEvent.title || !newEvent.date}
-                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                   {t('save_event')}
-               </button>
-            </div>
-         </div>
       )}
 
       {/* Passcode Modal */}

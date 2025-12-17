@@ -136,6 +136,7 @@ export const translations = {
   
   // Manage Data
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
+  manage_events: { en: "Manage Reminders", mm: "အမှတ်တရနေ့များ စီမံရန်" },
   growth_input_title: { en: "Add/Edit Record", mm: "မှတ်တမ်း အသစ်/ပြင်ဆင်" },
   add_record: { en: "Save Record", mm: "မှတ်တမ်းတင်မည်" },
   update_record: { en: "Update", mm: "ပြင်ဆင်မည်" },
