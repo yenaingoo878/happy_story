@@ -549,52 +549,6 @@ function App() {
                )}
             </div>
 
-            {/* Important Dates Section with Manage Link */}
-            <div className="bg-white dark:bg-slate-800 rounded-[28px] p-5 shadow-sm border border-slate-100 dark:border-slate-700">
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                        <CalendarHeart className="w-5 h-5 text-rose-400" />
-                        {t('important_dates')}
-                    </h3>
-                    <button 
-                        onClick={() => navigateToSettings('EVENTS')} 
-                        className="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1"
-                    >
-                        <CalendarPlus className="w-3 h-3" />
-                        {t('manage')}
-                    </button>
-                </div>
-                
-                {sortedEvents.length > 0 ? (
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        {sortedEvents.map(event => (
-                            <div key={event.id} className="flex-shrink-0 bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3 w-40 border border-slate-100 dark:border-slate-700 relative group">
-                                <div className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">
-                                    {formatDateDisplay(event.date)}
-                                </div>
-                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{event.title}</h4>
-                                {event.isRecurring && (
-                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
-                                        <Repeat className="w-3 h-3"/>
-                                        <span>Yearly</span>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-4 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/30 rounded-xl border-dashed border-2 border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center gap-2">
-                        <span>{t('no_events')}</span>
-                        <button 
-                            onClick={() => navigateToSettings('EVENTS')}
-                            className="text-xs text-primary font-bold underline"
-                        >
-                            {t('add_event')}
-                        </button>
-                    </div>
-                )}
-            </div>
-
             {/* Responsive Grid System */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               
