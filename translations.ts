@@ -84,12 +84,21 @@ export const translations = {
   about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
+  
+  // New Profile Fields
+  child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },
   child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },
-  child_birth_time: { en: "Time of Birth", mm: "မွေးဖွားချိန်" },
+  gender_label: { en: "Gender", mm: "ကျား/မ" },
+  boy: { en: "Boy", mm: "သားသား" },
+  girl: { en: "Girl", mm: "မီးမီး" },
   hospital_name: { en: "Hospital", mm: "မွေးဖွားရာဆေးရုံ" },
-  birth_location: { en: "Location", mm: "မွေးဖွားရာမြို့/နေရာ" },
+  city_label: { en: "City", mm: "မြို့" },
+  country_label: { en: "Country", mm: "နိုင်ငံ" },
+  
   hospital_placeholder: { en: "e.g. City Hospital", mm: "ဥပမာ - ဗဟိုအမျိုးသမီးဆေးရုံ" },
   location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },
+  country_placeholder: { en: "e.g. Myanmar", mm: "ဥပမာ - မြန်မာ" },
+  
   save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },

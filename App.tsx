@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2 } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Camera, Image as ImageIcon, Baby, ChevronRight, Sparkles, Plus, Moon, Sun, Pencil, X, Settings, Trash2, ArrowLeft, Ruler, Scale, Calendar, Lock, Unlock, ShieldCheck, KeyRound, Cloud, CloudOff, RefreshCw, AlertTriangle, Save, UserPlus, LogOut, Loader2, MapPin, Building2, Globe, Heart } from 'lucide-react';
 import { MemoryCard } from './components/MemoryCard';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -43,7 +43,15 @@ function App() {
   // Profile Management State
   const [profiles, setProfiles] = useState<ChildProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
-  const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' }); 
+  const [editingProfile, setEditingProfile] = useState<ChildProfile>({ 
+    id: '', 
+    name: '', 
+    dob: '', 
+    gender: 'boy',
+    hospitalName: '',
+    birthLocation: '',
+    country: ''
+  }); 
 
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,6 +215,7 @@ function App() {
           loadChildData(profileToSave.id || '');
       }
       setSettingsView('MAIN');
+      alert(t('save_changes'));
   };
 
   const createNewProfile = () => {
@@ -214,7 +223,10 @@ function App() {
          id: '',
          name: '',
          dob: '',
-         gender: 'boy'
+         gender: 'boy',
+         hospitalName: '',
+         birthLocation: '',
+         country: ''
       });
       setIsDetailsUnlocked(false);
   };
@@ -376,7 +388,7 @@ function App() {
   };
   
   const triggerProfileImageInput = () => {
-      if(isDetailsUnlocked && !isUploading) {
+      if(!isUploading) {
         profileImageInputRef.current?.click();
       }
   };
@@ -683,22 +695,97 @@ function App() {
                         <div className="space-y-6">
                              <div className="mb-6"><h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('settings_title')}</h1></div>
                              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                                <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-2">
+                                <div className="flex items-center gap-3 overflow-x-auto pb-4 mb-4">
                                    {profiles.map(p => (
                                       <button key={p.id} onClick={() => selectProfileToEdit(p)} className={`flex flex-col items-center flex-shrink-0 transition-all ${editingProfile.id === p.id ? 'opacity-100 scale-105' : 'opacity-60'}`}>
-                                         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200'}`}>
-                                            {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-6 h-6"/>}
+                                         <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 border-2 overflow-hidden ${editingProfile.id === p.id ? 'border-primary' : 'border-slate-200'}`}>
+                                            {p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-8 h-8 text-slate-300"/>}
                                          </div>
-                                         <span className="text-[10px] font-bold text-slate-600">{p.name || 'New'}</span>
+                                         <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{p.name || 'New'}</span>
                                       </button>
                                    ))}
                                    <button onClick={createNewProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100">
-                                       <div className="w-12 h-12 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-5 h-5"/></div>
+                                       <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-6 h-6 text-slate-400"/></div>
+                                       <span className="text-[10px] font-bold text-slate-500">Add</span>
                                    </button>
                                 </div>
+                                
                                 <div className="space-y-4">
-                                     <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-slate-700/50" placeholder="Child Name" />
-                                     <button onClick={handleSaveProfile} className="w-full py-3 bg-primary text-white font-bold rounded-xl">{t('save_changes')}</button>
+                                     <div className="flex justify-center mb-2">
+                                        <div className="relative group cursor-pointer" onClick={triggerProfileImageInput}>
+                                           <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-600">
+                                              {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary"/> : 
+                                                editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-10 h-10 text-slate-300"/>}
+                                           </div>
+                                           <div className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-white shadow-sm"><Camera className="w-3 h-3"/></div>
+                                           <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
+                                        </div>
+                                     </div>
+
+                                     <div>
+                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_name_label')}</label>
+                                        <div className="relative mt-1">
+                                           <Baby className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                           <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder="e.g. Baby" />
+                                        </div>
+                                     </div>
+
+                                     <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_dob')}</label>
+                                            <div className="relative mt-1">
+                                              <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                              <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('gender_label')}</label>
+                                            <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 mt-1 h-[46px]">
+                                                <button 
+                                                  onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
+                                                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                                >
+                                                  {t('boy')}
+                                                </button>
+                                                <button 
+                                                  onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
+                                                  className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
+                                                >
+                                                  {t('girl')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                     </div>
+                                     
+                                     <div>
+                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('hospital_name')}</label>
+                                        <div className="relative mt-1">
+                                           <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                           <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder={t('hospital_placeholder')} />
+                                        </div>
+                                     </div>
+
+                                     <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('city_label')}</label>
+                                            <div className="relative mt-1">
+                                               <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                               <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('location_placeholder')} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('country_label')}</label>
+                                            <div className="relative mt-1">
+                                               <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                                               <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('country_placeholder')} />
+                                            </div>
+                                        </div>
+                                     </div>
+
+                                     <button onClick={handleSaveProfile} className="w-full py-3.5 bg-primary hover:bg-rose-400 transition-colors text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4">
+                                         <Save className="w-4 h-4"/>
+                                         {t('save_changes')}
+                                     </button>
                                 </div>
                              </div>
 

@@ -1,3 +1,4 @@
+
 export type Language = 'en' | 'mm';
 export type Theme = 'light' | 'dark';
 
@@ -28,7 +29,8 @@ export interface ChildProfile {
   dob: string;
   birthTime?: string;
   hospitalName?: string;
-  birthLocation?: string;
+  birthLocation?: string; // Maps to City
+  country?: string; // Added Country
   gender: 'boy' | 'girl';
   synced?: number;
 }

@@ -2,24 +2,22 @@ import Dexie, { Table } from 'dexie';
 import { supabase } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile } from './types';
 
-// Use class extending Dexie to ensure proper type resolution
-export class LittleMomentsDB extends Dexie {
-  memories!: Table<Memory>;
-  growth!: Table<GrowthData>;
-  profiles!: Table<ChildProfile>;
-
-  constructor() {
-    super('LittleMomentsDB');
-    this.version(1).stores({
-      memories: 'id, childId, date, synced',
-      growth: 'id, childId, month, synced',
-      profiles: 'id, name, synced' 
-    });
-  }
+// Define the interface for the database to ensure type safety
+export interface LittleMomentsDB extends Dexie {
+  memories: Table<Memory>;
+  growth: Table<GrowthData>;
+  profiles: Table<ChildProfile>;
 }
 
-// Create Dexie instance
-const db = new LittleMomentsDB();
+// Create Dexie instance directly
+const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
+
+// Define schema
+db.version(1).stores({
+  memories: 'id, childId, date, synced',
+  growth: 'id, childId, month, synced',
+  profiles: 'id, name, synced' 
+});
 
 export { db };
 
