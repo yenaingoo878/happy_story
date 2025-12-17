@@ -33,14 +33,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // FIX: Cast supabase.auth to any to resolve signUp property error
+        const { error } = await (supabase.auth as any).signUp({
           email,
           password,
         });
         if (error) throw error;
         alert("Check your email for the confirmation link!");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // FIX: Cast supabase.auth to any to resolve signInWithPassword property error
+        const { error } = await (supabase.auth as any).signInWithPassword({
           email,
           password,
         });

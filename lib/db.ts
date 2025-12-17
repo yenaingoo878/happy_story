@@ -41,7 +41,9 @@ const cleanForSync = (doc: any) => {
 export const syncData = async () => {
     if (!navigator.onLine) return;
 
-    const { data: { session } } = await supabase.auth.getSession();
+    // FIX: Cast supabase.auth to any to resolve getSession property error
+    const authResult = await (supabase.auth as any).getSession();
+    const session = authResult?.data?.session || authResult?.session;
     if (!session) return;
 
     try {

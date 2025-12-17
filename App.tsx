@@ -13,7 +13,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder } from './types';
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
-import { supabase } from './lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
@@ -62,12 +62,14 @@ function App() {
   const t = (key: any) => getTranslation(language, key);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // FIX: Cast supabase.auth to any to resolve getSession property error
+    (supabase.auth as any).getSession().then(({ data }: any) => {
+      setSession(data?.session || null);
       setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // FIX: Cast supabase.auth to any to resolve onAuthStateChange property error
+    const authResponse = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       setAuthLoading(false);
       if (!session && !isGuestMode) {
@@ -77,7 +79,13 @@ function App() {
           setReminders([]);
       }
     });
-    return () => subscription.unsubscribe();
+    
+    const subscription = authResponse?.data?.subscription || authResponse?.subscription;
+    return () => {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+            subscription.unsubscribe();
+        }
+    };
   }, [isGuestMode]);
 
   useEffect(() => {
@@ -90,7 +98,10 @@ function App() {
         };
         loadData();
     }
-    const handleOnline = () => { setIsOnline(true); if(session) syncData(); };
+    const handleOnline = () => { 
+        setIsOnline(true); 
+        if(session && isSupabaseConfigured()) syncData(); 
+    };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -116,26 +127,22 @@ function App() {
     localStorage.setItem('reminders_enabled', String(newVal));
   };
 
-  const formatDateDisplay = (isoDate: string | undefined) => {
-    if (!isoDate) return '';
-    const parts = isoDate.split('-');
-    if (parts.length !== 3) return isoDate;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  };
-  
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
   const getBirthdayStatus = () => {
     if (!activeProfile.dob) return 'NONE';
     const today = new Date();
     const dob = new Date(activeProfile.dob);
-    const bdayThisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-    today.setHours(0,0,0,0);
-    bdayThisYear.setHours(0,0,0,0);
-    const oneDay = 24 * 60 * 60 * 1000;
-    const diff = (bdayThisYear.getTime() - today.getTime()) / oneDay;
-    if (diff === 0) return 'TODAY';
-    if (diff === 1) return 'TOMORROW';
+    // Check if month and day match
+    const isBirthdayToday = today.getMonth() === dob.getMonth() && today.getDate() === dob.getDate();
+    
+    // For "Tomorrow" logic
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const isBirthdayTomorrow = tomorrow.getMonth() === dob.getMonth() && tomorrow.getDate() === dob.getDate();
+
+    if (isBirthdayToday) return 'TODAY';
+    if (isBirthdayTomorrow) return 'TOMORROW';
     return 'NONE';
   };
 
@@ -144,30 +151,40 @@ function App() {
       return reminders.filter(r => r.date === todayStr);
   };
 
-  const BirthdayBoomCelebration = () => {
+  // Full Screen Birthday Animation Component
+  const BirthdayCelebration = () => {
     const particles = useMemo(() => {
-      const colors = ['bg-rose-400', 'bg-blue-400', 'bg-yellow-400', 'bg-emerald-400', 'bg-violet-400', 'bg-orange-400'];
-      const explosive = Array.from({ length: 60 }).map((_, i) => ({
-        id: `boom-${i}`,
+      const colors = ['bg-rose-400', 'bg-blue-400', 'bg-yellow-400', 'bg-emerald-400', 'bg-violet-400', 'bg-orange-400', 'bg-pink-300', 'bg-sky-300'];
+      
+      // Explosion particles (burst from center)
+      const explosive = Array.from({ length: 80 }).map((_, i) => ({
+        id: `burst-${i}`,
         color: colors[Math.floor(Math.random() * colors.length)],
         left: '50%',
-        top: '40%',
-        delay: `${Math.random() * 0.2}s`,
-        tx: `${(Math.random() - 0.5) * 600}px`,
-        ty: `${(Math.random() - 0.5) * 600}px`,
-        type: 'boom'
+        top: '50%',
+        delay: `${Math.random() * 0.5}s`,
+        tx: `${(Math.random() - 0.5) * 800}px`,
+        ty: `${(Math.random() - 0.5) * 800}px`,
+        rotate: `${Math.random() * 720}deg`,
+        size: `${Math.random() * 10 + 6}px`,
+        type: 'burst'
       }));
-      const shower = Array.from({ length: 60 }).map((_, i) => ({
+
+      // Continuous falling particles
+      const falling = Array.from({ length: 40 }).map((_, i) => ({
         id: `fall-${i}`,
         color: colors[Math.floor(Math.random() * colors.length)],
         left: `${Math.random() * 100}%`,
-        top: '-10%',
+        top: '-5%',
         delay: `${Math.random() * 5}s`,
-        tx: '0px',
+        tx: `${(Math.random() - 0.5) * 100}px`,
         ty: '0px',
+        rotate: '360deg',
+        size: `${Math.random() * 8 + 4}px`,
         type: 'fall'
       }));
-      return [...explosive, ...shower];
+
+      return [...explosive, ...falling];
     }, []);
 
     return (
@@ -175,14 +192,17 @@ function App() {
         {particles.map(p => (
           <div 
             key={p.id}
-            className={`celebration-particle ${p.color} ${p.type === 'boom' ? 'animate-boom-particle' : 'animate-fall-particle'}`}
+            className={`celebration-particle ${p.color} ${p.type === 'burst' ? 'animate-confetti-burst' : 'animate-confetti-fall'}`}
             style={{ 
               left: p.left, 
               top: p.top, 
+              width: p.size,
+              height: p.size,
               animationDelay: p.delay,
-              '--tw-translate-x': p.type === 'boom' ? (p as any).tx : '0',
-              '--tw-translate-y': p.type === 'boom' ? (p as any).ty : '0',
               borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+              '--tw-translate-x': p.tx,
+              '--tw-translate-y': p.ty,
+              '--tw-rotate': p.rotate,
             } as any}
           />
         ))}
@@ -225,7 +245,7 @@ function App() {
   };
 
   const handleManualSync = async () => {
-      if (!session) return;
+      if (!session || !isSupabaseConfigured()) return;
       setIsSyncing(true);
       await syncData();
       await refreshData();
@@ -234,7 +254,10 @@ function App() {
 
   const handleLogout = async () => {
       Object.keys(localStorage).forEach(key => { if (key.startsWith('sb-')) localStorage.removeItem(key); });
-      try { if (session) await supabase.auth.signOut(); } finally {
+      try { 
+          // FIX: Cast supabase.auth to any to resolve signOut property error
+          if (session) await (supabase.auth as any).signOut(); 
+      } finally {
           setProfiles([]); setMemories([]); setGrowthData([]); setReminders([]);
           setSession(null); setIsGuestMode(false);
       }
@@ -306,34 +329,53 @@ function App() {
         const latestMemory = memories[0];
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
-            {remindersEnabled && showBirthdayBanner && bStatus === 'TODAY' && <BirthdayBoomCelebration />}
+            {/* Celebration Animation Triggered on Birthday */}
+            {remindersEnabled && bStatus === 'TODAY' && <BirthdayCelebration />}
             
-            {/* Celebration & Reminders Header */}
+            {/* Header Notifications Section */}
             {remindersEnabled && (
-                <div className="space-y-2 mb-4">
-                    {/* Birthday Alert */}
+                <div className="space-y-3 mb-6">
+                    {/* Birthday Alert Banner */}
                     {showBirthdayBanner && bStatus !== 'NONE' && (
-                       <div className={`rounded-2xl p-4 text-white shadow-md relative animate-zoom-in ${bStatus === 'TODAY' ? 'bg-gradient-to-r from-rose-400 to-pink-500' : 'bg-gradient-to-r from-amber-400 to-orange-400'}`}>
-                           <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-2 right-2 p-1 bg-white/20 rounded-full hover:bg-white/30 z-20"><X className="w-4 h-4"/></button>
-                           <div className="flex items-center gap-3 relative z-10">
-                               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-                                   {bStatus === 'TODAY' ? <Gift className="w-6 h-6 animate-bounce" /> : <Calendar className="w-6 h-6 animate-pulse" />}
+                       <div className={`rounded-3xl p-5 text-white shadow-xl relative animate-zoom-in overflow-hidden ${bStatus === 'TODAY' ? 'bg-gradient-to-br from-rose-400 via-pink-500 to-purple-600' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
+                           {/* Background Sparkle Decoration */}
+                           <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
+                              <Sparkles className="w-24 h-24 rotate-12" />
+                           </div>
+                           
+                           <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-3 right-3 p-1.5 bg-white/20 rounded-full hover:bg-white/30 z-20 transition-colors">
+                             <X className="w-4 h-4"/>
+                           </button>
+
+                           <div className="flex items-center gap-4 relative z-10">
+                               <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/30">
+                                   {bStatus === 'TODAY' ? <Gift className="w-8 h-8 animate-bounce" /> : <Calendar className="w-8 h-8 animate-pulse" />}
                                </div>
                                <div>
-                                   <h3 className="font-bold text-lg">{bStatus === 'TODAY' ? t('happy_birthday_title') : t('birthday_tomorrow_title')}</h3>
-                                   <p className="text-sm opacity-90">{bStatus === 'TODAY' ? t('happy_birthday_msg').replace('{name}', activeProfile.name) : t('birthday_tomorrow_msg').replace('{name}', activeProfile.name)}</p>
+                                   <h3 className="font-extrabold text-xl leading-tight">
+                                     {bStatus === 'TODAY' ? t('happy_birthday_title') : t('birthday_tomorrow_title')}
+                                   </h3>
+                                   <p className="text-sm font-medium opacity-90 mt-0.5">
+                                     {bStatus === 'TODAY' ? t('happy_birthday_msg').replace('{name}', activeProfile.name) : t('birthday_tomorrow_msg').replace('{name}', activeProfile.name)}
+                                   </p>
                                </div>
                            </div>
                        </div>
                     )}
 
-                    {/* Active Event Reminders */}
+                    {/* Active Event Reminders List */}
                     {activeReminders.map(rem => (
-                        <div key={rem.id} className="bg-white dark:bg-slate-800 border-l-4 border-primary rounded-xl p-4 shadow-sm flex items-center justify-between animate-slide-up">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg text-primary"><Bell className="w-4 h-4"/></div>
-                                <div><h4 className="font-bold text-sm text-slate-700 dark:text-slate-200">{rem.title}</h4><p className="text-xs text-slate-400">{t('nav_story')}</p></div>
+                        <div key={rem.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between animate-slide-up hover:border-primary/30 transition-colors">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                  <Bell className="w-5 h-5"/>
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-slate-800 dark:text-slate-100">{rem.title}</h4>
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('nav_home')}</p>
+                                </div>
                             </div>
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-full uppercase">Today</div>
                         </div>
                     ))}
                 </div>
@@ -341,29 +383,59 @@ function App() {
 
             <div className="flex justify-between items-center mb-2">
                <div>
-                  <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
+                  <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                    {activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}
+                  </h1>
                   <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
                       {new Date().toLocaleDateString('en-GB')}
-                      {session && <span onClick={handleManualSync} className={`cursor-pointer ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>{isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}</span>}
+                      {session && isSupabaseConfigured() && (
+                        <span onClick={handleManualSync} className={`cursor-pointer transition-colors ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>
+                          {isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}
+                        </span>
+                      )}
                   </p>
                </div>
-               {activeProfile.profileImage && <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm"><img src={activeProfile.profileImage} className="w-full h-full object-cover"/></div>}
+               {activeProfile.profileImage && (
+                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white dark:border-slate-700 shadow-md ring-4 ring-slate-100 dark:ring-slate-800/50 transition-all">
+                   <img src={activeProfile.profileImage} className="w-full h-full object-cover" alt="Profile"/>
+                 </div>
+               )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
                   {latestMemory ? (
-                      <div className="relative h-64 md:h-80 rounded-[32px] overflow-hidden shadow-sm group cursor-pointer" onClick={() => setSelectedMemory(latestMemory)}>
-                        <img src={latestMemory.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 pointer-events-none">
-                          <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full w-fit mb-2 border border-white/20">{t('latest_arrival')}</span>
-                          <h3 className="text-white text-xl font-bold">{latestMemory.title}</h3>
+                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-[0.98]" onClick={() => setSelectedMemory(latestMemory)}>
+                        <img src={latestMemory.imageUrl} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
+                          <span className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
+                          <h3 className="text-white text-2xl font-bold leading-tight drop-shadow-md">{latestMemory.title}</h3>
                         </div>
                       </div>
-                  ) : <div className="h-64 md:h-80 rounded-[32px] bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400">{t('no_photos')}</div>}
+                  ) : (
+                    <div className="h-72 md:h-96 rounded-[40px] bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-2">
+                      <ImageIcon className="w-12 h-12 opacity-20" />
+                      <p className="font-bold text-sm">{t('no_photos')}</p>
+                    </div>
+                  )}
               </div>
               <div className="col-span-2 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] p-5 text-white flex flex-col justify-between h-40 md:h-auto shadow-sm cursor-pointer active:scale-95 transition-transform"><Sparkles className="w-6 h-6"/><h3 className="font-bold text-lg leading-tight">{t('create_story')}</h3></div>
-                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] p-5 flex flex-col justify-between h-40 md:h-auto shadow-sm cursor-pointer active:scale-95 transition-transform"><Activity className="w-6 h-6 text-teal-500"/><div><p className="text-slate-400 text-xs">{t('current_height')}</p><h3 className="font-bold text-slate-800 dark:text-slate-100 text-2xl">{growthData[growthData.length-1]?.height || 0} cm</h3></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95 transition-all group overflow-hidden relative">
+                    <Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform group-hover:scale-125" />
+                    <h3 className="font-bold text-xl leading-tight relative z-10">{t('create_story')}</h3>
+                    <div className="absolute -bottom-4 -right-4 opacity-10">
+                      <BookOpen className="w-32 h-32" />
+                    </div>
+                  </div>
+                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95 transition-all group overflow-hidden">
+                    <Activity className="w-8 h-8 text-teal-500 group-hover:animate-pulse" />
+                    <div>
+                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p>
+                      <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-3xl">
+                        {growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span>
+                      </h3>
+                    </div>
+                  </div>
               </div>
             </div>
           </div>
@@ -376,7 +448,39 @@ function App() {
                 {activeTab === TabView.STORY && <StoryGenerator language={language} defaultChildName={activeProfile.name} />}
                 {activeTab === TabView.GROWTH && <div className="max-w-4xl mx-auto"><h1 className="text-2xl font-bold mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>}
                 {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} />}
-                {activeTab === TabView.SETTINGS && <SettingsComponent language={language} setLanguage={setLanguage} theme={theme} toggleTheme={toggleTheme} profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} onRefreshData={refreshData} passcode={passcode} isDetailsUnlocked={isDetailsUnlocked} onUnlockRequest={handleUnlockClick} onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} onHideDetails={() => setIsDetailsUnlocked(false)} growthData={growthData} memories={memories} onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }} onDeleteMemory={(id) => { setItemToDelete({type:'MEMORY', id}); setShowConfirmModal(true); }} onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }} onDeleteProfile={(id) => { setItemToDelete({type:'PROFILE', id}); setShowConfirmModal(true); }} isGuestMode={isGuestMode} onLogout={handleLogout} initialView={settingsInitialView} remindersEnabled={remindersEnabled} toggleReminders={toggleReminders} remindersList={reminders} onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); }} />}
+                {activeTab === TabView.SETTINGS && (
+                  <SettingsComponent 
+                    language={language} 
+                    setLanguage={setLanguage} 
+                    theme={theme} 
+                    toggleTheme={toggleTheme} 
+                    profiles={profiles} 
+                    activeProfileId={activeProfileId} 
+                    onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} 
+                    onRefreshData={refreshData} 
+                    passcode={passcode} 
+                    isDetailsUnlocked={isDetailsUnlocked} 
+                    onUnlockRequest={handleUnlockClick} 
+                    onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} 
+                    onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
+                    onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} 
+                    onHideDetails={() => setIsDetailsUnlocked(false)} 
+                    growthData={growthData} 
+                    memories={memories} 
+                    onEditMemory={handleEditStart} 
+                    onDeleteMemory={(id) => { setItemToDelete({type:'MEMORY', id}); setShowConfirmModal(true); }} 
+                    onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }} 
+                    onDeleteProfile={(id) => { setItemToDelete({type:'PROFILE', id}); setShowConfirmModal(true); }} 
+                    isGuestMode={isGuestMode} 
+                    onLogout={handleLogout} 
+                    initialView={settingsInitialView} 
+                    remindersEnabled={remindersEnabled} 
+                    toggleReminders={toggleReminders} 
+                    remindersList={reminders} 
+                    onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
+                    onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); }} 
+                  />
+                )}
               </Suspense>
             </div>
         );
@@ -384,22 +488,99 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans">
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6">
-          <div className="flex items-center gap-3 mb-10 pl-2"><Baby className="w-8 h-8 text-primary"/><h1 className="font-bold text-xl text-slate-800 dark:text-slate-100">Little Moments</h1></div>
-          <nav className="flex-1 space-y-2">{tabs.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id ? 'bg-primary/10 text-primary font-bold' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'}`}><tab.icon className="w-5 h-5"/><span className="text-sm">{t(tab.label)}</span></button>
-          ))}</nav>
-          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-rose-500 font-bold hover:bg-rose-50 rounded-xl transition-colors"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-10 pl-2">
+            <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <Baby className="w-6 h-6 text-white"/>
+            </div>
+            <h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1>
+          </div>
+          <nav className="flex-1 space-y-1">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 ${isActive ? 'bg-primary/10 text-primary font-extrabold shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}>
+                  <tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/>
+                  <span className="text-sm">{t(tab.label)}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <button onClick={handleLogout} className="flex items-center gap-4 px-4 py-3.5 text-rose-500 font-extrabold hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-2xl transition-colors mt-4">
+            <LogOut className="w-5 h-5"/>
+            {t('logout')}
+          </button>
       </aside>
-      <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 box-border">{renderContent()}</main>
-      {selectedMemory && <Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory!.id}); setShowConfirmModal(true); }} /></Suspense>}
-      {showConfirmModal && <div className="fixed inset-0 z-[110] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-zoom-in text-center"><AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4"/><h3 className="text-xl font-bold mb-2 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 text-sm mb-6">{t('confirm_delete')}</p><div className="flex gap-3"><button onClick={() => setShowConfirmModal(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold">{t('cancel_btn')}</button><button onClick={executeDelete} className="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold">{t('confirm')}</button></div></div></div>}
-      {showPasscodeModal && <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center"><div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowPasscodeModal(false)}/><div className="relative w-full md:w-[380px] bg-white/95 dark:bg-slate-900/95 rounded-t-[32px] md:rounded-[40px] p-8 animate-slide-up"><h3 className="text-center font-bold mb-6 dark:text-white">{t('enter_passcode')}</h3><div className="flex justify-center gap-4 mb-8">{[0,1,2,3].map(i => <div key={i} className={`w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 ${passcodeInput.length > i ? 'bg-slate-800 dark:bg-white border-transparent' : ''}`}/>)}</div><div className="grid grid-cols-3 gap-4 max-w-[280px] mx-auto">{[1,2,3,4,5,6,7,8,9,0].map(num => <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-[72px] h-[72px] rounded-full bg-slate-100 dark:bg-slate-800 text-2xl font-medium active:scale-95 transition-transform dark:text-white">{num}</button>)}<button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-[72px] h-[72px] flex items-center justify-center text-slate-400"><Delete/></button></div></div></div>}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/40 shadow-xl rounded-full p-2 flex items-center gap-1 z-50 w-[90%] md:hidden">{tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-12 rounded-full transition-all ${activeTab === tab.id ? 'flex-[2.5] bg-slate-800 text-white' : 'flex-1 text-slate-400'}`}><tab.icon className="w-5 h-5"/></button>
-      ))}</nav>
+
+      {/* Main Area */}
+      <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 box-border relative overflow-x-hidden">
+        {renderContent()}
+      </main>
+
+      {/* Global Modals */}
+      {selectedMemory && (
+        <Suspense fallback={null}>
+          <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory!.id}); setShowConfirmModal(true); }} />
+        </Suspense>
+      )}
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/>
+          <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
+            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-10 h-10 text-rose-500"/>
+            </div>
+            <h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-extrabold shadow-lg shadow-rose-500/30 active:scale-95 transition-transform">{t('confirm')}</button>
+              <button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-transform">{t('cancel_btn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowPasscodeModal(false)}/>
+          <div className="relative w-full md:w-[400px] bg-white/95 dark:bg-slate-900/95 rounded-t-[40px] md:rounded-[40px] p-10 animate-slide-up shadow-2xl border border-white/20">
+            <h3 className="text-center font-extrabold text-xl mb-8 dark:text-white tracking-tight">{t('enter_passcode')}</h3>
+            <div className="flex justify-center gap-5 mb-10">
+              {[0,1,2,3].map(i => (
+                <div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125' : ''}`}/>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-6 max-w-[300px] mx-auto">
+              {[1,2,3,4,5,6,7,8,9,0].map(num => (
+                <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 text-3xl font-medium active:bg-primary active:text-white active:scale-90 transition-all dark:text-white shadow-sm">
+                  {num}
+                </button>
+              ))}
+              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-20 h-20 flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-transform">
+                <Delete className="w-8 h-8"/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Tab Navigation */}
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}>
+              <tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>
+              {isActive && <span className="ml-2 text-xs font-extrabold animate-fade-in">{t(tab.label)}</span>}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
+
 export default App;
