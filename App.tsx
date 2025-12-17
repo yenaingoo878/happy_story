@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle } from 'lucide-react';
 import { GrowthChart } from './components/GrowthChart';
 import { StoryGenerator } from './components/StoryGenerator';
 import { GalleryGrid } from './components/GalleryGrid';
@@ -34,6 +34,7 @@ function App() {
 
   // Delete Confirmation State
   const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE', id: string } | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Application Data State
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -268,14 +269,16 @@ function App() {
       setActiveTab(TabView.HOME);
   };
 
+  // Request to delete - Shows Modal
   const requestDeleteMemory = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation(); 
     setItemToDelete({ type: 'MEMORY', id });
-    confirmDelete({ type: 'MEMORY', id }); // Immediate delete logic call wrapper
+    setShowConfirmModal(true);
   };
 
   const requestDeleteGrowth = (id: string) => {
-    confirmDelete({ type: 'GROWTH', id });
+    setItemToDelete({ type: 'GROWTH', id });
+    setShowConfirmModal(true);
   };
 
   const requestDeleteProfile = (id: string) => {
@@ -283,27 +286,28 @@ function App() {
           alert("Cannot delete the only profile.");
           return;
       }
-      confirmDelete({ type: 'PROFILE', id });
+      setItemToDelete({ type: 'PROFILE', id });
+      setShowConfirmModal(true);
   };
 
-  const confirmDelete = async (item: { type: 'MEMORY' | 'GROWTH' | 'PROFILE', id: string }) => {
-     // Use window.confirm for simplicity or create a custom modal
-     // Since the previous code had a specific state for this but used it immediately in some contexts
-     const isConfirmed = window.confirm(t('confirm_delete'));
-     if(!isConfirmed) return;
+  // Actual Execute Delete
+  const executeDelete = async () => {
+     if (!itemToDelete) return;
 
-     if (item.type === 'MEMORY') {
-        await DataService.deleteMemory(item.id);
-        if (selectedMemory && selectedMemory.id === item.id) {
+     if (itemToDelete.type === 'MEMORY') {
+        await DataService.deleteMemory(itemToDelete.id);
+        if (selectedMemory && selectedMemory.id === itemToDelete.id) {
            setSelectedMemory(null);
         }
-     } else if (item.type === 'GROWTH') {
-        await DataService.deleteGrowth(item.id);
-     } else if (item.type === 'PROFILE') {
-        await DataService.deleteProfile(item.id);
+     } else if (itemToDelete.type === 'GROWTH') {
+        await DataService.deleteGrowth(itemToDelete.id);
+     } else if (itemToDelete.type === 'PROFILE') {
+        await DataService.deleteProfile(itemToDelete.id);
      }
 
      await refreshData();
+     setShowConfirmModal(false);
+     setItemToDelete(null);
   };
 
   const tabs = [
@@ -574,6 +578,25 @@ function App() {
         <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => requestDeleteMemory(selectedMemory!.id)} />
       )}
       
+      {/* Delete Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/>
+           <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-zoom-in text-center">
+              <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-rose-500"/>
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{t('delete_title')}</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">{t('confirm_delete')}</p>
+              
+              <div className="flex gap-3">
+                  <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-colors hover:bg-slate-200 dark:hover:bg-slate-600">{t('cancel_btn')}</button>
+                  <button onClick={executeDelete} className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-colors">{t('confirm')}</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Passcode Modal */}
       {showPasscodeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

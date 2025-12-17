@@ -47,6 +47,8 @@ export const translations = {
   update_btn: { en: "Update Memory", mm: "ပြင်ဆင်မှု သိမ်းဆည်းမယ်" },
   cancel_btn: { en: "Cancel", mm: "မလုပ်တော့ပါ" },
   date_label: { en: "Date", mm: "နေ့စွဲ" },
+  saving: { en: "Saving...", mm: "သိမ်းဆည်းနေသည်..." },
+  uploading: { en: "Uploading...", mm: "ပုံတင်နေသည်..." },
 
   // Story Generator
   story_title: { en: "Bedtime Story", mm: "အိပ်ရာဝင် ပုံပြင်" },
@@ -102,6 +104,7 @@ export const translations = {
   country_placeholder: { en: "e.g. Myanmar", mm: "ဥပမာ - မြန်မာ" },
   
   save_changes: { en: "Save Changes", mm: "သိမ်းဆည်းမည်" },
+  profile_saved: { en: "Profile Saved", mm: "အချက်အလက် သိမ်းဆည်းပြီးပါပြီ" },
   language: { en: "Language", mm: "ဘာသာစကား" },
   theme: { en: "Dark Mode", mm: "အမှောင်မုဒ် (Dark Mode)" },
   back: { en: "Back", mm: "ပြန်ထွက်" },
@@ -116,8 +119,9 @@ export const translations = {
   kg: { en: "kg", mm: "ကီလို" },
   manage_memories: { en: "Memories List", mm: "အမှတ်တရများ စာရင်း" },
   delete: { en: "Delete", mm: "ဖျက်မည်" },
+  delete_title: { en: "Delete Item", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
-  confirm_delete: { en: "Are you sure you want to delete this?", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား?" },
+  confirm_delete: { en: "Are you sure you want to delete this? This action cannot be undone.", mm: "ဤအမှတ်တရကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရနိုင်ပါ။" },
 
   // Security
   private_info: { en: "Private Details", mm: "ကိုယ်ရေးအချက်အလက်များ" },

@@ -77,13 +77,9 @@ export const syncData = async () => {
         // --- PROFILES ---
         const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
         for (const p of unsyncedProfiles) {
-            // SAFE SYNC: Exclude new fields that might not exist in Supabase schema yet
-            // This prevents 'PGRST204: Could not find column' errors
-            // Added birthTime and bloodType to exclusion list
-            const { country, hospitalName, birthLocation, birthTime, bloodType, ...rest } = p;
-            const payload = cleanForSync(rest);
+            // Updated: Now sending ALL profile fields to Supabase including country and bloodType
+            const payload = cleanForSync(p);
             
-            // Note: To sync these fields, please add 'country', 'hospitalName', etc. to your Supabase table
             const { error } = await supabase.from('child_profile').upsert(payload);
             
             if (!error) {

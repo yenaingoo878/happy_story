@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Calendar, Clock, Droplet, Building2, MapPin, Globe, Save, ShieldCheck, KeyRound, Unlock, ChevronRight, Moon, Sun, ArrowLeft, Trash2, Pencil, LogOut, Check } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -47,6 +47,10 @@ export const Settings: React.FC<SettingsProps> = ({
     id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: ''
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingGrowth, setIsSavingGrowth] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   const profileImageInputRef = useRef<HTMLInputElement>(null);
   
   // Growth Form State
@@ -60,8 +64,16 @@ export const Settings: React.FC<SettingsProps> = ({
      }
   }, [activeProfileId, profiles]);
 
+  // Reset success message
+  useEffect(() => {
+    if (saveSuccess) {
+        const timer = setTimeout(() => setSaveSuccess(false), 3000);
+        return () => clearTimeout(timer);
+    }
+  }, [saveSuccess]);
+
   const triggerProfileImageInput = () => {
-    if(!isUploading) profileImageInputRef.current?.click();
+    if(!isUploading && !isSavingProfile) profileImageInputRef.current?.click();
   };
 
   const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,19 +96,27 @@ export const Settings: React.FC<SettingsProps> = ({
   const handleSaveProfile = async () => {
     if (!editingProfile.name.trim()) return;
     
-    const isNew = !editingProfile.id;
-    const profileToSave = {
-       ...editingProfile,
-       id: editingProfile.id || crypto.randomUUID()
-    };
-    
-    await DataService.saveProfile(profileToSave);
-    await onRefreshData();
-    
-    if (isNew) {
-        onProfileChange(profileToSave.id || '');
+    setIsSavingProfile(true);
+    try {
+        const isNew = !editingProfile.id;
+        const profileToSave = {
+        ...editingProfile,
+        id: editingProfile.id || crypto.randomUUID()
+        };
+        
+        await DataService.saveProfile(profileToSave);
+        await onRefreshData();
+        
+        if (isNew) {
+            onProfileChange(profileToSave.id || '');
+        }
+        setSaveSuccess(true);
+    } catch (error) {
+        console.error("Failed to save profile", error);
+        alert("Failed to save profile.");
+    } finally {
+        setIsSavingProfile(false);
     }
-    alert(t('save_changes'));
   };
 
   const createNewProfile = () => {
@@ -126,18 +146,25 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const handleAddGrowthRecord = async () => {
     if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
-      let updatedData: GrowthData = {
-          id: crypto.randomUUID(),
-          childId: activeProfileId,
-          month: Number(newGrowth.month),
-          height: Number(newGrowth.height),
-          weight: Number(newGrowth.weight),
-          synced: 0
-      };
+      setIsSavingGrowth(true);
+      try {
+          let updatedData: GrowthData = {
+              id: crypto.randomUUID(),
+              childId: activeProfileId,
+              month: Number(newGrowth.month),
+              height: Number(newGrowth.height),
+              weight: Number(newGrowth.weight),
+              synced: 0
+          };
 
-      await DataService.saveGrowth(updatedData);
-      await onRefreshData(); // Reload data
-      setNewGrowth({ month: undefined, height: undefined, weight: undefined });
+          await DataService.saveGrowth(updatedData);
+          await onRefreshData(); // Reload data
+          setNewGrowth({ month: undefined, height: undefined, weight: undefined });
+      } catch (error) {
+          alert("Failed to save growth record");
+      } finally {
+          setIsSavingGrowth(false);
+      }
     }
   };
 
@@ -148,11 +175,17 @@ export const Settings: React.FC<SettingsProps> = ({
             <h2 className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm mb-4">
                 <div className="grid grid-cols-3 gap-2 mb-2">
-                    <input type="number" placeholder={t('month')} value={newGrowth.month || ''} onChange={e => setNewGrowth({...newGrowth, month: Number(e.target.value)})} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white"/>
-                    <input type="number" placeholder="cm" value={newGrowth.height || ''} onChange={e => setNewGrowth({...newGrowth, height: Number(e.target.value)})} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white"/>
-                    <input type="number" placeholder="kg" value={newGrowth.weight || ''} onChange={e => setNewGrowth({...newGrowth, weight: Number(e.target.value)})} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white"/>
+                    <input type="number" placeholder={t('month')} value={newGrowth.month || ''} onChange={e => setNewGrowth({...newGrowth, month: Number(e.target.value)})} disabled={isSavingGrowth} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:opacity-50"/>
+                    <input type="number" placeholder="cm" value={newGrowth.height || ''} onChange={e => setNewGrowth({...newGrowth, height: Number(e.target.value)})} disabled={isSavingGrowth} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:opacity-50"/>
+                    <input type="number" placeholder="kg" value={newGrowth.weight || ''} onChange={e => setNewGrowth({...newGrowth, weight: Number(e.target.value)})} disabled={isSavingGrowth} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white disabled:opacity-50"/>
                 </div>
-                <button onClick={handleAddGrowthRecord} className="w-full py-2 bg-teal-500 text-white rounded-lg font-bold">{t('add_record')}</button>
+                <button 
+                    onClick={handleAddGrowthRecord} 
+                    disabled={isSavingGrowth || !newGrowth.month}
+                    className="w-full py-2 bg-teal-500 text-white rounded-lg font-bold flex items-center justify-center disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
+                    {isSavingGrowth ? <Loader2 className="w-4 h-4 animate-spin"/> : t('add_record')}
+                </button>
             </div>
             <div className="space-y-2">
                 {growthData.map((d, i) => (
@@ -235,7 +268,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">{p.name || 'New'}</span>
                 </button>
             ))}
-            <button onClick={createNewProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100">
+            <button onClick={createNewProfile} disabled={isSavingProfile} className="flex flex-col items-center flex-shrink-0 opacity-60 hover:opacity-100 disabled:opacity-30">
                 <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center mb-1"><UserPlus className="w-6 h-6 text-slate-400"/></div>
                 <span className="text-[10px] font-bold text-slate-500">Add</span>
             </button>
@@ -243,17 +276,17 @@ export const Settings: React.FC<SettingsProps> = ({
             
             <div className="space-y-4">
                 <div className="flex justify-center mb-2 relative">
-                    <div className="relative group cursor-pointer" onClick={triggerProfileImageInput}>
+                    <div className={`relative group ${!isUploading && !isSavingProfile ? 'cursor-pointer' : 'cursor-wait opacity-80'}`} onClick={triggerProfileImageInput}>
                     <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-600">
                         {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary"/> : 
                             editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover"/> : <Baby className="w-10 h-10 text-slate-300"/>}
                     </div>
                     <div className="absolute bottom-0 right-0 bg-primary p-2 rounded-full text-white shadow-sm"><Camera className="w-3 h-3"/></div>
-                    <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
+                    <input ref={profileImageInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" disabled={isUploading || isSavingProfile} />
                     </div>
                     
                     {/* Delete Profile Button (only if ID exists) */}
-                    {editingProfile.id && (
+                    {editingProfile.id && !isSavingProfile && (
                         <button onClick={() => onDeleteProfile(editingProfile.id!)} className="absolute top-0 right-0 p-2 text-rose-400 hover:text-rose-600 bg-rose-50 dark:bg-rose-900/20 rounded-full">
                             <Trash2 className="w-4 h-4" />
                         </button>
@@ -264,7 +297,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_name_label')}</label>
                     <div className="relative mt-1">
                     <Baby className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder="e.g. Baby" />
+                    <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder="e.g. Baby" />
                     </div>
                 </div>
 
@@ -273,14 +306,14 @@ export const Settings: React.FC<SettingsProps> = ({
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('child_dob')}</label>
                         <div className="relative mt-1">
                         <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                        <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
                         </div>
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('birth_time')}</label>
                         <div className="relative mt-1">
                         <Clock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" />
+                        <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" />
                         </div>
                     </div>
                 </div>
@@ -291,13 +324,15 @@ export const Settings: React.FC<SettingsProps> = ({
                         <div className="flex bg-slate-100 dark:bg-slate-700/50 rounded-xl p-1 mt-1 h-[46px]">
                             <button 
                             onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
-                            className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
+                            disabled={isSavingProfile}
+                            className={`flex-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-500' : 'text-slate-400'}`}
                             >
                             {t('boy')}
                             </button>
                             <button 
                             onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
-                            className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
+                            disabled={isSavingProfile}
+                            className={`flex-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-pink-500' : 'text-slate-400'}`}
                             >
                             {t('girl')}
                             </button>
@@ -310,7 +345,8 @@ export const Settings: React.FC<SettingsProps> = ({
                         <select 
                             value={editingProfile.bloodType || ''} 
                             onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})}
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm appearance-none"
+                            disabled={isSavingProfile}
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm appearance-none disabled:opacity-50"
                         >
                             <option value="">-</option>
                             <option value="A+">A+</option>
@@ -330,7 +366,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('hospital_name')}</label>
                     <div className="relative mt-1">
                     <Building2 className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100" placeholder={t('hospital_placeholder')} />
+                    <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 disabled:opacity-50" placeholder={t('hospital_placeholder')} />
                     </div>
                 </div>
 
@@ -339,21 +375,25 @@ export const Settings: React.FC<SettingsProps> = ({
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('city_label')}</label>
                         <div className="relative mt-1">
                         <MapPin className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('location_placeholder')} />
+                        <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('location_placeholder')} />
                         </div>
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">{t('country_label')}</label>
                         <div className="relative mt-1">
                         <Globe className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                        <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm" placeholder={t('country_placeholder')} />
+                        <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} disabled={isSavingProfile} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-700 dark:text-slate-100 text-sm disabled:opacity-50" placeholder={t('country_placeholder')} />
                         </div>
                     </div>
                 </div>
 
-                <button onClick={handleSaveProfile} className="w-full py-3.5 bg-primary hover:bg-rose-400 transition-colors text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4">
-                    <Save className="w-4 h-4"/>
-                    {t('save_changes')}
+                <button 
+                    onClick={handleSaveProfile} 
+                    disabled={isSavingProfile}
+                    className={`w-full py-3.5 text-white font-bold rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 mt-4 transition-all active:scale-95 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-primary hover:bg-rose-400'} ${isSavingProfile ? 'cursor-not-allowed opacity-80' : ''}`}
+                >
+                    {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin"/> : saveSuccess ? <Check className="w-5 h-5"/> : <Save className="w-5 h-5"/>}
+                    {isSavingProfile ? t('saving') : saveSuccess ? t('profile_saved') : t('save_changes')}
                 </button>
             </div>
         </div>
