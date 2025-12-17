@@ -1,4 +1,5 @@
-import typography from '@tailwindcss/typography';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -45,6 +46,6 @@ export default {
     },
   },
   plugins: [
-    typography,
+    require('@tailwindcss/typography'),
   ],
 }
