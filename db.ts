@@ -22,6 +22,10 @@ dbInstance.version(1).stores({
 // Export typed database instance
 export const db = dbInstance as LittleMomentsDB;
 
+export const generateId = () => {
+  return crypto.randomUUID();
+};
+
 export const initDB = async () => {
   try {
       await db.open();
@@ -88,6 +92,13 @@ export const syncData = async () => {
 };
 
 export const DataService = {
+    // --- UTILS ---
+    clearLocalData: async () => {
+        await db.memories.clear();
+        await db.growth.clear();
+        await db.profiles.clear();
+    },
+
     // --- STORAGE ---
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         try {
@@ -159,8 +170,10 @@ export const DataService = {
     },
     
     saveProfile: async (profile: ChildProfile) => {
-        await db.profiles.put({ ...profile, synced: 0 });
+        const id = profile.id || generateId();
+        await db.profiles.put({ ...profile, id, synced: 0 });
         syncData();
+        return id;
     },
 
     deleteProfile: async (id: string) => {
