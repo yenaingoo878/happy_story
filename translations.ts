@@ -18,6 +18,14 @@ export const translations = {
   signin_google: { en: "Sign in with Google", mm: "Google ဖြင့် ဝင်ရောက်ရန်" },
   logging_in: { en: "Signing in...", mm: "ဝင်ရောက်နေပါသည်..." },
   logout: { en: "Log Out", mm: "အကောင့်ထွက်မည်" },
+  email: { en: "Email", mm: "အီးမေးလ်" },
+  password: { en: "Password", mm: "စကားဝှက်" },
+  sign_in: { en: "Sign In", mm: "အကောင့်ဝင်မည်" },
+  sign_up: { en: "Sign Up", mm: "အကောင့်သစ်ဖွင့်မည်" },
+  or_email: { en: "Or continue with email", mm: "အီးမေးလ်ဖြင့် ဆက်လက်ဆောင်ရွက်မည်" },
+  no_account: { en: "Don't have an account?", mm: "အကောင့်မရှိဘူးလား?" },
+  have_account: { en: "Already have an account?", mm: "အကောင့်ရှိပြီးသားလား?" },
+  auth_error: { en: "Authentication failed. Please check your credentials.", mm: "အကောင့်ဝင်မရပါ။ အချက်အလက်များ ပြန်စစ်ဆေးပါ။" },
 
   // Navigation
   nav_home: { en: "Home", mm: "ပင်မ" },
