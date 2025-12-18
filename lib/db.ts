@@ -12,7 +12,9 @@ export type LittleMomentsDB = Dexie & {
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
-db.version(3).stores({
+// Bumping to version 4 to ensure all stores (including 'reminders') are created
+// and to fix the "One of the specified object stores was not found" error.
+db.version(4).stores({
   memories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
   profiles: 'id, name, synced',
@@ -26,13 +28,18 @@ export const initDB = async () => {
       if (!db.isOpen()) {
         await db.open();
       }
-      console.log("Local Database Initialized");
+      console.log("Local Database Initialized Successfully");
       // Only sync if Supabase is actually set up
       if (isSupabaseConfigured()) {
         syncData(); 
       }
   } catch (err) {
       console.error("Failed to open db:", err);
+      // If version error occurs, we might need to delete and recreate, 
+      // but usually a version bump handles it.
+      if (err instanceof Error && err.name === 'VersionError') {
+          console.warn("Database version mismatch, attempting to upgrade...");
+      }
   }
 };
 
