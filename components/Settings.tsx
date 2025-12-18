@@ -377,9 +377,17 @@ export const Settings: React.FC<SettingsProps> = ({
                             </div>
                         </div>
 
-                        <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-2">
-                           {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
-                        </button>
+                        <div className="flex flex-col gap-3 mt-6">
+                            <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                               {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
+                            </button>
+                            
+                            {profiles.length > 1 && editingProfile.id && (
+                                <button onClick={() => onDeleteProfile(editingProfile.id!)} className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30">
+                                   <Trash2 className="w-4 h-4"/> {t('delete_profile')}
+                                </button>
+                            )}
+                        </div>
                      </div>
                  )}
             </div>

@@ -79,8 +79,10 @@ export const translations = {
   ai_insight: { en: "AI Insight", mm: "AI အကြံပြုချက်" },
   analyzing: { en: "Analyzing...", mm: "ဆန်းစစ်နေသည်..." },
   months_label: { en: "Months", mm: "လ (Months)" },
+  month: { en: "Month", mm: "အသက် (လ)" },
   height_label: { en: "Height", mm: "အရပ်" },
   weight_label: { en: "Weight", mm: "ကိုယ်အလေးချိန်" },
+  add_record: { en: "Add Record", mm: "မှတ်တမ်းအသစ်ထည့်မည်" },
   disclaimer: { en: "* Not based on standard WHO Child Growth Standards, for reference only.", mm: "* Standard WHO Child Growth Standards အပေါ်အခြေခံထားခြင်းမရှိပါ၊ ကိုးကားရန်သာ။" },
 
   // Gallery
@@ -138,6 +140,7 @@ export const translations = {
   reminder_date: { en: "Date", mm: "နေ့စွဲ" },
   save_reminder: { en: "Save Reminder", mm: "သိမ်းဆည်းမည်" },
   delete: { en: "Delete", mm: "ဖျက်မည်" },
+  delete_profile: { en: "Delete Profile", mm: "ပရိုဖိုင်ဖျက်မည်" },
   delete_title: { en: "Delete Item", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
   confirm_delete: { en: "Are you sure you want to delete this? This action cannot be undone.", mm: "ဤအချက်အလက်ကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရနိုင်ပါ။" },
