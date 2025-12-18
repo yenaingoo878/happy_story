@@ -52,12 +52,21 @@ input[type="datetime-local"] {
   100% { transform: translateY(110vh) translateX(var(--tw-translate-x)) rotate(360deg); opacity: 0.2; }
 }
 
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(-5%) rotate(-6deg); }
+  50% { transform: translateY(0) rotate(-6deg); }
+}
+
 .animate-confetti-burst {
   animation: confetti-burst 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
 }
 
 .animate-confetti-fall {
   animation: confetti-fall 6s linear infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 4s ease-in-out infinite;
 }
 
 .celebration-particle {
