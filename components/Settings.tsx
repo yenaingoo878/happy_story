@@ -150,7 +150,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const handleEditGrowth = (record: GrowthData) => {
       setNewGrowth({ month: record.month, height: record.height, weight: record.weight });
       setEditingGrowthId(record.id || null);
-      // Scroll form into view
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -172,73 +171,96 @@ export const Settings: React.FC<SettingsProps> = ({
       } finally { setIsSavingReminder(false); }
   };
 
+  // Selective Locking UI within Settings views
+  const renderLockedState = () => (
+    <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in text-center max-w-sm mx-auto h-[60vh]">
+      <div className="w-16 h-16 bg-primary/10 rounded-[28px] flex items-center justify-center mb-6">
+        <Lock className="w-8 h-8 text-primary" />
+      </div>
+      <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">{t('private_info')}</h2>
+      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-8">{t('locked_msg')}</p>
+      <button 
+        onClick={onUnlockRequest}
+        className="px-10 py-3 bg-slate-900 dark:bg-primary text-white text-xs font-extrabold rounded-[20px] shadow-xl active:scale-95 transition-all"
+      >
+        {t('tap_to_unlock')}
+      </button>
+    </div>
+  );
+
+  const isLocked = passcode && !isDetailsUnlocked;
+
   if (view === 'GROWTH') {
       return (
         <div className="max-w-2xl mx-auto space-y-4">
             <button onClick={() => setView('MAIN')} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
-                {editingGrowthId && (
-                    <button onClick={() => { setEditingGrowthId(null); setNewGrowth({}); }} className="text-xs font-bold text-rose-500 flex items-center gap-1 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-full transition-all">
-                        <X className="w-3 h-3"/> {t('cancel_edit')}
-                    </button>
-                )}
-            </div>
-            
-            <div className={`bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border transition-all duration-300 ${editingGrowthId ? 'border-teal-500 ring-4 ring-teal-500/10' : 'border-slate-100 dark:border-slate-700'}`}>
-                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
-                    {editingGrowthId ? t('edit') : t('add_record')}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('month')}</label>
-                      <input type="number" placeholder="Month #" value={newGrowth.month ?? ''} onChange={e => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('height_label')} (cm)</label>
-                      <input type="number" placeholder="cm" value={newGrowth.height ?? ''} onChange={e => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('weight_label')} (kg)</label>
-                      <input type="number" placeholder="kg" value={newGrowth.weight ?? ''} onChange={e => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                    </div>
+            {isLocked ? renderLockedState() : (
+            <div className="animate-fade-in space-y-4">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
+                    {editingGrowthId && (
+                        <button onClick={() => { setEditingGrowthId(null); setNewGrowth({}); }} className="text-xs font-bold text-rose-500 flex items-center gap-1 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-full transition-all">
+                            <X className="w-3 h-3"/> {t('cancel_edit')}
+                        </button>
+                    )}
                 </div>
-                <button 
-                  onClick={handleSaveGrowth} 
-                  disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} 
-                  className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/20' : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/20'} text-white`}
-                >
-                  {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin"/> : (
-                    <>
-                        {editingGrowthId ? <Save className="w-5 h-5"/> : <Check className="w-5 h-5"/>} 
-                        {editingGrowthId ? t('update_record') : t('add_record')}
-                    </>
-                  )}
-                </button>
-            </div>
+                
+                <div className={`bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border transition-all duration-300 ${editingGrowthId ? 'border-teal-500 ring-4 ring-teal-500/10' : 'border-slate-100 dark:border-slate-700'}`}>
+                    <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
+                        {editingGrowthId ? t('edit') : t('add_record')}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('month')}</label>
+                          <input type="number" placeholder="Month #" value={newGrowth.month ?? ''} onChange={e => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('height_label')} (cm)</label>
+                          <input type="number" placeholder="cm" value={newGrowth.height ?? ''} onChange={e => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('weight_label')} (kg)</label>
+                          <input type="number" placeholder="kg" value={newGrowth.weight ?? ''} onChange={e => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                        </div>
+                    </div>
+                    <button 
+                      onClick={handleSaveGrowth} 
+                      disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} 
+                      className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/20' : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/20'} text-white`}
+                    >
+                      {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin"/> : (
+                        <>
+                            {editingGrowthId ? <Save className="w-5 h-5"/> : <Check className="w-5 h-5"/>} 
+                            {editingGrowthId ? t('update_record') : t('add_record')}
+                        </>
+                      )}
+                    </button>
+                </div>
 
-            <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-4">{t('growth_subtitle')}</h3>
-                {growthData.length === 0 ? (
-                  <div className="text-center py-10 text-slate-400">{t('no_photos')}</div>
-                ) : (
-                  growthData.map((d, i) => (
-                      <div key={d.id || i} className={`flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl border transition-all shadow-sm animate-fade-in ${editingGrowthId === d.id ? 'border-teal-500 bg-teal-50/30 dark:bg-teal-900/10' : 'border-slate-50 dark:border-slate-700'}`}>
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 font-bold text-sm">{d.month}</div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{d.height} cm • {d.weight} kg</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">{t('months_label')}</p>
-                            </div>
+                <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-4">{t('growth_subtitle')}</h3>
+                    {growthData.length === 0 ? (
+                      <div className="text-center py-10 text-slate-400">{t('no_photos')}</div>
+                    ) : (
+                      growthData.map((d, i) => (
+                          <div key={d.id || i} className={`flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl border transition-all shadow-sm animate-fade-in ${editingGrowthId === d.id ? 'border-teal-500 bg-teal-50/30 dark:bg-teal-900/10' : 'border-slate-50 dark:border-slate-700'}`}>
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 font-bold text-sm">{d.month}</div>
+                                <div>
+                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{d.height} cm • {d.weight} kg</p>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">{t('months_label')}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <button onClick={() => handleEditGrowth(d)} className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"><Pencil className="w-4 h-4"/></button>
+                                 <button onClick={() => onDeleteGrowth(d.id!)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                              </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                             <button onClick={() => handleEditGrowth(d)} className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"><Pencil className="w-4 h-4"/></button>
-                             <button onClick={() => onDeleteGrowth(d.id!)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                          </div>
-                      </div>
-                  ))
-                )}
+                      ))
+                    )}
+                </div>
             </div>
+            )}
         </div>
       );
   }
@@ -248,7 +270,8 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="max-w-2xl mx-auto space-y-4">
             <button onClick={() => setView('MAIN')} className="flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_memories')}</h2>
-            <div className="grid gap-3">
+            {isLocked ? renderLockedState() : (
+            <div className="grid gap-3 animate-fade-in">
                 {memories.map(m => (
                     <div key={m.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-50 dark:border-slate-700 shadow-sm">
                         <div className="flex items-center gap-3">
@@ -265,6 +288,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                 ))}
             </div>
+            )}
         </div>
       );
   }
@@ -274,32 +298,35 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="max-w-2xl mx-auto space-y-4">
             <button onClick={() => setView('MAIN')} className="flex items-center gap-2 text-sm font-bold text-slate-500"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_reminders')}</h2>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t('add_reminder')}</h3>
-                <div className="space-y-4">
-                    <input type="text" placeholder={t('reminder_title')} value={newReminder.title} onChange={e => setNewReminder({...newReminder, title: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
-                    <input type="date" value={newReminder.date} onChange={e => setNewReminder({...newReminder, date: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-primary/20 dark:text-white min-h-[48px] appearance-none text-start" />
-                    <button onClick={handleSaveNewReminder} disabled={isSavingReminder || !newReminder.title || !newReminder.date} className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
-                        {isSavingReminder ? <Loader2 className="w-5 h-5 animate-spin mx-auto"/> : t('save_reminder')}
-                    </button>
+            {isLocked ? renderLockedState() : (
+            <div className="animate-fade-in space-y-4">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t('add_reminder')}</h3>
+                    <div className="space-y-4">
+                        <input type="text" placeholder={t('reminder_title')} value={newReminder.title} onChange={e => setNewReminder({...newReminder, title: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-primary/20 dark:text-white" />
+                        <input type="date" value={newReminder.date} onChange={e => setNewReminder({...newReminder, date: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-primary/20 dark:text-white min-h-[48px] appearance-none text-start" />
+                        <button onClick={handleSaveNewReminder} disabled={isSavingReminder || !newReminder.title || !newReminder.date} className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
+                            {isSavingReminder ? <Loader2 className="w-5 h-5 animate-spin mx-auto"/> : t('save_reminder')}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    {remindersList.map(r => (
+                        <div key={r.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">{r.title}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{r.date}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => onDeleteReminder && onDeleteReminder(r.id)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                        </div>
+                    ))}
                 </div>
             </div>
-
-            <div className="space-y-3">
-                {remindersList.map(r => (
-                    <div key={r.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Calendar className="w-5 h-5"/></div>
-                            <div>
-                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">{r.title}</h4>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{r.date}</p>
-                            </div>
-                        </div>
-                        <button onClick={() => onDeleteReminder && onDeleteReminder(r.id)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                    </div>
-                ))}
-            </div>
+            )}
         </div>
       );
   }
@@ -330,7 +357,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                 </div>
 
-                {passcode && !isDetailsUnlocked && (
+                {isLocked && (
                   <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-700/50 flex flex-col items-center text-center space-y-4">
                       <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 mb-2"><Lock className="w-6 h-6"/></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{t('locked_msg')}</p>
@@ -423,8 +450,6 @@ export const Settings: React.FC<SettingsProps> = ({
                             <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                                {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
                             </button>
-                            
-                            {/* FIX: Ensure delete profile is active if an ID exists */}
                             {editingProfile.id && (
                                 <button 
                                   onClick={() => onDeleteProfile(editingProfile.id!)} 

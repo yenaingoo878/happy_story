@@ -25,7 +25,7 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
-  // App Lock Logic
+  // Passcode Logic
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
@@ -61,13 +61,10 @@ function App() {
 
   const t = (key: any) => getTranslation(language, key);
 
-  // Lockscreen initialization
+  // App Lock logic: We don't block the WHOLE app anymore.
+  // We just track the state. isAppUnlocked will be used to guard specific tabs.
   useEffect(() => {
-    if (passcode) {
-      setPasscodeMode('UNLOCK');
-      setShowPasscodeModal(true);
-      setIsAppUnlocked(false);
-    } else {
+    if (!passcode) {
       setIsAppUnlocked(true);
     }
   }, [passcode]);
@@ -260,19 +257,15 @@ function App() {
               }
               
               if (passcodeInput === passcode) {
-                  if (passcodeMode === 'UNLOCK') { 
-                    setIsAppUnlocked(true); 
-                    setShowPasscodeModal(false); 
-                    setPasscodeInput('');
-                  } else if (passcodeMode === 'CHANGE_VERIFY') { 
+                  setIsAppUnlocked(true); 
+                  setShowPasscodeModal(false); 
+                  setPasscodeInput('');
+                  if (passcodeMode === 'CHANGE_VERIFY') { 
                     setPasscodeMode('CHANGE_NEW'); 
-                    setPasscodeInput(''); 
+                    setShowPasscodeModal(true);
                   } else if (passcodeMode === 'REMOVE') { 
                     localStorage.removeItem('app_passcode'); 
                     setPasscode(null); 
-                    setIsAppUnlocked(true); 
-                    setShowPasscodeModal(false); 
-                    setPasscodeInput('');
                   }
               } else {
                   setPasscodeError(true); 
@@ -317,58 +310,31 @@ function App() {
     );
   }
 
-  // Mandatory Lock Screen Render if passcode exists
-  if (showPasscodeModal && passcodeMode === 'UNLOCK') {
-    return (
-      <div className="fixed inset-0 z-[500] bg-white dark:bg-slate-900 flex flex-col items-center justify-center p-6 font-sans">
-          <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
-              <div className="w-20 h-20 bg-primary/10 rounded-[28px] flex items-center justify-center mb-8">
-                  <Lock className="w-10 h-10 text-primary" />
-              </div>
-              <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">App Locked</h2>
-              <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-10">{t('enter_passcode')}</p>
-              
-              <div className="flex justify-center gap-6 mb-12">
-                  {[0,1,2,3].map(i => (
-                    <div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-200 dark:border-slate-700 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125' : ''}`}/>
-                  ))}
-              </div>
-
-              {passcodeError && <p className="text-rose-500 text-xs font-bold mb-6 animate-bounce">{t('wrong_passcode')}</p>}
-
-              <div className="grid grid-cols-3 gap-6">
-                {[1,2,3,4,5,6,7,8,9,0].map(num => (
-                  <button 
-                    key={num} 
-                    onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} 
-                    className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold active:bg-primary active:text-white transition-all transform active:scale-90 text-slate-700 dark:text-slate-100"
-                  >
-                    {num}
-                  </button>
-                ))}
-                <button 
-                  onClick={() => setPasscodeInput(p => p.slice(0, -1))} 
-                  className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-rose-500 active:scale-90 transition-transform"
-                >
-                  <Delete className="w-6 h-6"/>
-                </button>
-              </div>
-
-              <button 
-                onClick={handleLogout} 
-                className="mt-12 text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4"/> {t('logout')}
-              </button>
-          </div>
-      </div>
-    );
-  }
-
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
+
+    // Guard selective tabs: Growth and Settings require Unlocked state if passcode exists
+    const isTabLocked = (activeTab === TabView.GROWTH || activeTab === TabView.SETTINGS) && passcode && !isAppUnlocked;
+
+    if (isTabLocked) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in text-center max-w-sm mx-auto h-[70vh]">
+          <div className="w-20 h-20 bg-primary/10 rounded-[32px] flex items-center justify-center mb-6">
+            <Lock className="w-10 h-10 text-primary" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">{t('private_info')}</h2>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-8">{t('locked_msg')}</p>
+          <button 
+            onClick={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }}
+            className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl active:scale-95 transition-all"
+          >
+            {t('tap_to_unlock')}
+          </button>
+        </div>
+      );
+    }
 
     switch (activeTab) {
       case TabView.HOME:
@@ -505,8 +471,8 @@ function App() {
         </div>
       )}
 
-      {/* Internal Passcode Modal for Settings (Setup/Change/Remove) */}
-      {showPasscodeModal && passcodeMode !== 'UNLOCK' && (
+      {/* Passcode Modal for Unlocking/Settings */}
+      {showPasscodeModal && (
         <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowPasscodeModal(false)}/>
           <div className="relative w-full md:w-[400px] bg-white/95 dark:bg-slate-900/95 rounded-t-[40px] md:rounded-[40px] p-10 animate-slide-up shadow-2xl border border-white/20">
