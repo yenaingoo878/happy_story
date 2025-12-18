@@ -2,15 +2,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-// The key is expected to be valid, but we handle it defensively
-const apiKey = process.env.API_KEY;
-
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error(language === 'mm' ? "AI API Key မရှိပါ။" : "AI API Key is missing.");
   }
 
   try {
+    // CRITICAL: Always create a new GoogleGenAI instance right before use
     const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
@@ -39,11 +38,13 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
+    const apiKey = process.env.API_KEY;
     if (!apiKey) {
       return language === 'mm' ? "AI အင်္ဂါရပ်များကို အသုံးပြုရန် API Key လိုအပ်ပါသည်။" : "AI features require an API Key.";
     }
 
     try {
+        // CRITICAL: Always create a new GoogleGenAI instance right before use
         const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
