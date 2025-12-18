@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ArrowLeft, ChevronLeft } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -61,6 +61,8 @@ function App() {
 
   const t = (key: any) => getTranslation(language, key);
 
+  // App Lock logic: We don't block the WHOLE app anymore.
+  // We just track the state. isAppUnlocked will be used to guard specific tabs.
   useEffect(() => {
     if (!passcode) {
       setIsAppUnlocked(true);
@@ -313,9 +315,8 @@ function App() {
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
 
-    // Guard selective views: ONLY specific data lists in settings are locked if PIN exists
-    // The main Growth tab is still locked as requested before
-    const isTabLocked = (activeTab === TabView.GROWTH) && passcode && !isAppUnlocked;
+    // Guard selective tabs: Growth and Settings require Unlocked state if passcode exists
+    const isTabLocked = (activeTab === TabView.GROWTH || activeTab === TabView.SETTINGS) && passcode && !isAppUnlocked;
 
     if (isTabLocked) {
       return (
@@ -470,41 +471,25 @@ function App() {
         </div>
       )}
 
-      {/* New Passcode Modal Layout */}
+      {/* Passcode Modal for Unlocking/Settings */}
       {showPasscodeModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/40 backdrop-blur-3xl animate-fade-in">
-          <div className="relative w-full h-full max-w-lg md:h-auto md:max-w-md bg-white/90 dark:bg-slate-900/95 md:rounded-[48px] p-10 flex flex-col items-center justify-center shadow-2xl">
-            <button onClick={() => setShowPasscodeModal(false)} className="absolute top-8 left-8 p-3 text-slate-400 hover:text-slate-600 transition-colors md:hidden"><ChevronLeft className="w-8 h-8"/></button>
-            <div className="mb-12 flex flex-col items-center">
-                <div className="w-20 h-20 bg-primary/10 rounded-[28px] flex items-center justify-center text-primary mb-6"><Lock className="w-10 h-10"/></div>
-                <h3 className="font-extrabold text-2xl dark:text-white tracking-tight text-center">
-                    {passcodeMode === 'SETUP' ? t('create_passcode') : 
-                     passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
-                     passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : 
-                     t('enter_passcode')}
-                </h3>
+        <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowPasscodeModal(false)}/>
+          <div className="relative w-full md:w-[400px] bg-white/95 dark:bg-slate-900/95 rounded-t-[40px] md:rounded-[40px] p-10 animate-slide-up shadow-2xl border border-white/20">
+            <h3 className="text-center font-extrabold text-xl mb-8 dark:text-white tracking-tight">
+                {passcodeMode === 'SETUP' ? t('create_passcode') : 
+                 passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
+                 passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : 
+                 t('enter_passcode')}
+            </h3>
+            <div className="flex justify-center gap-5 mb-10">
+              {[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125' : ''}`}/>))}
             </div>
-            
-            <div className="flex justify-center gap-5 mb-16">
-              {[0,1,2,3].map(i => (
-                  <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125 shadow-lg shadow-primary/30' : 'border-slate-300 dark:border-slate-600'}`}/>
-              ))}
+            {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-4 animate-bounce">{t('wrong_passcode')}</p>}
+            <div className="grid grid-cols-3 gap-6 max-w-[300px] mx-auto">
+              {[1,2,3,4,5,6,7,8,9,0].map(num => (<button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-medium active:bg-primary active:text-white active:scale-90 transition-all dark:text-white shadow-sm">{num}</button>))}
+              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-transform"><Delete className="w-8 h-8"/></button>
             </div>
-
-            {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-6 animate-bounce">{t('wrong_passcode')}</p>}
-
-            <div className="grid grid-cols-3 gap-8 mb-10">
-              {[1,2,3,4,5,6,7,8,9].map(num => (
-                  <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800/50 text-3xl font-bold text-slate-700 dark:text-slate-100 hover:bg-primary hover:text-white active:scale-90 transition-all shadow-sm">
-                      {num}
-                  </button>
-              ))}
-              <div className="w-20 h-20"></div>
-              <button onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + '0')} className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800/50 text-3xl font-bold text-slate-700 dark:text-slate-100 hover:bg-primary hover:text-white active:scale-90 transition-all shadow-sm">0</button>
-              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-20 h-20 flex items-center justify-center text-slate-300 hover:text-rose-500 active:scale-90 transition-all"><Delete className="w-10 h-10"/></button>
-            </div>
-
-            <button onClick={() => setShowPasscodeModal(false)} className="text-sm font-bold text-slate-400 hover:text-slate-600 py-2">{t('cancel_btn')}</button>
           </div>
         </div>
       )}

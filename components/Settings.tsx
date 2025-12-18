@@ -171,6 +171,7 @@ export const Settings: React.FC<SettingsProps> = ({
       } finally { setIsSavingReminder(false); }
   };
 
+  // Selective Locking UI within Settings views
   const renderLockedState = () => (
     <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in text-center max-w-sm mx-auto h-[60vh]">
       <div className="w-16 h-16 bg-primary/10 rounded-[28px] flex items-center justify-center mb-6">
@@ -337,6 +338,7 @@ export const Settings: React.FC<SettingsProps> = ({
         {currentProfile && (
             <div className="bg-white dark:bg-slate-800 rounded-[40px] p-8 shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden transition-all duration-500">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                
                 <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10">
                     <div className="w-24 h-24 rounded-[32px] border-[4px] border-white dark:border-slate-700 shadow-2xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-700 group transition-transform hover:scale-105">
                          {currentProfile.profileImage ? <img src={currentProfile.profileImage} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><Baby className="w-10 h-10 text-slate-300"/></div>}
@@ -344,6 +346,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <div className="text-center sm:text-left flex-1">
                         <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest">{t('currently_active')}</span>
+                           {passcode && !isDetailsUnlocked && <Lock className="w-3 h-3 text-slate-300"/>}
                         </div>
                         <h2 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight mb-1">{currentProfile.name}</h2>
                         <div className="flex items-center justify-center sm:justify-start gap-3">
@@ -353,31 +356,39 @@ export const Settings: React.FC<SettingsProps> = ({
                         </div>
                     </div>
                 </div>
+
+                {isLocked && (
+                  <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-700/50 flex flex-col items-center text-center space-y-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 mb-2"><Lock className="w-6 h-6"/></div>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{t('locked_msg')}</p>
+                      <button onClick={onUnlockRequest} className="px-8 py-3 bg-slate-900 dark:bg-primary text-white text-sm font-bold rounded-2xl shadow-xl active:scale-95 transition-all">{t('tap_to_unlock')}</button>
+                  </div>
+                )}
             </div>
         )}
 
-        {/* Global Settings - ALWAYS UNLOCKED now */}
-        <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1">
-                <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
-                    <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><Globe className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span></div>
-                    <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl">
-                            <button onClick={() => setLanguage('mm')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>မြန်မာ</button>
-                            <button onClick={() => setLanguage('en')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>ENG</button>
-                    </div>
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1">
+            <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
+                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><Globe className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span></div>
+                <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl">
+                        <button onClick={() => setLanguage('mm')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>မြန်မာ</button>
+                        <button onClick={() => setLanguage('en')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>ENG</button>
                 </div>
-                <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
-                    <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span></div>
-                    <button onClick={toggleTheme} className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-5 h-5 bg-white rounded-full shadow-md"></div></button>
-                </div>
-                {toggleReminders && (
-                    <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
-                        <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div><div><span className="text-sm font-bold text-slate-700 dark:text-slate-200 block leading-tight">{t('notifications')}</span><span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t('birthday_reminders')}</span></div></div>
-                        <button onClick={toggleReminders} className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 flex items-center ${remindersEnabled ? 'bg-primary justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-5 h-5 bg-white rounded-full shadow-md"></div></button>
-                    </div>
-                )}
             </div>
+            <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
+                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span></div>
+                <button onClick={toggleTheme} className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-5 h-5 bg-white rounded-full shadow-md"></div></button>
+            </div>
+            {toggleReminders && (
+                <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
+                    <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div><div><span className="text-sm font-bold text-slate-700 dark:text-slate-200 block leading-tight">{t('notifications')}</span><span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t('birthday_reminders')}</span></div></div>
+                    <button onClick={toggleReminders} className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 flex items-center ${remindersEnabled ? 'bg-primary justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-5 h-5 bg-white rounded-full shadow-md"></div></button>
+                </div>
+            )}
+        </div>
 
+        {(!passcode || isDetailsUnlocked) && (
+        <div className="animate-fade-in space-y-4">
             <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-all">
                  <button onClick={() => setShowEditForm(!showEditForm)} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
                      <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500"><Pencil className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('edit_profile')}</span></div>
@@ -391,14 +402,15 @@ export const Settings: React.FC<SettingsProps> = ({
                                 <button key={p.id} onClick={() => { onProfileChange(p.id!); setEditingProfile(p); }} className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 transition-all ${editingProfile.id === p.id ? 'bg-primary/10 border-primary text-primary' : 'border-slate-100 dark:border-slate-700 text-slate-500'}`}><span className="text-xs font-bold">{p.name}</span></button>
                             ))}
                         </div>
+                        
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_name_label')}</label>
-                              <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-primary/20" />
+                              <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_dob')}</label>
-                              <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-primary/20 appearance-none min-h-[48px]" />
+                              <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white min-h-[48px] appearance-none" />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('gender_label')}</label>
@@ -409,22 +421,31 @@ export const Settings: React.FC<SettingsProps> = ({
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('birth_time')}</label>
-                              <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-primary/20" />
+                              <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('hospital_name')}</label>
-                              <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-primary/20" />
+                              <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('blood_type')}</label>
-                              <select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white appearance-none outline-none focus:ring-2 focus:ring-primary/20">
+                              <select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white appearance-none">
                                 <option value="">Select Type</option>
                                 <option value="A">A</option><option value="B">B</option><option value="AB">AB</option><option value="O">O</option>
                                 <option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
                                 <option value="O+">O+</option><option value="O-">O-</option>
                               </select>
                             </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('city_label')}</label>
+                              <input type="text" value={editingProfile.birthLocation || ''} onChange={e => setEditingProfile({...editingProfile, birthLocation: e.target.value})} placeholder={t('location_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('country_label')}</label>
+                              <input type="text" value={editingProfile.country || ''} onChange={e => setEditingProfile({...editingProfile, country: e.target.value})} placeholder={t('country_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
+                            </div>
                         </div>
+
                         <div className="flex flex-col gap-3 mt-6">
                             <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                                {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
@@ -441,29 +462,28 @@ export const Settings: React.FC<SettingsProps> = ({
                      </div>
                  )}
             </div>
-        </div>
 
-        {/* PIN Management Section */}
-        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden divide-y divide-slate-50 dark:divide-slate-700/50">
-            <div className="p-2 space-y-1">
-                 {!passcode ? (
-                    <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
-                ) : (
-                    <>
-                    <button onClick={onPasscodeChange} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
-                    <button onClick={onPasscodeRemove} className="w-full p-4 flex justify-between items-center hover:bg-rose-50 rounded-2xl transition-colors group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500"><Unlock className="w-5 h-5"/></div><span className="text-sm font-bold text-rose-500">{t('remove_passcode')}</span></div><ChevronRight className="w-5 h-5 text-rose-200"/></button>
-                    </>
-                )}
+            <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden divide-y divide-slate-50 dark:divide-slate-700/50">
+                <div className="p-2 space-y-1">
+                     {!passcode ? (
+                        <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
+                    ) : (
+                        <>
+                        <button onClick={onPasscodeChange} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
+                        <button onClick={onPasscodeRemove} className="w-full p-4 flex justify-between items-center hover:bg-rose-50 rounded-2xl transition-colors group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500"><Unlock className="w-5 h-5"/></div><span className="text-sm font-bold text-rose-500">{t('remove_passcode')}</span></div><ChevronRight className="w-5 h-5 text-rose-200"/></button>
+                        </>
+                    )}
+                </div>
+                <div className="p-2 space-y-1">
+                    <button onClick={() => setView('GROWTH')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600"><Activity className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
+                    <button onClick={() => setView('MEMORIES')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><ImageIcon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_memories')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
+                    <button onClick={() => setView('REMINDERS')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_reminders')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
+                </div>
             </div>
-            {/* These management views are ONLY accessible if unlocked or if no passcode exists */}
-            <div className="p-2 space-y-1">
-                <button onClick={() => setView('GROWTH')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600"><Activity className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
-                <button onClick={() => setView('MEMORIES')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><ImageIcon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_memories')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
-                <button onClick={() => setView('REMINDERS')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_reminders')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
-            </div>
-        </div>
 
-        <button onClick={onLogout} className="w-full p-5 bg-white dark:bg-slate-800 text-rose-500 font-extrabold rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-3 hover:bg-rose-50 active:scale-[0.98] transition-all"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+            <button onClick={onLogout} className="w-full p-5 bg-white dark:bg-slate-800 text-rose-500 font-extrabold rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-3 hover:bg-rose-50 active:scale-[0.98] transition-all"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+        </div>
+        )}
     </div>
   );
 };
