@@ -382,8 +382,12 @@ export const Settings: React.FC<SettingsProps> = ({
                                {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
                             </button>
                             
-                            {profiles.length > 1 && editingProfile.id && (
-                                <button onClick={() => onDeleteProfile(editingProfile.id!)} className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30">
+                            {/* FIX: Ensure delete profile is active if an ID exists */}
+                            {editingProfile.id && (
+                                <button 
+                                  onClick={() => onDeleteProfile(editingProfile.id!)} 
+                                  className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30 hover:bg-rose-100 transition-colors"
+                                >
                                    <Trash2 className="w-4 h-4"/> {t('delete_profile')}
                                 </button>
                             )}
