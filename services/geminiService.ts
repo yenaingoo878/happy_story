@@ -2,8 +2,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
+// The key is expected to be valid, but we handle it defensively
+const apiKey = process.env.API_KEY;
+
 // Check if a string is a valid API key (not empty or just spaces)
-const hasValidKey = () => !!process.env.API_KEY && process.env.API_KEY.trim().length > 0;
+const hasValidKey = () => !!apiKey && apiKey.trim().length > 0;
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   if (!hasValidKey()) {
@@ -11,8 +14,7 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
   }
 
   try {
-    // CRITICAL: Always create a new GoogleGenAI instance right before use to ensure the most current API key is used
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: apiKey! });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -45,8 +47,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
     }
 
     try {
-        // CRITICAL: Always create a new GoogleGenAI instance right before use
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+        const ai = new GoogleGenAI({ apiKey: apiKey! });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
