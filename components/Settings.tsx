@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-// FIX: Added missing Activity and Image (as ImageIcon) to imports
 import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
@@ -96,10 +95,17 @@ export const Settings: React.FC<SettingsProps> = ({
     const today = new Date();
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
+    
+    // Adjust for negative months
     if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
-        years--; months += 12;
+        years--;
+        months += 12;
     }
-    return years === 0 ? `${months} ${t('age_months')}` : `${years} ${t('age_years')}, ${months} ${t('age_months')}`;
+
+    if (years > 0) {
+      return `${years} ${t('age_years')} ${months} ${t('age_months')}`;
+    }
+    return `${months} ${t('age_months')}`;
   };
 
   const handleSaveProfile = async () => {
@@ -282,41 +288,11 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                 </div>
 
-                {passcode && !isDetailsUnlocked ? (
+                {passcode && !isDetailsUnlocked && (
                   <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-700/50 flex flex-col items-center text-center space-y-4">
                       <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 mb-2"><Lock className="w-6 h-6"/></div>
                       <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{t('locked_msg')}</p>
                       <button onClick={onUnlockRequest} className="px-8 py-3 bg-slate-900 dark:bg-primary text-white text-sm font-bold rounded-2xl shadow-xl active:scale-95 transition-all">{t('tap_to_unlock')}</button>
-                  </div>
-                ) : (
-                  <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-700/50 animate-slide-up">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0"><Calendar className="w-5 h-5"/></div>
-                          <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('child_dob')}</p><p className="font-bold text-slate-700 dark:text-slate-200">{currentProfile.dob || '-'}</p></div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0"><Clock className="w-5 h-5"/></div>
-                          <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('birth_time')}</p><p className="font-bold text-slate-700 dark:text-slate-200">{currentProfile.birthTime || '-'}</p></div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0"><Home className="w-5 h-5"/></div>
-                          <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('hospital_name')}</p><p className="font-bold text-slate-700 dark:text-slate-200">{currentProfile.hospitalName || '-'}</p></div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0"><MapPin className="w-5 h-5"/></div>
-                          <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('city_label')}</p><p className="font-bold text-slate-700 dark:text-slate-200">{currentProfile.birthLocation ? `${currentProfile.birthLocation}, ${currentProfile.country || ''}` : '-'}</p></div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 shrink-0"><Droplets className="w-5 h-5"/></div>
-                          <div><p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">{t('blood_type')}</p><p className="font-bold text-slate-700 dark:text-slate-200">{currentProfile.bloodType || '-'}</p></div>
-                       </div>
-                    </div>
-                    {passcode && (
-                      <button onClick={onHideDetails} className="mt-8 w-full py-3 bg-slate-50 dark:bg-slate-700/50 text-slate-400 hover:text-primary rounded-2xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
-                        <Lock className="w-3.5 h-3.5"/> {t('hide_details')}
-                      </button>
-                    )}
                   </div>
                 )}
             </div>
