@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -25,8 +25,9 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
+  // App Lock Logic
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
-  const [isDetailsUnlocked, setIsDetailsUnlocked] = useState(false);
+  const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
@@ -60,29 +61,36 @@ function App() {
 
   const t = (key: any) => getTranslation(language, key);
 
+  // Lockscreen initialization
+  useEffect(() => {
+    if (passcode) {
+      setPasscodeMode('UNLOCK');
+      setShowPasscodeModal(true);
+      setIsAppUnlocked(false);
+    } else {
+      setIsAppUnlocked(true);
+    }
+  }, [passcode]);
+
   useEffect(() => {
     if (!isSupabaseConfigured()) {
       setAuthLoading(false);
       return;
     }
 
-    (supabase.auth as any).getSession().then(({ data }: any) => {
+    supabase.auth.getSession().then(({ data }: any) => {
       setSession(data?.session || null);
       setAuthLoading(false);
     }).catch(() => {
       setAuthLoading(false);
     });
 
-    const authResponse = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setAuthLoading(false);
     });
     
-    return () => {
-        if (authResponse?.data?.subscription) {
-            authResponse.data.subscription.unsubscribe();
-        }
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -95,6 +103,9 @@ function App() {
         };
         loadData();
     }
+  }, [session, isGuestMode]);
+
+  useEffect(() => {
     const handleOnline = () => { 
         setIsOnline(true); 
         if(session && isSupabaseConfigured()) syncData(); 
@@ -106,7 +117,7 @@ function App() {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
     };
-  }, [session, isGuestMode]);
+  }, [session]);
 
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
@@ -208,13 +219,22 @@ function App() {
 
   const handleLogout = async () => {
       try { 
-          if (session && isSupabaseConfigured()) await (supabase.auth as any).signOut(); 
+          if (session && isSupabaseConfigured()) {
+            await supabase.auth.signOut();
+          } 
+      } catch (e) {
+        console.error("Logout error", e);
       } finally {
-          setProfiles([]); setMemories([]); setGrowthData([]); setReminders([]);
-          setSession(null); 
-          setIsGuestMode(false);
           localStorage.removeItem('guest_mode');
+          setIsGuestMode(false);
+          setSession(null);
+          setProfiles([]); 
+          setMemories([]); 
+          setGrowthData([]); 
+          setReminders([]);
           setActiveTab(TabView.HOME);
+          setIsAppUnlocked(false);
+          setShowPasscodeModal(false);
       }
   };
 
@@ -226,40 +246,33 @@ function App() {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const handleUnlockClick = () => {
-    if (isDetailsUnlocked) {
-      setIsDetailsUnlocked(false);
-    } else {
-      setPasscodeMode('UNLOCK');
-      setPasscodeInput('');
-      setPasscodeError(false);
-      setShowPasscodeModal(true);
-    }
-  };
-
+  // Logic for passcode entry
   useEffect(() => {
       if (passcodeInput.length === 4) {
           const timeout = setTimeout(() => {
               if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
                   localStorage.setItem('app_passcode', passcodeInput);
                   setPasscode(passcodeInput); 
-                  setIsDetailsUnlocked(true);
+                  setIsAppUnlocked(true);
                   setShowPasscodeModal(false); 
                   setPasscodeInput('');
                   return;
               }
+              
               if (passcodeInput === passcode) {
                   if (passcodeMode === 'UNLOCK') { 
-                    setIsDetailsUnlocked(true); 
+                    setIsAppUnlocked(true); 
                     setShowPasscodeModal(false); 
+                    setPasscodeInput('');
                   } else if (passcodeMode === 'CHANGE_VERIFY') { 
                     setPasscodeMode('CHANGE_NEW'); 
                     setPasscodeInput(''); 
                   } else if (passcodeMode === 'REMOVE') { 
                     localStorage.removeItem('app_passcode'); 
                     setPasscode(null); 
-                    setIsDetailsUnlocked(true); 
+                    setIsAppUnlocked(true); 
                     setShowPasscodeModal(false); 
+                    setPasscodeInput('');
                   }
               } else {
                   setPasscodeError(true); 
@@ -291,8 +304,6 @@ function App() {
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   
-  // FIX: Only render main app if session is active OR user is in guest mode.
-  // Otherwise, return to AuthScreen.
   if (!session && !isGuestMode) {
     return (
       <AuthScreen 
@@ -306,8 +317,56 @@ function App() {
     );
   }
 
+  // Mandatory Lock Screen Render if passcode exists
+  if (showPasscodeModal && passcodeMode === 'UNLOCK') {
+    return (
+      <div className="fixed inset-0 z-[500] bg-white dark:bg-slate-900 flex flex-col items-center justify-center p-6 font-sans">
+          <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
+              <div className="w-20 h-20 bg-primary/10 rounded-[28px] flex items-center justify-center mb-8">
+                  <Lock className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">App Locked</h2>
+              <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-10">{t('enter_passcode')}</p>
+              
+              <div className="flex justify-center gap-6 mb-12">
+                  {[0,1,2,3].map(i => (
+                    <div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-200 dark:border-slate-700 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125' : ''}`}/>
+                  ))}
+              </div>
+
+              {passcodeError && <p className="text-rose-500 text-xs font-bold mb-6 animate-bounce">{t('wrong_passcode')}</p>}
+
+              <div className="grid grid-cols-3 gap-6">
+                {[1,2,3,4,5,6,7,8,9,0].map(num => (
+                  <button 
+                    key={num} 
+                    onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} 
+                    className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold active:bg-primary active:text-white transition-all transform active:scale-90 text-slate-700 dark:text-slate-100"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setPasscodeInput(p => p.slice(0, -1))} 
+                  className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-rose-500 active:scale-90 transition-transform"
+                >
+                  <Delete className="w-6 h-6"/>
+                </button>
+              </div>
+
+              <button 
+                onClick={handleLogout} 
+                className="mt-12 text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4"/> {t('logout')}
+              </button>
+          </div>
+      </div>
+    );
+  }
+
   const renderContent = () => {
-    if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400">Loading...</div>;
+    if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
 
@@ -389,12 +448,12 @@ function App() {
                     onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} 
                     onRefreshData={refreshData} 
                     passcode={passcode} 
-                    isDetailsUnlocked={isDetailsUnlocked} 
-                    onUnlockRequest={handleUnlockClick} 
+                    isDetailsUnlocked={isAppUnlocked} 
+                    onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
                     onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} 
                     onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
                     onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} 
-                    onHideDetails={() => setIsDetailsUnlocked(false)} 
+                    onHideDetails={() => setIsAppUnlocked(false)} 
                     growthData={growthData} 
                     memories={memories} 
                     onEditMemory={handleEditStart} 
@@ -446,18 +505,24 @@ function App() {
         </div>
       )}
 
-      {showPasscodeModal && (
-        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center">
+      {/* Internal Passcode Modal for Settings (Setup/Change/Remove) */}
+      {showPasscodeModal && passcodeMode !== 'UNLOCK' && (
+        <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowPasscodeModal(false)}/>
           <div className="relative w-full md:w-[400px] bg-white/95 dark:bg-slate-900/95 rounded-t-[40px] md:rounded-[40px] p-10 animate-slide-up shadow-2xl border border-white/20">
-            <h3 className="text-center font-extrabold text-xl mb-8 dark:text-white tracking-tight">{t('enter_passcode')}</h3>
+            <h3 className="text-center font-extrabold text-xl mb-8 dark:text-white tracking-tight">
+                {passcodeMode === 'SETUP' ? t('create_passcode') : 
+                 passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
+                 passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : 
+                 t('enter_passcode')}
+            </h3>
             <div className="flex justify-center gap-5 mb-10">
               {[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 border-slate-300 dark:border-slate-600 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125' : ''}`}/>))}
             </div>
-            {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-4 animate-bounce">Incorrect PIN. Try again.</p>}
+            {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-4 animate-bounce">{t('wrong_passcode')}</p>}
             <div className="grid grid-cols-3 gap-6 max-w-[300px] mx-auto">
-              {[1,2,3,4,5,6,7,8,9,0].map(num => (<button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-800 text-3xl font-medium active:bg-primary active:text-white active:scale-90 transition-all dark:text-white shadow-sm">{num}</button>))}
-              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-20 h-20 flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-transform"><Delete className="w-8 h-8"/></button>
+              {[1,2,3,4,5,6,7,8,9,0].map(num => (<button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-medium active:bg-primary active:text-white active:scale-90 transition-all dark:text-white shadow-sm">{num}</button>))}
+              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-transform"><Delete className="w-8 h-8"/></button>
             </div>
           </div>
         </div>
