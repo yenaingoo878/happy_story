@@ -52,7 +52,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-      {/* Decorative Background Elements */}
+      {/* Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-50"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-secondary/10 rounded-full blur-3xl opacity-50"></div>
 
@@ -67,7 +67,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
       </div>
 
       <div className="w-full max-w-sm text-center relative z-0 animate-zoom-in">
-         {/* App Logo/Icon */}
          <div className="w-24 h-24 bg-gradient-to-br from-primary to-rose-300 rounded-[32px] mx-auto mb-8 flex items-center justify-center shadow-2xl shadow-rose-200 dark:shadow-none animate-bounce-slow">
             <Baby className="w-12 h-12 text-white" strokeWidth={2.5} />
          </div>
@@ -78,10 +77,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
          </p>
 
          <div className="space-y-4">
-            {/* Primary Action: Start Journey */}
+            {/* Main Action Button */}
             <button 
               onClick={onGuestLogin}
-              className="w-full py-5 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[28px] flex items-center justify-center gap-3 transition-all active:scale-[0.97] shadow-xl shadow-slate-200 dark:shadow-primary/20"
+              className="w-full py-4.5 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-3xl flex items-center justify-center gap-3 transition-all active:scale-[0.97] shadow-xl shadow-slate-200 dark:shadow-primary/20 h-16"
             >
               <Sparkles className="w-5 h-5 text-amber-300" />
               <span className="text-lg">
@@ -89,7 +88,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
               </span>
             </button>
 
-            {/* Reassuring Privacy Badge */}
+            {/* Privacy Badge for Local Mode */}
             <div className="flex items-center justify-center gap-2 py-2 text-slate-400 dark:text-slate-500">
                <ShieldCheck className="w-4 h-4" />
                <span className="text-[11px] font-bold uppercase tracking-widest">
@@ -98,7 +97,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
             </div>
          </div>
 
-         {/* Advanced Options (Only shows if configured) */}
+         {/* Optional Cloud Sync (Only if keys are detected) */}
          {supabaseReady && (
             <div className="mt-12 pt-8 border-t border-slate-100 dark:border-slate-800 animate-fade-in">
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mb-6 uppercase tracking-widest">
@@ -138,9 +137,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
           )}
       </div>
       
-      {/* Footer Branding */}
+      {/* Footer Info */}
       <div className="absolute bottom-8 left-0 right-0 text-center">
-         <p className="text-[10px] text-slate-300 dark:text-slate-600 font-bold uppercase tracking-[0.2em]">Crafted for Parents</p>
+         <p className="text-[10px] text-slate-300 dark:text-slate-600 font-bold uppercase tracking-[0.2em]">Designed for Parents</p>
       </div>
     </div>
   );
