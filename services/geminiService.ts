@@ -5,13 +5,16 @@ import { Language, GrowthData } from '../types';
 // The key is expected to be valid, but we handle it defensively
 const apiKey = process.env.API_KEY;
 
+// Check if a string is a valid API key (not empty or just spaces)
+const hasValidKey = () => !!apiKey && apiKey.trim().length > 0;
+
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
-  if (!apiKey) {
-    throw new Error(language === 'mm' ? "AI API Key မရှိပါ။" : "AI API Key is missing.");
+  if (!hasValidKey()) {
+    throw new Error(language === 'mm' ? "ပုံပြင်ဖန်တီးရန် Gemini API Key လိုအပ်ပါသည်။ Settings တွင် စစ်ဆေးပါ။" : "Gemini API Key is required for stories. Check environment variables.");
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: apiKey! });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -39,12 +42,12 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
-    if (!apiKey) {
-      return language === 'mm' ? "AI အင်္ဂါရပ်များကို အသုံးပြုရန် API Key လိုအပ်ပါသည်။" : "AI features require an API Key.";
+    if (!hasValidKey()) {
+      return language === 'mm' ? "AI ဖြင့် ဆန်းစစ်ရန် Gemini API Key လိုအပ်ပါသည်။" : "AI analysis requires a Gemini API Key.";
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey: apiKey! });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
