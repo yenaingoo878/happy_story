@@ -83,6 +83,8 @@ export const translations = {
   height_label: { en: "Height", mm: "အရပ်" },
   weight_label: { en: "Weight", mm: "ကိုယ်အလေးချိန်" },
   add_record: { en: "Add Record", mm: "မှတ်တမ်းအသစ်ထည့်မည်" },
+  update_record: { en: "Update Record", mm: "မှတ်တမ်းပြင်ဆင်မည်" },
+  cancel_edit: { en: "Cancel Edit", mm: "မပြင်တော့ပါ" },
   disclaimer: { en: "* Not based on standard WHO Child Growth Standards, for reference only.", mm: "* Standard WHO Child Growth Standards အပေါ်အခြေခံထားခြင်းမရှိပါ၊ ကိုးကားရန်သာ။" },
 
   // Gallery

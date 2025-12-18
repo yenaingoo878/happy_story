@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon, X } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -67,6 +67,7 @@ export const Settings: React.FC<SettingsProps> = ({
   
   const [showEditForm, setShowEditForm] = useState(false);
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
+  const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
 
   const [newReminder, setNewReminder] = useState<Partial<Reminder>>({ title: '', date: '', type: 'event' });
   const [isSavingReminder, setIsSavingReminder] = useState(false);
@@ -123,6 +124,36 @@ export const Settings: React.FC<SettingsProps> = ({
     } finally { setIsSavingProfile(false); }
   };
 
+  const handleSaveGrowth = async () => {
+      if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
+          setIsSavingGrowth(true);
+          try {
+              await DataService.saveGrowth({ 
+                id: editingGrowthId || crypto.randomUUID(), 
+                childId: activeProfileId, 
+                month: Number(newGrowth.month), 
+                height: Number(newGrowth.height), 
+                weight: Number(newGrowth.weight), 
+                synced: 0 
+              });
+              await onRefreshData(); 
+              setNewGrowth({}); 
+              setEditingGrowthId(null);
+          } catch (e) {
+              alert("Failed to save growth record.");
+          } finally {
+              setIsSavingGrowth(false);
+          }
+      }
+  };
+
+  const handleEditGrowth = (record: GrowthData) => {
+      setNewGrowth({ month: record.month, height: record.height, weight: record.weight });
+      setEditingGrowthId(record.id || null);
+      // Scroll form into view
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSaveNewReminder = async () => {
       if (!newReminder.title || !newReminder.date) return;
       setIsSavingReminder(true);
@@ -145,36 +176,44 @@ export const Settings: React.FC<SettingsProps> = ({
       return (
         <div className="max-w-2xl mx-auto space-y-4">
             <button onClick={() => setView('MAIN')} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('manage_growth')}</h2>
+                {editingGrowthId && (
+                    <button onClick={() => { setEditingGrowthId(null); setNewGrowth({}); }} className="text-xs font-bold text-rose-500 flex items-center gap-1 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-full transition-all">
+                        <X className="w-3 h-3"/> {t('cancel_edit')}
+                    </button>
+                )}
+            </div>
             
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700">
-                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">{t('add_record')}</h3>
+            <div className={`bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border transition-all duration-300 ${editingGrowthId ? 'border-teal-500 ring-4 ring-teal-500/10' : 'border-slate-100 dark:border-slate-700'}`}>
+                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
+                    {editingGrowthId ? t('edit') : t('add_record')}
+                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('month')}</label>
-                      <input type="number" placeholder="Month #" value={newGrowth.month || ''} onChange={e => setNewGrowth({...newGrowth, month: Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                      <input type="number" placeholder="Month #" value={newGrowth.month ?? ''} onChange={e => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('height_label')} (cm)</label>
-                      <input type="number" placeholder="cm" value={newGrowth.height || ''} onChange={e => setNewGrowth({...newGrowth, height: Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                      <input type="number" placeholder="cm" value={newGrowth.height ?? ''} onChange={e => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('weight_label')} (kg)</label>
-                      <input type="number" placeholder="kg" value={newGrowth.weight || ''} onChange={e => setNewGrowth({...newGrowth, weight: Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
+                      <input type="number" placeholder="kg" value={newGrowth.weight ?? ''} onChange={e => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-700 border-none focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
                     </div>
                 </div>
                 <button 
-                  onClick={async () => {
-                    if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
-                        setIsSavingGrowth(true);
-                        await DataService.saveGrowth({ id: crypto.randomUUID(), childId: activeProfileId, month: Number(newGrowth.month), height: Number(newGrowth.height), weight: Number(newGrowth.weight), synced: 0 });
-                        await onRefreshData(); setNewGrowth({}); setIsSavingGrowth(false);
-                    }
-                  }} 
+                  onClick={handleSaveGrowth} 
                   disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} 
-                  className="w-full py-4 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/20' : 'bg-teal-500 hover:bg-teal-600 shadow-teal-500/20'} text-white`}
                 >
-                  {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin"/> : <><Check className="w-5 h-5"/> {t('add_record')}</>}
+                  {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin"/> : (
+                    <>
+                        {editingGrowthId ? <Save className="w-5 h-5"/> : <Check className="w-5 h-5"/>} 
+                        {editingGrowthId ? t('update_record') : t('add_record')}
+                    </>
+                  )}
                 </button>
             </div>
 
@@ -184,7 +223,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   <div className="text-center py-10 text-slate-400">{t('no_photos')}</div>
                 ) : (
                   growthData.map((d, i) => (
-                      <div key={d.id || i} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-50 dark:border-slate-700 shadow-sm animate-fade-in">
+                      <div key={d.id || i} className={`flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl border transition-all shadow-sm animate-fade-in ${editingGrowthId === d.id ? 'border-teal-500 bg-teal-50/30 dark:bg-teal-900/10' : 'border-slate-50 dark:border-slate-700'}`}>
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 font-bold text-sm">{d.month}</div>
                             <div>
@@ -192,7 +231,10 @@ export const Settings: React.FC<SettingsProps> = ({
                               <p className="text-[10px] text-slate-400 font-bold uppercase">{t('months_label')}</p>
                             </div>
                           </div>
-                          <button onClick={() => onDeleteGrowth(d.id!)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                          <div className="flex items-center gap-2">
+                             <button onClick={() => handleEditGrowth(d)} className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"><Pencil className="w-4 h-4"/></button>
+                             <button onClick={() => onDeleteGrowth(d.id!)} className="p-2 text-rose-300 hover:text-rose-500 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                          </div>
                       </div>
                   ))
                 )}
@@ -246,7 +288,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
             <div className="space-y-3">
                 {remindersList.map(r => (
-                    <div key={r.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-50 dark:border-slate-700">
+                    <div key={r.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Calendar className="w-5 h-5"/></div>
                             <div>
