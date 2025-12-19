@@ -130,6 +130,8 @@ export const translations = {
   hospital_name: { en: "Hospital", mm: "မွေးဖွားရာဆေးရုံ" },
   city_label: { en: "City", mm: "မြို့" },
   country_label: { en: "Country", mm: "နိုင်ငံ" },
+  birth_weight_label: { en: "Birth Weight (kg)", mm: "မွေးစဉ် ကိုယ်အလေးချိန် (kg)" },
+  birth_height_label: { en: "Birth Height (cm)", mm: "မွေးစဉ် အရပ် (cm)" },
   
   hospital_placeholder: { en: "e.g. City Hospital", mm: "ဥပမာ - ဗဟိုအမျိုးသမီးဆေးရုံ" },
   location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },

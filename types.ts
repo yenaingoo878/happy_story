@@ -33,6 +33,8 @@ export interface ChildProfile {
   country?: string;
   bloodType?: string;
   gender: 'boy' | 'girl';
+  birthWeight?: number;
+  birthHeight?: number;
   synced?: number;
 }
 
