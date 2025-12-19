@@ -172,22 +172,22 @@ export const Settings: React.FC<SettingsProps> = ({
   );
 
   const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "" }: any) => (
-    <div className={`bg-white dark:bg-slate-800 px-4 py-4 flex items-center gap-4 border-slate-50 dark:border-slate-700/50 group ${className}`}>
-       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0">
-          <Icon className="w-5 h-5" />
+    <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-center gap-4 border-slate-50 dark:border-slate-700/50 group ${className}`}>
+       <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0">
+          <Icon className="w-4.5 h-4.5" />
        </div>
        <div className="flex-1 flex flex-col min-w-0">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 text-left">{label}</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">{label}</label>
           {type === 'select' ? (
              <div className="relative flex items-center">
                <select 
                   value={value} 
                   onChange={onChange} 
-                  className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-7 text-left outline-none"
+                  className="w-full bg-transparent border-none p-0 text-[15px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-6 text-left outline-none"
                >
                   {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                </select>
-               <ChevronDown className="absolute right-0 w-4 h-4 text-slate-300 pointer-events-none" />
+               <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
              </div>
           ) : (
              <input 
@@ -195,7 +195,7 @@ export const Settings: React.FC<SettingsProps> = ({
                value={value} 
                onChange={onChange}
                placeholder={placeholder}
-               className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-0 h-7 text-left outline-none"
+               className="w-full bg-transparent border-none p-0 text-[15px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none"
              />
           )}
        </div>
@@ -249,26 +249,26 @@ export const Settings: React.FC<SettingsProps> = ({
                 <div className="grid grid-cols-2 divide-x divide-slate-50 dark:divide-slate-700/30">
                     <button 
                       onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
-                      className={`flex items-center gap-4 px-4 py-4 transition-all ${editingProfile.gender === 'boy' ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-3 transition-all ${editingProfile.gender === 'boy' ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
                     >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'boy' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
-                            <Baby className="w-5 h-5" />
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'boy' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
+                            <Baby className="w-4.5 h-4.5" />
                         </div>
                         <div className="text-left">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 block">{t('gender_label')}</label>
-                            <span className={`text-base font-bold ${editingProfile.gender === 'boy' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>{t('boy')}</span>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 block">{t('gender_label')}</label>
+                            <span className={`text-[14px] font-bold ${editingProfile.gender === 'boy' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>{t('boy')}</span>
                         </div>
                     </button>
                     <button 
                       onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
-                      className={`flex items-center gap-4 px-4 py-4 transition-all ${editingProfile.gender === 'girl' ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-3 transition-all ${editingProfile.gender === 'girl' ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}
                     >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'girl' ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
-                            <Baby className="w-5 h-5" />
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'girl' ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
+                            <Baby className="w-4.5 h-4.5" />
                         </div>
                         <div className="text-left">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 block">{t('gender_label')}</label>
-                            <span className={`text-base font-bold ${editingProfile.gender === 'girl' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{t('girl')}</span>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 block">{t('gender_label')}</label>
+                            <span className={`text-[14px] font-bold ${editingProfile.gender === 'girl' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{t('girl')}</span>
                         </div>
                     </button>
                 </div>

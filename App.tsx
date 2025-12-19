@@ -92,9 +92,19 @@ function App() {
     if (session || isGuestMode) {
         const loadData = async () => {
           setIsLoading(true);
+          // Initial fast load from local DB
           await initDB();
           await refreshData();
           setIsLoading(false);
+
+          // Trigger background sync if online and configured
+          if (navigator.onLine && session && isSupabaseConfigured()) {
+            setIsSyncing(true);
+            syncData().then(() => {
+              refreshData();
+              setIsSyncing(false);
+            }).catch(() => setIsSyncing(false));
+          }
         };
         loadData();
     }
@@ -103,7 +113,13 @@ function App() {
   useEffect(() => {
     const handleOnline = () => { 
         setIsOnline(true); 
-        if(session && isSupabaseConfigured()) syncData(); 
+        if(session && isSupabaseConfigured()) {
+          setIsSyncing(true);
+          syncData().then(() => {
+            refreshData();
+            setIsSyncing(false);
+          });
+        }
     };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);

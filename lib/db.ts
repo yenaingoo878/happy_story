@@ -28,9 +28,8 @@ export const initDB = async () => {
         await db.open();
       }
       console.log("Local Database Initialized Successfully");
-      if (isSupabaseConfigured()) {
-        await syncData(); 
-      }
+      // CRITICAL: We no longer wait for syncData here to speed up app loading.
+      // Syncing is triggered in the background by App.tsx
       return { success: true };
   } catch (err: any) {
       console.error("Failed to open db:", err);
