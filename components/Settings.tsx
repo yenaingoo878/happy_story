@@ -60,9 +60,11 @@ export const Settings: React.FC<SettingsProps> = ({
   const t = (key: any) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({
-    id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: ''
+    id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: '', profileImage: ''
   });
+  
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingProfileImage, setIsUploadingProfileImage] = useState(false);
   const [isSavingGrowth, setIsSavingGrowth] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -78,6 +80,9 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const [newReminder, setNewReminder] = useState<Partial<Reminder>>({ title: '', date: '', type: 'event' });
   const [isSavingReminder, setIsSavingReminder] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isCloudEnabled = isSupabaseConfigured();
@@ -105,11 +110,11 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => { if (initialView) setView(initialView); }, [initialView]);
 
   useEffect(() => {
-     if (activeProfileId) {
+     if (activeProfileId && !editingProfile.id) {
          const p = profiles.find(pr => pr.id === activeProfileId);
          if (p) setEditingProfile(p);
      }
-  }, [activeProfileId, profiles]);
+  }, [activeProfileId, profiles, editingProfile.id]);
 
   useEffect(() => {
     if (saveSuccess) {
@@ -171,6 +176,24 @@ export const Settings: React.FC<SettingsProps> = ({
       return `${years} ${t('age_years')} ${months} ${t('age_months')}`;
     }
     return `${months} ${t('age_months')}`;
+  };
+
+  const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setIsUploadingProfileImage(true);
+      try {
+          // If we are adding a brand new profile, we'll use a temp ID for the folder
+          const folderId = editingProfile.id || 'new_profile_temp';
+          const url = await DataService.uploadImage(file, folderId, 'profiles');
+          setEditingProfile(prev => ({ ...prev, profileImage: url }));
+      } catch (error) {
+          console.error("Profile image upload failed", error);
+          alert("Image upload failed.");
+      } finally {
+          setIsUploadingProfileImage(false);
+      }
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -584,13 +607,51 @@ export const Settings: React.FC<SettingsProps> = ({
                      {isLocked ? <ChevronRight className="w-4 h-4 text-slate-200"/> : (showEditForm ? <ChevronUp className="w-5 h-5 text-slate-300"/> : <ChevronDown className="w-5 h-5 text-slate-300"/>)}
                  </button>
                  {!isLocked && showEditForm && (
-                     <div className="p-6 border-t border-slate-50 dark:border-slate-700 animate-slide-up space-y-5">
+                     <div className="p-6 border-t border-slate-50 dark:border-slate-700 animate-slide-up space-y-6">
                         <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                            <button onClick={() => { setEditingProfile({ id: '', name: '', dob: '', gender: 'boy' }); }} className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 border-dashed border-primary text-primary text-xs font-bold hover:bg-primary/5 transition-colors"><UserPlus className="w-4 h-4"/> {t('add_new_profile')}</button>
+                            <button onClick={() => { setEditingProfile({ id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: '', profileImage: '' }); }} className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 border-dashed border-primary text-primary text-xs font-bold hover:bg-primary/5 transition-colors"><UserPlus className="w-4 h-4"/> {t('add_new_profile')}</button>
                             {profiles.map(p => (
                                 <button key={p.id} onClick={() => { onProfileChange(p.id!); setEditingProfile(p); }} className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 transition-all ${editingProfile.id === p.id ? 'bg-primary/10 border-primary text-primary' : 'border-slate-100 dark:border-slate-700 text-slate-500'}`}><span className="text-xs font-bold">{p.name}</span></button>
                             ))}
                         </div>
+
+                        {/* Profile Image Form Field */}
+                        <div className="flex flex-col items-center gap-4 py-4 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 relative">
+                            <div className="w-24 h-24 rounded-[32px] border-4 border-white dark:border-slate-800 shadow-xl overflow-hidden bg-slate-200 dark:bg-slate-700 relative">
+                                {isUploadingProfileImage ? (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                    </div>
+                                ) : editingProfile.profileImage ? (
+                                    <img src={editingProfile.profileImage} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                        <Baby className="w-10 h-10" />
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl text-[10px] font-bold shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2"
+                                >
+                                    <Camera className="w-3.5 h-3.5 text-indigo-500" />
+                                    {t('take_photo')}
+                                </button>
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl text-[10px] font-bold shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2"
+                                >
+                                    <ImageIcon className="w-3.5 h-3.5 text-rose-500" />
+                                    {t('upload_photo')}
+                                </button>
+                            </div>
+                            
+                            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
+                            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleProfileImageUpload} className="hidden" />
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_name_label')}</label><input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" /></div>
                             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_dob')}</label><input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white min-h-[48px] appearance-none" /></div>
@@ -600,7 +661,7 @@ export const Settings: React.FC<SettingsProps> = ({
                             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('blood_type')}</label><select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white appearance-none"><option value="">Select Type</option><option value="A">A</option><option value="B">B</option><option value="AB">AB</option><option value="O">O</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
                         </div>
                         <div className="flex flex-col gap-3 mt-6">
-                            <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">{isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}</button>
+                            <button onClick={handleSaveProfile} disabled={isSavingProfile || isUploadingProfileImage} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">{isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}</button>
                             {editingProfile.id && <button onClick={() => onDeleteProfile(editingProfile.id!)} className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30 hover:bg-rose-100 transition-colors"><Trash2 className="w-4 h-4"/> {t('delete_profile')}</button>}
                         </div>
                      </div>
