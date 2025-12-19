@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="my">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
     <title>Little Moments</title>
     <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
   <script type="importmap">
@@ -21,6 +22,27 @@
     "vite": "https://esm.sh/vite@^7.3.0"
   }
 }
+</script>
+<script>
+  // Disable Right-Click (Inspect)
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Disable DevTools shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+      (e.ctrlKey && e.key === 'U')
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // Prevent back navigation on specific gestures if needed (Native feel)
+  window.addEventListener('popstate', function (event) {
+    // Custom logic can go here if we want to intercept back button
+  });
 </script>
 </head>
   <body>
