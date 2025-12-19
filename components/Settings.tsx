@@ -69,7 +69,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Added missing handleManualSync function to resolve line 344 error
   const handleManualSync = async () => {
     if (isGuestMode || !isSupabaseConfigured() || isSyncing) return;
     setIsSyncing(true);
@@ -84,9 +83,6 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const [dbStatus, setDbStatus] = useState<'OK' | 'ERROR' | 'LOADING'>('LOADING');
-  const [isTestingConn, setIsTestingConn] = useState(false);
-  const [testResult, setTestResult] = useState<{success: boolean; error?: string} | null>(null);
-  
   const [showEditForm, setShowEditForm] = useState(false);
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
   const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
@@ -233,14 +229,18 @@ export const Settings: React.FC<SettingsProps> = ({
   );
 
   const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options }: any) => (
-    <div className="bg-white dark:bg-slate-800 px-4 py-3 flex items-center gap-3 border-b border-slate-50 dark:border-slate-700/50 last:border-none">
-       <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 shrink-0">
-          <Icon className="w-4 h-4" />
+    <div className="bg-white dark:bg-slate-800 px-4 py-4 flex items-center gap-4 border-b border-slate-50 dark:border-slate-700/50 last:border-none">
+       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 shrink-0">
+          <Icon className="w-5 h-5" />
        </div>
        <div className="flex-1 flex flex-col">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">{label}</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">{label}</label>
           {type === 'select' ? (
-             <select value={value} onChange={onChange} className="w-full bg-transparent border-none p-0 text-sm font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-6">
+             <select 
+                value={value} 
+                onChange={onChange} 
+                className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-7 text-left"
+             >
                 {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
              </select>
           ) : (
@@ -249,7 +249,7 @@ export const Settings: React.FC<SettingsProps> = ({
                value={value} 
                onChange={onChange} 
                placeholder={placeholder} 
-               className="w-full bg-transparent border-none p-0 text-base md:text-sm font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-0 h-6 min-h-[24px]" 
+               className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-0 h-7 min-h-[28px] text-left" 
              />
           )}
        </div>
@@ -271,21 +271,12 @@ export const Settings: React.FC<SettingsProps> = ({
                     )}
                 </div>
                 
-                <div className={`bg-white dark:bg-slate-800 p-5 rounded-[32px] shadow-sm border transition-all ${editingGrowthId ? 'border-teal-500' : 'border-slate-100 dark:border-slate-700'}`}>
+                <div className={`bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border transition-all ${editingGrowthId ? 'border-teal-500' : 'border-slate-100 dark:border-slate-700'}`}>
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{editingGrowthId ? t('edit') : t('add_record')}</h3>
-                    <div className="grid grid-cols-3 gap-4 mb-5">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('month')}</label>
-                          <input type="number" value={newGrowth.month ?? ''} onChange={e => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-700 border-none text-sm font-bold focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('height_label')}</label>
-                          <input type="number" value={newGrowth.height ?? ''} onChange={e => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-700 border-none text-sm font-bold focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('weight_label')}</label>
-                          <input type="number" value={newGrowth.weight ?? ''} onChange={e => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-700 border-none text-sm font-bold focus:ring-2 focus:ring-teal-500/20 dark:text-white" />
-                        </div>
+                    <div className="grid grid-cols-1 gap-4 mb-5">
+                        <IOSInput label={t('month')} icon={Clock} type="number" value={newGrowth.month ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="0" />
+                        <IOSInput label={t('height_label')} icon={Activity} type="number" value={newGrowth.height ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="cm" />
+                        <IOSInput label={t('weight_label')} icon={Scale} type="number" value={newGrowth.weight ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="kg" />
                     </div>
                     <button onClick={handleSaveGrowth} disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} className={`w-full py-4 rounded-2xl text-sm font-black shadow-lg btn-primary-active flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500' : 'bg-teal-500'} text-white`}>
                       {isSavingGrowth ? <Loader2 className="w-4 h-4 animate-spin"/> : <><Save className="w-4 h-4"/> {editingGrowthId ? t('update_record') : t('add_record')}</>}
@@ -321,7 +312,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <div className="w-20 h-20 rounded-[28px] border-4 border-white dark:border-slate-700 shadow-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-700">
                          {currentProfile.profileImage ? <img src={currentProfile.profileImage} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><Baby className="w-10 h-10 text-slate-300"/></div>}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-left">
                         <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-widest mb-1.5 inline-block">{t('currently_active')}</span>
                         <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-tight truncate">{currentProfile.name}</h2>
                         <div className="flex items-center gap-2 opacity-70 mt-1">
@@ -334,87 +325,60 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
         )}
 
-        {/* Cloud Sync Section */}
-        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 relative">
-                        <Cloud className={`w-6 h-6 ${isSyncing ? 'animate-pulse' : ''}`}/>
-                        {isCloudEnabled && !isGuestMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800"></div>}
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">{t('cloud_sync')}</h3>
-                        <div className="mt-1">
-                            {isCloudEnabled ? (
-                                isGuestMode ? <span className="text-[9px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-lg uppercase">Local Device Only</span> : <span className="text-[9px] font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-lg uppercase">{t('sync_active')}</span>
-                            ) : <span className="text-[9px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-lg uppercase">Backup Inactive</span>}
-                        </div>
-                    </div>
-                </div>
-                {isCloudEnabled && !isGuestMode && (
-                    <div className="flex gap-2">
-                        <button onClick={handleManualSync} disabled={isSyncing} className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 btn-active-scale"><RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} /></button>
-                    </div>
-                )}
-            </div>
-        </div>
-
         {/* Preferences Rows */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-2 divide-y divide-slate-50 dark:divide-slate-700/30">
             <div className="flex justify-between items-center p-4 btn-active-scale rounded-2xl">
-                <div className="flex items-center gap-4"><div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><Globe className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span></div>
+                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><Globe className="w-6 h-6"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('language')}</span></div>
                 <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl">
                     <button onClick={() => setLanguage('mm')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>မြန်မာ</button>
                     <button onClick={() => setLanguage('en')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary' : 'text-slate-400'}`}>ENG</button>
                 </div>
             </div>
             <div className="flex justify-between items-center p-4 btn-active-scale rounded-2xl">
-                <div className="flex items-center gap-4"><div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span></div>
-                <button onClick={toggleTheme} className={`w-11 h-6 rounded-full p-1 transition-colors flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-md"></div></button>
+                <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><Moon className="w-6 h-6"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('theme')}</span></div>
+                <button onClick={toggleTheme} className={`w-12 h-7 rounded-full p-1 transition-colors flex items-center ${theme === 'dark' ? 'bg-indigo-500 justify-end' : 'bg-slate-200 justify-start'}`}><div className="w-5 h-5 bg-white rounded-full shadow-md"></div></button>
             </div>
         </div>
 
-        {/* Edit Profile Section (IOS Style) */}
+        {/* Edit Profile Section (IOS Style Single Column) */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
              <button onClick={() => isLocked ? onUnlockRequest() : setShowEditForm(!showEditForm)} className="w-full flex items-center justify-between p-5 btn-active-scale">
                  <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 relative">
-                        <Pencil className="w-5 h-5"/>
-                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-100"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 relative">
+                        <Pencil className="w-6 h-6"/>
+                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-100"><Lock className="w-3 h-3 text-slate-400" /></div>}
                     </div>
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('edit_profile')}</span>
                  </div>
-                 {isLocked ? <ChevronRight className="w-4 h-4 text-slate-200"/> : (showEditForm ? <ChevronUp className="w-4 h-4 text-slate-300"/> : <ChevronDown className="w-4 h-4 text-slate-300"/>)}
+                 {isLocked ? <ChevronRight className="w-5 h-5 text-slate-200"/> : (showEditForm ? <ChevronUp className="w-5 h-5 text-slate-300"/> : <ChevronDown className="w-5 h-5 text-slate-300"/>)}
              </button>
              
              {!isLocked && showEditForm && (
                  <div className="border-t border-slate-50 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 animate-slide-up">
                     <div className="p-5 flex gap-2 overflow-x-auto scrollbar-hide">
-                        <button onClick={() => { setEditingProfile({ id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: '', profileImage: '', birthWeight: undefined, birthHeight: undefined }); }} className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl border-2 border-dashed border-primary text-primary text-xs font-black btn-active-scale"><UserPlus className="w-4 h-4"/> {t('add_new_profile')}</button>
+                        <button onClick={() => { setEditingProfile({ id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: '', profileImage: '', birthWeight: undefined, birthHeight: undefined }); }} className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 border-dashed border-primary text-primary text-xs font-black btn-active-scale"><UserPlus className="w-4 h-4"/> {t('add_new_profile')}</button>
                         {profiles.map(p => (
-                            <button key={p.id} onClick={() => { onProfileChange(p.id!); setEditingProfile(p); }} className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl border-2 transition-all btn-active-scale ${editingProfile.id === p.id ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}><span className="text-xs font-black">{p.name}</span></button>
+                            <button key={p.id} onClick={() => { onProfileChange(p.id!); setEditingProfile(p); }} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 transition-all btn-active-scale ${editingProfile.id === p.id ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500'}`}><span className="text-xs font-black">{p.name}</span></button>
                         ))}
                     </div>
 
-                    <div className="mx-5 mb-5 p-4 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                    <div className="mx-5 mb-6 p-5 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 flex items-center gap-5">
                         <div className="w-16 h-16 rounded-2xl border-2 border-slate-50 dark:border-slate-700 shadow-sm overflow-hidden bg-slate-100 dark:bg-slate-700 relative shrink-0">
                             {isUploadingProfileImage ? <div className="absolute inset-0 flex items-center justify-center bg-black/30"><Loader2 className="w-5 h-5 animate-spin text-white" /></div> : editingProfile.profileImage ? <img src={editingProfile.profileImage} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Baby className="w-8 h-8" /></div>}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 text-left">
                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Profile Photo</h4>
-                           <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2 bg-slate-900 dark:bg-primary text-white text-[10px] font-black uppercase rounded-xl flex items-center gap-2 btn-primary-active active:scale-95"><ImageIcon className="w-3.5 h-3.5" /> {t('upload_photo')}</button>
+                           <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2.5 bg-slate-900 dark:bg-primary text-white text-[10px] font-black uppercase rounded-xl flex items-center gap-2 btn-primary-active active:scale-95"><ImageIcon className="w-4 h-4" /> {t('upload_photo')}</button>
                         </div>
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
                     </div>
 
-                    <div className="mx-5 mb-5 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
+                    {/* All inputs in a clean single column list */}
+                    <div className="mx-5 mb-6 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
                         <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} placeholder="e.g. Liam" />
                         <IOSInput label={t('child_dob')} icon={Clock} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
                         <IOSInput label={t('gender_label')} icon={Baby} type="select" value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} options={[{label: t('boy'), value: 'boy'}, {label: t('girl'), value: 'girl'}]} />
                         <IOSInput label={t('blood_type')} icon={Activity} type="select" value={editingProfile.bloodType || ''} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} options={[{label: 'Select Type', value: ''}, {label: 'A', value: 'A'}, {label: 'B', value: 'B'}, {label: 'AB', value: 'AB'}, {label: 'O', value: 'O'}]} />
-                    </div>
-
-                    <div className="mx-5 mb-6 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
                         <IOSInput label={t('birth_time')} icon={Clock} type="time" value={editingProfile.birthTime || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} />
                         <IOSInput label={t('hospital_name')} icon={Globe} value={editingProfile.hospitalName || ''} onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder="e.g. Central Hospital" />
                         <IOSInput label={t('birth_weight_label')} icon={Scale} type="number" value={editingProfile.birthWeight || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthWeight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="0.00 kg" />
@@ -423,7 +387,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     
                     <div className="px-5 pb-8 flex gap-3">
                         <button onClick={handleSaveProfile} disabled={isSavingProfile || isUploadingProfileImage} className="flex-1 py-4 bg-slate-900 dark:bg-primary text-white text-xs font-black uppercase rounded-2xl shadow-xl flex items-center justify-center gap-2 btn-primary-active active:scale-95">{isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}</button>
-                        {editingProfile.id && <button onClick={() => onDeleteProfile(editingProfile.id!)} className="p-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-2xl border border-rose-100 dark:border-rose-900/20 btn-active-scale"><Trash2 className="w-5 h-5"/></button>}
+                        {editingProfile.id && <button onClick={() => onDeleteProfile(editingProfile.id!)} className="p-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-2xl border border-rose-100 dark:border-rose-900/20 btn-active-scale"><Trash2 className="w-6 h-6"/></button>}
                     </div>
                  </div>
              )}
@@ -433,44 +397,37 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-2 divide-y divide-slate-50 dark:divide-slate-700/30">
             <button onClick={() => isLocked ? onUnlockRequest() : setView('GROWTH')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
                 <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 relative">
-                        <Activity className="w-5 h-5"/>
-                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 relative">
+                        <Activity className="w-6 h-6"/>
+                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-3 h-3 text-slate-400" /></div>}
                     </div>
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-200"/>
+                <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
             <button onClick={() => isLocked ? onUnlockRequest() : setView('MEMORIES')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
                 <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 relative">
-                        <ImageIcon className="w-5 h-5"/>
-                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 relative">
+                        <ImageIcon className="w-6 h-6"/>
+                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-3 h-3 text-slate-400" /></div>}
                     </div>
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_memories')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-200"/>
+                <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
             <button onClick={() => isLocked ? onUnlockRequest() : setView('REMINDERS')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
                 <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative">
-                        <Bell className="w-5 h-5"/>
-                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative">
+                        <Bell className="w-6 h-6"/>
+                        {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5 shadow-sm border border-slate-50"><Lock className="w-3 h-3 text-slate-400" /></div>}
                     </div>
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_reminders')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-200"/>
-            </button>
-            <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
-                <div className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{passcode ? t('change_passcode') : t('setup_passcode')}</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-200"/>
+                <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
         </div>
 
-        <button onClick={onLogout} className="w-full p-5 bg-white dark:bg-slate-800 text-rose-500 text-xs font-black uppercase rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-2 btn-active-scale active:scale-[0.98] transition-all"><LogOut className="w-4 h-4"/>{t('logout')}</button>
+        <button onClick={onLogout} className="w-full p-5 bg-white dark:bg-slate-800 text-rose-500 text-xs font-black uppercase rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-2 btn-active-scale active:scale-[0.98] transition-all"><LogOut className="w-5 h-5"/>{t('logout')}</button>
     </div>
   );
 };
