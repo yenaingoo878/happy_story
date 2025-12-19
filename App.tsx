@@ -314,28 +314,9 @@ function App() {
     const activeRemindersList = getActiveReminders();
 
     // Selective Locking logic: 
-    // Home, Gallery, Story, AddMemory are unlocked.
-    // Growth tab is locked as requested.
-    // Settings main is unlocked, but sub-management views inside are locked (handled in Settings component).
-    const isTabLocked = (activeTab === TabView.GROWTH) && passcode && !isAppUnlocked;
-
-    if (isTabLocked) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in text-center max-w-sm mx-auto h-[70vh]">
-          <div className="w-20 h-20 bg-primary/10 rounded-[32px] flex items-center justify-center mb-6">
-            <Lock className="w-10 h-10 text-primary" />
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">{t('private_info')}</h2>
-          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-8">{t('locked_msg')}</p>
-          <button 
-            onClick={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }}
-            className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl active:scale-95 transition-all"
-          >
-            {t('tap_to_unlock')}
-          </button>
-        </div>
-      );
-    }
+    // Home, Gallery, AddMemory, and Growth Chart are unlocked.
+    // Management lists inside Settings remain protected.
+    const isTabLocked = false; // All main tabs are now unlocked by default.
 
     switch (activeTab) {
       case TabView.HOME:
