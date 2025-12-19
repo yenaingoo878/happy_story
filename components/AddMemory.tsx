@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Loader2, Save, Tag, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Save, Tag, X, Image as ImageIcon } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -22,7 +22,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -117,7 +116,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             imageUrl: finalImageUrl,
             date: formState.date,
             tags: finalTags,
-            synced: 0 // Mark as dirty
+            synced: 0 
           };
           await DataService.addMemory(updated); 
         } else {
@@ -145,11 +144,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   const triggerGalleryInput = () => {
     if (!isUploading && !isSaving) fileInputRef.current?.click();
   };
-  
-  const triggerCameraInput = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isUploading && !isSaving) cameraInputRef.current?.click();
-  };
 
   const removeImage = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -158,102 +152,96 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
-            {editMemory && <button onClick={onCancel} disabled={isSaving} className="text-sm text-slate-500 disabled:opacity-50">{t('cancel_btn')}</button>}
+        <div className="flex justify-between items-center mb-6 px-1">
+            <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
+            {editMemory && <button onClick={onCancel} disabled={isSaving} className="text-sm font-bold text-slate-500 disabled:opacity-50">{t('cancel_btn')}</button>}
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-                <div className={`w-full h-56 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 flex items-center justify-center overflow-hidden relative transition-all ${isUploading ? 'opacity-70 cursor-wait' : ''}`}>
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700">
+                <div className={`w-full h-64 bg-slate-50 dark:bg-slate-700/50 rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 flex items-center justify-center overflow-hidden relative transition-all ${isUploading ? 'opacity-70 cursor-wait' : ''}`}>
                 
                 {isUploading ? (
                     <div className="flex flex-col items-center justify-center">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin mb-2"/>
-                        <span className="text-sm text-slate-400">{t('uploading')}</span>
+                        <Loader2 className="w-10 h-10 text-primary animate-spin mb-3"/>
+                        <span className="text-sm font-bold text-slate-400">{t('uploading')}</span>
                     </div>
                 ) : formState.imageUrl ? (
                     <div className="relative w-full h-full group">
                         <img src={formState.imageUrl} className="w-full h-full object-cover"/>
-                        <button onClick={removeImage} className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X className="w-4 h-4"/>
+                        <button onClick={removeImage} className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="w-5 h-5"/>
                         </button>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-4 w-full px-8">
-                        <div className="text-center mb-2">
-                             <span className="text-sm text-slate-400 font-medium">{t('choose_photo')}</span>
+                    <button 
+                        onClick={triggerGalleryInput}
+                        className="w-full h-full flex flex-col items-center justify-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center text-primary shadow-lg shadow-primary/10">
+                            <ImageIcon className="w-8 h-8"/>
                         </div>
-                        <div className="flex gap-4">
-                            <button 
-                                onClick={triggerCameraInput}
-                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500">
-                                    <Camera className="w-5 h-5"/>
-                                </div>
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('take_photo')}</span>
-                            </button>
-                            
-                            <button 
-                                onClick={triggerGalleryInput}
-                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-500">
-                                    <ImageIcon className="w-5 h-5"/>
-                                </div>
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('upload_photo')}</span>
-                            </button>
+                        <div className="text-center">
+                             <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1">{t('choose_photo')}</p>
+                             <p className="text-xs font-bold text-slate-400">{t('upload_photo')}</p>
                         </div>
-                    </div>
+                    </button>
                 )}
                 
-                {/* Gallery Input */}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
-                
-                {/* Camera Input - capture="environment" forces back camera on mobile */}
-                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
-                
                 </div>
-                <div className="space-y-4">
-                  <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
-                  <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50 min-h-[48px] appearance-none"/>
+
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">{t('form_title')}</label>
+                    <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-5 py-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-700/50 outline-none text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-4 focus:ring-primary/10 transition-all"/>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">{t('date_label')}</label>
+                    <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full px-5 py-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-700/50 outline-none text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-4 focus:ring-primary/10 transition-all min-h-[56px] appearance-none"/>
+                  </div>
                   
-                  {/* Tags Input */}
-                  <div>
-                      <div className="flex flex-wrap gap-2 mb-2 min-h-[24px]">
+                  <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Tags</label>
+                      <div className="flex flex-wrap gap-2 mb-2 px-1">
                           {formState.tags.map(tag => (
-                              <span key={tag} className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                              <span key={tag} className="bg-primary/10 text-primary px-3 py-1.5 rounded-xl text-xs font-black flex items-center shadow-sm">
                                   #{tag}
-                                  <button onClick={() => removeTag(tag)} className="ml-1 hover:text-rose-500"><X className="w-3 h-3"/></button>
+                                  <button onClick={() => removeTag(tag)} className="ml-1.5 hover:text-rose-500 transition-colors"><X className="w-3.5 h-3.5"/></button>
                               </span>
                           ))}
                       </div>
                       <div className="relative">
-                          <Tag className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                          <Tag className="absolute left-4 top-4.5 w-5 h-5 text-slate-400" />
                           <input 
                               type="text" 
                               value={tagInput}
                               onChange={e => setTagInput(e.target.value)}
                               onKeyDown={handleAddTag}
                               placeholder={t('tags_placeholder')}
-                              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none text-slate-800 dark:text-slate-100 disabled:opacity-50 text-sm"
+                              className="w-full pl-12 pr-5 py-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-700/50 outline-none text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-4 focus:ring-primary/10 transition-all"
                               disabled={isSaving}
                           />
                       </div>
                   </div>
 
-                  <textarea value={formState.desc} onChange={e => setFormState({...formState, desc: e.target.value})} placeholder={t('form_desc_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 outline-none h-32 resize-none text-slate-800 dark:text-slate-100 disabled:opacity-50"/>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">{t('form_desc')}</label>
+                    <textarea value={formState.desc} onChange={e => setFormState({...formState, desc: e.target.value})} placeholder={t('form_desc_placeholder')} disabled={isSaving} className="w-full px-5 py-4 rounded-2xl border-none bg-slate-50 dark:bg-slate-700/50 outline-none h-40 resize-none text-base font-medium text-slate-700 dark:text-slate-200 focus:ring-4 focus:ring-primary/10 transition-all"/>
+                  </div>
+
                   <button 
                       onClick={handleSave} 
                       disabled={isUploading || isSaving || !formState.title} 
-                      className={`w-full py-3 text-white font-bold rounded-xl flex items-center justify-center gap-2 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-lg shadow-primary/30 active:scale-95 transition-transform'}`}
+                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
                   >
                       {isSaving ? (
                           <>
-                              <Loader2 className="w-5 h-5 animate-spin"/>
+                              <Loader2 className="w-6 h-6 animate-spin"/>
                               {t('saving')}
                           </>
                       ) : (
                           <>
+                              <Save className="w-6 h-6"/>
                               {editMemory ? t('update_btn') : t('record_btn')}
                           </>
                       )}

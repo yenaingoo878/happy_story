@@ -3,14 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error(language === 'mm' ? "AI API Key မရှိပါ။" : "AI API Key is missing.");
-  }
-
   try {
-    // CRITICAL: Always create a new GoogleGenAI instance right before use
-    const ai = new GoogleGenAI({ apiKey });
+    // CRITICAL: Always create a new GoogleGenAI instance right before use using process.env.API_KEY directly
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -38,14 +33,9 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      return language === 'mm' ? "AI အင်္ဂါရပ်များကို အသုံးပြုရန် API Key လိုအပ်ပါသည်။" : "AI features require an API Key.";
-    }
-
     try {
-        // CRITICAL: Always create a new GoogleGenAI instance right before use
-        const ai = new GoogleGenAI({ apiKey });
+        // CRITICAL: Always create a new GoogleGenAI instance right before use using process.env.API_KEY directly
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -66,6 +56,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
             }
         });
 
+        // Directly accessing .text property of GenerateContentResponse
         return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
     } catch (error) {
         console.error("Error analyzing growth:", error);
