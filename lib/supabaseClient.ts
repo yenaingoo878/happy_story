@@ -9,9 +9,9 @@ const getEnv = (key: string) => {
   return undefined;
 };
 
-// Only use env variables, no hardcoded strings that might be invalid/expired
-const SUPABASE_URL = getEnv('SUPABASE_URL');
-const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
+// Use environment variables if present, otherwise fallback to the keys provided by the user
+const SUPABASE_URL = getEnv('SUPABASE_URL') || 'https://lixxftokabpcicnhpkuk.supabase.co';
+const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpeHhmdG9rYWJwY2ljbmhwa3VrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNzE3ODYsImV4cCI6MjA4MDk0Nzc4Nn0.v5RdELw5yhDPBq2FNxeJrtrfnYS_re-SFY_9Puw1Js8';
 
 export const isSupabaseConfigured = () => {
     return !!SUPABASE_URL && 
@@ -20,9 +20,5 @@ export const isSupabaseConfigured = () => {
            SUPABASE_URL.includes('supabase.co');
 };
 
-// Initialize with placeholders if missing to prevent crash, 
-// but isSupabaseConfigured() will be checked before any call.
-export const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co', 
-  SUPABASE_ANON_KEY || 'placeholder-key'
-);
+// Initialize the Supabase client
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

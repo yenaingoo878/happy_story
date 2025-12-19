@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, ServerCrash, Bug, Wifi } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
-import { DataService, syncData } from '../lib/db';
+import { DataService, syncData, db } from '../lib/db';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface SettingsProps {
@@ -66,6 +66,11 @@ export const Settings: React.FC<SettingsProps> = ({
   const [isSavingGrowth, setIsSavingGrowth] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<'OK' | 'ERROR' | 'LOADING'>('LOADING');
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [isTestingConn, setIsTestingConn] = useState(false);
+  const [testResult, setTestResult] = useState<{success: boolean; error?: string} | null>(null);
   
   const [showEditForm, setShowEditForm] = useState(false);
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
@@ -76,6 +81,23 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isCloudEnabled = isSupabaseConfigured();
+
+  useEffect(() => {
+     const checkDB = async () => {
+         try {
+             if (db.isOpen()) {
+                 setDbStatus('OK');
+             } else {
+                 await db.open();
+                 setDbStatus('OK');
+             }
+         } catch (e: any) {
+             setDbStatus('ERROR');
+             setDbError(e.message);
+         }
+     };
+     checkDB();
+  }, []);
 
   useEffect(() => { if (initialView) setView(initialView); }, [initialView]);
 
@@ -96,14 +118,38 @@ export const Settings: React.FC<SettingsProps> = ({
   const handleManualSync = async () => {
     if (!isCloudEnabled || isGuestMode) return;
     setIsSyncing(true);
+    setLastSyncError(null);
     try {
-      await syncData();
-      await onRefreshData();
-    } catch (e) {
-      console.error(e);
+      const result = await syncData();
+      if (!result.success) {
+          setLastSyncError(result.reason || result.error || 'Unknown Error');
+      } else {
+          await onRefreshData();
+      }
+    } catch (e: any) {
+      setLastSyncError(e.message || 'Network failure');
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleTestConnection = async () => {
+      setIsTestingConn(true);
+      setTestResult(null);
+      try {
+          const res = await DataService.testSupabaseConnection();
+          setTestResult(res);
+      } catch (e: any) {
+          setTestResult({success: false, error: e.message});
+      } finally {
+          setIsTestingConn(false);
+      }
+  };
+
+  const handleResetDB = async () => {
+      if (confirm(language === 'mm' ? "အချက်အလက်အားလုံး ဖျက်ပြီး App ကို ပြန်ဖွင့်ပါမည်။ သေချာပါသလား?" : "This will delete all local data and reload the app. Are you sure?")) {
+          await DataService.resetLocalDatabase();
+      }
   };
 
   const calculateAge = (dobString: string) => {
@@ -113,7 +159,6 @@ export const Settings: React.FC<SettingsProps> = ({
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
     
-    // Adjust for negative months
     if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
         years--;
         months += 12;
@@ -372,12 +417,13 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
         )}
 
-        {/* Cloud Sync & Backup Status Section */}
+        {/* Improved Cloud Sync & Backup Troubleshooting Section */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 shadow-sm">
-                        <Cloud className="w-6 h-6"/>
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 shadow-sm relative">
+                        <Cloud className={`w-6 h-6 ${isSyncing ? 'animate-pulse' : ''}`}/>
+                        {isCloudEnabled && !isGuestMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-800"></div>}
                     </div>
                     <div>
                         <h3 className="font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">{t('cloud_sync')}</h3>
@@ -395,44 +441,114 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                 </div>
                 {isCloudEnabled && !isGuestMode && (
-                    <button 
-                        onClick={handleManualSync} 
-                        disabled={isSyncing} 
-                        className={`p-3 rounded-2xl transition-all shadow-sm ${isSyncing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100 active:scale-95'}`}
-                    >
-                        <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={handleTestConnection}
+                            disabled={isTestingConn}
+                            className={`p-3 rounded-2xl transition-all shadow-sm ${isTestingConn ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-100 active:scale-95'}`}
+                            title="Test Connection"
+                        >
+                            <Wifi className={`w-5 h-5 ${isTestingConn ? 'animate-pulse' : ''}`} />
+                        </button>
+                        <button 
+                            onClick={handleManualSync} 
+                            disabled={isSyncing} 
+                            className={`p-3 rounded-2xl transition-all shadow-sm ${isSyncing ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 hover:bg-indigo-100 active:scale-95'}`}
+                            title="Sync Now"
+                        >
+                            <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                        </button>
+                    </div>
                 )}
             </div>
 
-            {isGuestMode && isCloudEnabled && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col gap-4 animate-fade-in">
+            {/* Test Result Display */}
+            {testResult && (
+                <div className={`p-4 rounded-2xl border animate-fade-in ${testResult.success ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800' : 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800'}`}>
                     <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {testResult.success ? <Check className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />}
+                        <div>
+                            <p className={`text-xs font-bold ${testResult.success ? 'text-emerald-700' : 'text-rose-700'} mb-1`}>
+                                {testResult.success ? 'Connection Successful' : 'Connection Failed'}
+                            </p>
+                            {!testResult.success && <p className="text-[10px] font-medium text-rose-500 leading-relaxed font-mono">{testResult.error}</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sync Error Display */}
+            {lastSyncError && (
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30 animate-shake">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-bold text-rose-600 mb-1">{t('sync_error')}</p>
+                            <p className="text-[10px] font-medium text-rose-500 leading-relaxed font-mono">
+                                {lastSyncError}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-600 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${dbStatus === 'OK' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                        <Database className="w-5 h-5"/>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Local Database</p>
+                        <p className={`text-sm font-bold ${dbStatus === 'OK' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {dbStatus === 'OK' ? 'Ready' : 'Error'}
+                        </p>
+                    </div>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-600 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${navigator.onLine ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                        <Globe className="w-5 h-5"/>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Network</p>
+                        <p className={`text-sm font-bold ${navigator.onLine ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {navigator.onLine ? 'Online' : 'Offline'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {dbStatus === 'ERROR' && (
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-900/30 rounded-2xl space-y-3">
+                    <div className="flex items-start gap-3">
+                        <ServerCrash className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-xs font-bold text-rose-600 mb-1">Database Access Denied</p>
+                            <p className="text-[10px] font-medium text-rose-500 leading-relaxed mb-3">{dbError}</p>
+                        </div>
+                    </div>
+                    <button onClick={handleResetDB} className="w-full py-2 bg-white dark:bg-slate-800 text-rose-600 text-[10px] font-black uppercase rounded-lg border border-rose-200 dark:border-rose-700 shadow-sm transition-all hover:bg-rose-50 active:scale-95">Reset Local Data</button>
+                </div>
+            )}
+
+            {isGuestMode && isCloudEnabled && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30 space-y-4">
+                    <div className="flex items-start gap-3">
+                        <Bug className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400 leading-relaxed">
                             {t('sync_guest_msg')}
                         </p>
                     </div>
                     <button 
                         onClick={onLogout} 
-                        className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
                     >
                         {t('enable_cloud')}
                     </button>
                 </div>
             )}
-
-            {!isCloudEnabled && (
-                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                    <p className="text-xs font-medium text-rose-500 leading-relaxed">
-                        Cloud Sync environment variables (SUPABASE_URL, SUPABASE_ANON_KEY) are missing. Please configure them in your environment settings to enable cloud backup.
-                    </p>
-                </div>
-            )}
         </div>
 
-        {/* Global Settings (UNLOCKED as requested) */}
+        {/* The rest of Settings sections (Language, Theme, Profile Edit, Security) */}
         <div className="space-y-4">
             <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1">
                 <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
@@ -467,71 +583,28 @@ export const Settings: React.FC<SettingsProps> = ({
                                 <button key={p.id} onClick={() => { onProfileChange(p.id!); setEditingProfile(p); }} className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 transition-all ${editingProfile.id === p.id ? 'bg-primary/10 border-primary text-primary' : 'border-slate-100 dark:border-slate-700 text-slate-500'}`}><span className="text-xs font-bold">{p.name}</span></button>
                             ))}
                         </div>
-                        
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_name_label')}</label>
-                              <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_dob')}</label>
-                              <input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white min-h-[48px] appearance-none" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('gender_label')}</label>
-                              <div className="flex bg-slate-50 dark:bg-slate-700 p-1 rounded-2xl">
-                                <button onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-indigo-500' : 'text-slate-400'}`}>{t('boy')}</button>
-                                <button onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-rose-500' : 'text-slate-400'}`}>{t('girl')}</button>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('birth_time')}</label>
-                              <input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('hospital_name')}</label>
-                              <input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('blood_type')}</label>
-                              <select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white appearance-none">
-                                <option value="">Select Type</option>
-                                <option value="A">A</option><option value="B">B</option><option value="AB">AB</option><option value="O">O</option>
-                                <option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
-                                <option value="O+">O+</option><option value="O-">O-</option>
-                              </select>
-                            </div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_name_label')}</label><input type="text" value={editingProfile.name} onChange={e => setEditingProfile({...editingProfile, name: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('child_dob')}</label><input type="date" value={editingProfile.dob} onChange={e => setEditingProfile({...editingProfile, dob: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white min-h-[48px] appearance-none" /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('gender_label')}</label><div className="flex bg-slate-50 dark:bg-slate-700 p-1 rounded-2xl"><button onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${editingProfile.gender === 'boy' ? 'bg-white dark:bg-slate-600 shadow-sm text-indigo-500' : 'text-slate-400'}`}>{t('boy')}</button><button onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${editingProfile.gender === 'girl' ? 'bg-white dark:bg-slate-600 shadow-sm text-rose-500' : 'text-slate-400'}`}>{t('girl')}</button></div></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('birth_time')}</label><input type="time" value={editingProfile.birthTime || ''} onChange={e => setEditingProfile({...editingProfile, birthTime: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('hospital_name')}</label><input type="text" value={editingProfile.hospitalName || ''} onChange={e => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white" /></div>
+                            <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-2">{t('blood_type')}</label><select value={editingProfile.bloodType || ''} onChange={e => setEditingProfile({...editingProfile, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-2xl border-none bg-slate-50 dark:bg-slate-700 dark:text-white appearance-none"><option value="">Select Type</option><option value="A">A</option><option value="B">B</option><option value="AB">AB</option><option value="O">O</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="O+">O+</option><option value="O-">O-</option></select></div>
                         </div>
-
                         <div className="flex flex-col gap-3 mt-6">
-                            <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                               {isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}
-                            </button>
-                            {editingProfile.id && (
-                                <button 
-                                  onClick={() => onDeleteProfile(editingProfile.id!)} 
-                                  className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30 hover:bg-rose-100 transition-colors"
-                                >
-                                   <Trash2 className="w-4 h-4"/> {t('delete_profile')}
-                                </button>
-                            )}
+                            <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-slate-900 dark:bg-primary text-white font-extrabold rounded-[24px] shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">{isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin"/> : <><Save className="w-5 h-5"/> {t('save_changes')}</>}</button>
+                            {editingProfile.id && <button onClick={() => onDeleteProfile(editingProfile.id!)} className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-[20px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/30 hover:bg-rose-100 transition-colors"><Trash2 className="w-4 h-4"/> {t('delete_profile')}</button>}
                         </div>
                      </div>
                  )}
             </div>
         </div>
 
-        {/* Locked Data Management Section */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-2 space-y-1">
-                 {!passcode ? (
-                    <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
-                ) : (
-                    <>
-                    <button onClick={onPasscodeChange} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button>
-                    <button onClick={onPasscodeRemove} className="w-full p-4 flex justify-between items-center hover:bg-rose-50 rounded-2xl transition-colors group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500"><Unlock className="w-5 h-5"/></div><span className="text-sm font-bold text-rose-500">{t('remove_passcode')}</span></div><ChevronRight className="w-5 h-5 text-rose-200"/></button>
-                    </>
-                )}
+                 {!passcode ? <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button> : (
+                    <><button onClick={onPasscodeChange} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button><button onClick={onPasscodeRemove} className="w-full p-4 flex justify-between items-center hover:bg-rose-50 rounded-2xl transition-colors group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500"><Unlock className="w-5 h-5"/></div><span className="text-sm font-bold text-rose-500">{t('remove_passcode')}</span></div><ChevronRight className="w-5 h-5 text-rose-200"/></button></>
+                 )}
             </div>
             <div className="p-2 space-y-1">
                 <button onClick={() => setView('GROWTH')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600"><Activity className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>

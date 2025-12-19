@@ -49,6 +49,8 @@ export const translations = {
   enable_cloud: { en: "Enable Cloud Sync", mm: "Cloud Backup ဖွင့်မည်" },
   sync_now: { en: "Sync Now", mm: "ယခု သိမ်းဆည်းမည်" },
   missing_config: { en: "Server not configured", mm: "Cloud ချိတ်ဆက်မှု မသေချာပါ" },
+  troubleshoot: { en: "Troubleshoot", mm: "ပြဿနာဖြေရှင်းမည်" },
+  sync_error: { en: "Sync failed", mm: "သိမ်းဆည်းမှု မအောင်မြင်ပါ" },
 
   // Add/Edit Memory
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },
