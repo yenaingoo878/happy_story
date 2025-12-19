@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, Wifi, Scale, Clock, User } from 'lucide-react';
+import { Lock, Baby, UserPlus, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, Wifi, Scale, Clock, User, ShieldCheck } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService, syncData, db } from '../lib/db';
@@ -194,24 +194,6 @@ export const Settings: React.FC<SettingsProps> = ({
       }
   };
 
-  const handleSaveNewReminder = async () => {
-      if (!newReminder.title || !newReminder.date) return;
-      setIsSavingReminder(true);
-      try {
-          const reminder: Reminder = {
-              id: crypto.randomUUID(),
-              title: newReminder.title,
-              date: newReminder.date,
-              type: newReminder.type || 'event',
-              synced: 0
-          };
-          if (onSaveReminder) await onSaveReminder(reminder);
-          setNewReminder({ title: '', date: '', type: 'event' });
-      } catch (e) {
-          alert("Failed to save reminder");
-      } finally { setIsSavingReminder(false); }
-  };
-
   const renderLockedState = () => (
     <div className="flex flex-col items-center justify-center py-12 px-6 animate-fade-in text-center max-w-sm mx-auto h-[50vh]">
       <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mb-5">
@@ -229,27 +211,30 @@ export const Settings: React.FC<SettingsProps> = ({
   );
 
   const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options }: any) => (
-    <div className="bg-white dark:bg-slate-800 px-4 py-4 flex items-center gap-4 border-b border-slate-50 dark:border-slate-700/50 last:border-none">
-       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 shrink-0">
+    <div className="bg-white dark:bg-slate-800 px-4 py-4 flex items-center gap-4 border-b border-slate-50 dark:border-slate-700/50 last:border-none group">
+       <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0">
           <Icon className="w-5 h-5" />
        </div>
-       <div className="flex-1 flex flex-col">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">{label}</label>
+       <div className="flex-1 flex flex-col min-w-0">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5 text-left">{label}</label>
           {type === 'select' ? (
-             <select 
-                value={value} 
-                onChange={onChange} 
-                className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-7 text-left"
-             >
-                {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-             </select>
+             <div className="relative flex items-center">
+               <select 
+                  value={value} 
+                  onChange={onChange} 
+                  className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-7 text-left"
+               >
+                  {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+               </select>
+               <ChevronDown className="absolute right-0 w-4 h-4 text-slate-300 pointer-events-none" />
+             </div>
           ) : (
              <input 
                type={type} 
                value={value} 
                onChange={onChange} 
                placeholder={placeholder} 
-               className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:ring-0 h-7 min-h-[28px] text-left" 
+               className="w-full bg-transparent border-none p-0 text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:ring-0 h-7 min-h-[28px] text-left" 
              />
           )}
        </div>
@@ -271,32 +256,23 @@ export const Settings: React.FC<SettingsProps> = ({
                     )}
                 </div>
                 
-                <div className={`bg-white dark:bg-slate-800 p-6 rounded-[32px] shadow-sm border transition-all ${editingGrowthId ? 'border-teal-500' : 'border-slate-100 dark:border-slate-700'}`}>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{editingGrowthId ? t('edit') : t('add_record')}</h3>
-                    <div className="grid grid-cols-1 gap-4 mb-5">
+                <div className={`bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border overflow-hidden transition-all ${editingGrowthId ? 'border-teal-500' : 'border-slate-100 dark:border-slate-700'}`}>
+                    <div className="p-5 border-b border-slate-50 dark:border-slate-700/50">
+                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{editingGrowthId ? t('edit') : t('add_record')}</h3>
+                    </div>
+                    <div className="divide-y divide-slate-50 dark:divide-slate-700/30">
                         <IOSInput label={t('month')} icon={Clock} type="number" value={newGrowth.month ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="0" />
                         <IOSInput label={t('height_label')} icon={Activity} type="number" value={newGrowth.height ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="cm" />
                         <IOSInput label={t('weight_label')} icon={Scale} type="number" value={newGrowth.weight ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} placeholder="kg" />
                     </div>
-                    <button onClick={handleSaveGrowth} disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} className={`w-full py-4 rounded-2xl text-sm font-black shadow-lg btn-primary-active flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500' : 'bg-teal-500'} text-white`}>
-                      {isSavingGrowth ? <Loader2 className="w-4 h-4 animate-spin"/> : <><Save className="w-4 h-4"/> {editingGrowthId ? t('update_record') : t('add_record')}</>}
-                    </button>
+                    <div className="p-5">
+                       <button onClick={handleSaveGrowth} disabled={isSavingGrowth || newGrowth.month === undefined || !newGrowth.height} className={`w-full py-4 rounded-2xl text-sm font-black shadow-lg btn-primary-active flex items-center justify-center gap-2 ${editingGrowthId ? 'bg-indigo-500' : 'bg-teal-500'} text-white`}>
+                         {isSavingGrowth ? <Loader2 className="w-4 h-4 animate-spin"/> : <><Save className="w-4 h-4"/> {editingGrowthId ? t('update_record') : t('add_record')}</>}
+                       </button>
+                    </div>
                 </div>
             </div>
             )}
-        </div>
-      );
-  }
-
-  if (view === 'MEMORIES' || view === 'REMINDERS') {
-      return (
-        <div className="max-w-2xl mx-auto space-y-4">
-             <button onClick={() => setView('MAIN')} className="flex items-center gap-2 text-xs font-bold text-slate-500 btn-active-scale px-3 py-1.5 rounded-lg"><ArrowLeft className="w-4 h-4"/> {t('back')}</button>
-             {isLocked ? renderLockedState() : (
-               <div className="px-1 animate-fade-in space-y-4">
-                  <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">{view === 'MEMORIES' ? t('manage_memories') : t('manage_reminders')}</h2>
-               </div>
-             )}
         </div>
       );
   }
@@ -374,7 +350,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
 
                     {/* All inputs in a clean single column list */}
-                    <div className="mx-5 mb-6 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm">
+                    <div className="mx-5 mb-6 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm divide-y divide-slate-50 dark:divide-slate-700/30">
                         <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} placeholder="e.g. Liam" />
                         <IOSInput label={t('child_dob')} icon={Clock} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
                         <IOSInput label={t('gender_label')} icon={Baby} type="select" value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} options={[{label: t('boy'), value: 'boy'}, {label: t('girl'), value: 'girl'}]} />
@@ -395,7 +371,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
         {/* Quick Access Rows */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-2 divide-y divide-slate-50 dark:divide-slate-700/30">
-            <button onClick={() => isLocked ? onUnlockRequest() : setView('GROWTH')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
+            <button onClick={() => isLocked ? onUnlockRequest() : setView('GROWTH')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 relative">
                         <Activity className="w-6 h-6"/>
@@ -405,7 +381,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
-            <button onClick={() => isLocked ? onUnlockRequest() : setView('MEMORIES')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
+            <button onClick={() => isLocked ? onUnlockRequest() : setView('MEMORIES')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 relative">
                         <ImageIcon className="w-6 h-6"/>
@@ -415,7 +391,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
-            <button onClick={() => isLocked ? onUnlockRequest() : setView('REMINDERS')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl">
+            <button onClick={() => isLocked ? onUnlockRequest() : setView('REMINDERS')} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative">
                         <Bell className="w-6 h-6"/>
@@ -425,6 +401,35 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <ChevronRight className="w-5 h-5 text-slate-200"/>
             </button>
+        </div>
+
+        {/* Explicit Passcode Management */}
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-2 overflow-hidden divide-y divide-slate-50 dark:divide-slate-700/30">
+            {!passcode ? (
+              <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
+                  <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><ShieldCheck className="w-6 h-6"/></div>
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-200"/>
+              </button>
+            ) : (
+              <>
+                <button onClick={onPasscodeChange} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-6 h-6"/></div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('change_passcode')}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-200"/>
+                </button>
+                <button onClick={onPasscodeRemove} className="w-full p-4 flex justify-between items-center btn-active-scale rounded-2xl text-left">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/10 flex items-center justify-center text-rose-400"><Unlock className="w-6 h-6"/></div>
+                        <span className="text-sm font-bold text-rose-500 dark:text-rose-400">{t('remove_passcode')}</span>
+                    </div>
+                </button>
+              </>
+            )}
         </div>
 
         <button onClick={onLogout} className="w-full p-5 bg-white dark:bg-slate-800 text-rose-500 text-xs font-black uppercase rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-2 btn-active-scale active:scale-[0.98] transition-all"><LogOut className="w-5 h-5"/>{t('logout')}</button>
