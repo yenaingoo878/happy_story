@@ -10,19 +10,17 @@
   }
 
   * {
-    /* Disable blue/gray highlight on tap for mobile */
+    /* Standard mobile app cleanup */
     -webkit-tap-highlight-color: transparent;
-    /* Disable text selection across the app to feel like a native app */
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    /* Better font rendering */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Re-enable selection for inputs and textareas so users can type */
+  /* Re-enable text selection for inputs only */
   input, textarea, [contenteditable="true"] {
     -webkit-user-select: text;
     -moz-user-select: text;
@@ -33,7 +31,6 @@
   body {
     background-color: #F7FAFC;
     font-family: 'Padauk', sans-serif;
-    /* Prevent bouncy scroll on mobile browsers for a tighter feel */
     overscroll-behavior-y: none;
     position: fixed;
     width: 100%;
@@ -53,7 +50,53 @@
   }
 }
 
-/* Custom scrollbar - thinner and more subtle */
+/* 
+  INTERACTION EFFECTS 
+  Clean separation between Desktop (Hover) and Mobile (Active)
+*/
+
+/* 1. Universal Scaling Effect (Native feel) */
+.btn-active-scale {
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s ease;
+}
+
+/* Active state for any touch/click */
+.btn-active-scale:active {
+  transform: scale(0.95);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .btn-active-scale:active {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 2. Specific for primary/solid buttons to prevent gray tint overlap */
+.btn-primary-active {
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.15s ease;
+}
+
+.btn-primary-active:active {
+  transform: scale(0.96);
+  filter: brightness(0.9);
+}
+
+/* 3. FIX: Sticky Hover on Mobile. 
+   Only apply hover styles if the device actually supports hover (Mouse) */
+@media (hover: hover) {
+  .btn-active-scale:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+  .dark .btn-active-scale:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  
+  .hover-glow:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+  }
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -68,46 +111,28 @@
   background: #334155;
 }
 
-/* Date picker text alignment to start */
-input[type="date"], 
-input[type="time"],
-input[type="datetime-local"] {
-  display: block;
-  -webkit-appearance: none;
-  min-height: 2.5rem;
-  background-color: transparent;
-  text-align: start !important;
-  padding-left: 1rem;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Birthday Celebration Animations */
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.animate-zoom-in {
+  animation: zoomIn 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
 @keyframes confetti-burst {
   0% { transform: scale(0) translate(0, 0) rotate(0deg); opacity: 1; }
   100% { transform: scale(1) translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)); opacity: 0; }
-}
-
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(-5%) rotate(-6deg); }
-  50% { transform: translateY(0) rotate(-6deg); }
-}
-
-/* Premium Page Transitions */
-.page-transition-enter {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.page-transition-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.animate-confetti-burst {
-  animation: confetti-burst 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 4s ease-in-out infinite;
 }
 
 .celebration-particle {
@@ -119,13 +144,6 @@ input[type="datetime-local"] {
   will-change: transform, opacity;
 }
 
-/* Native-like active states for buttons */
-.btn-active-scale:active {
-  transform: scale(0.96);
-  transition: transform 0.1s ease;
-}
-
-/* Disable drag on images to feel more like an app */
 img {
   -webkit-user-drag: none;
   user-drag: none;

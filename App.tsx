@@ -313,11 +313,6 @@ function App() {
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
 
-    // Selective Locking logic: 
-    // Home, Gallery, AddMemory, and Growth Chart are unlocked.
-    // Management lists inside Settings remain protected.
-    const isTabLocked = false; // All main tabs are now unlocked by default.
-
     switch (activeTab) {
       case TabView.HOME:
         const latestMemory = memories[0];
@@ -342,7 +337,7 @@ function App() {
                        </div>
                     )}
                     {activeRemindersList.map(rem => (
-                        <div key={rem.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between animate-slide-up hover:border-primary/30 transition-colors">
+                        <div key={rem.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between animate-slide-up hover:border-primary/30 transition-colors btn-active-scale">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div>
                                 <div><h4 className="font-bold text-slate-800 dark:text-slate-100">{rem.title}</h4><p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('nav_home')}</p></div>
@@ -359,8 +354,8 @@ function App() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
                   {latestMemory ? (
-                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-[0.98] btn-active-scale" onClick={() => setSelectedMemory(latestMemory)}>
-                        <img src={latestMemory.imageUrl} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform btn-active-scale" onClick={() => setSelectedMemory(latestMemory)}>
+                        <img src={latestMemory.imageUrl} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
                           <span className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
                           <h3 className="text-white text-2xl font-bold leading-tight drop-shadow-md">{latestMemory.title}</h3>
@@ -371,8 +366,8 @@ function App() {
                   )}
               </div>
               <div className="col-span-2 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95 transition-all group overflow-hidden relative btn-active-scale"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform group-hover:scale-125" /><h3 className="font-bold text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
-                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95 transition-all group overflow-hidden btn-active-scale"><Activity className="w-8 h-8 text-teal-500 group-hover:animate-pulse" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all group overflow-hidden relative btn-primary-active btn-active-scale"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform group-hover:scale-125" /><h3 className="font-bold text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all group overflow-hidden btn-active-scale"><Activity className="w-8 h-8 text-teal-500 group-hover:animate-pulse" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
             </div>
           </div>
@@ -448,54 +443,32 @@ function App() {
             <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div>
             <h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p>
-            <div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-extrabold shadow-lg shadow-rose-500/30 active:scale-95 transition-transform btn-active-scale">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-transform btn-active-scale">{t('cancel_btn')}</button></div>
+            <div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-extrabold shadow-lg shadow-rose-500/30 btn-primary-active btn-active-scale">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold btn-active-scale">{t('cancel_btn')}</button></div>
           </div>
         </div>
       )}
 
-      {/* Modern Passcode Modal Layout */}
       {showPasscodeModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl animate-fade-in" onClick={() => setShowPasscodeModal(false)}/>
           <div className="relative w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-[48px] p-10 shadow-2xl animate-zoom-in border border-white/20 flex flex-col items-center">
-            
-            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-8">
-                <Lock className="w-8 h-8"/>
-            </div>
-
-            <h3 className="text-center font-black text-xl mb-10 dark:text-white tracking-tight">
-                {passcodeMode === 'SETUP' ? t('create_passcode') : 
-                 passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
-                 passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : 
-                 t('enter_passcode')}
-            </h3>
-
-            {/* Input Dots */}
+            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-8"><Lock className="w-8 h-8"/></div>
+            <h3 className="text-center font-black text-xl mb-10 dark:text-white tracking-tight">{passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3>
             <div className="flex justify-center gap-6 mb-16">
               {[0,1,2,3].map(i => (
                   <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125 shadow-lg shadow-primary/40' : 'border-slate-300 dark:border-slate-600'}`}/>
               ))}
             </div>
-
             {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-6 animate-bounce">{t('wrong_passcode')}</p>}
-
-            {/* Modern Numpad */}
             <div className="grid grid-cols-3 gap-6 w-full px-4">
               {[1,2,3,4,5,6,7,8,9].map(num => (
-                  <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 hover:bg-primary hover:text-white active:scale-90 transition-all shadow-sm btn-active-scale">
-                      {num}
-                  </button>
+                  <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 md:hover:bg-primary md:hover:text-white transition-all shadow-sm btn-active-scale">{num}</button>
               ))}
               <div className="w-16 h-16"></div>
-              <button onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + '0')} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 hover:bg-primary hover:text-white active:scale-90 transition-all shadow-sm btn-active-scale">0</button>
-              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-rose-500 active:scale-90 transition-all btn-active-scale">
-                  <Delete className="w-8 h-8"/>
-              </button>
+              <button onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + '0')} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 md:hover:bg-primary md:hover:text-white transition-all shadow-sm btn-active-scale">0</button>
+              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-all btn-active-scale"><Delete className="w-8 h-8"/></button>
             </div>
-
-            <button onClick={() => setShowPasscodeModal(false)} className="mt-12 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">
-                {t('cancel_btn')}
-            </button>
+            <button onClick={() => setShowPasscodeModal(false)} className="mt-12 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">{t('cancel_btn')}</button>
           </div>
         </div>
       )}
