@@ -6,6 +6,38 @@ import { getTranslation } from '../utils/translations';
 import { DataService, syncData, db } from '../lib/db';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
+// MOVED OUTSIDE to prevent focus loss during re-renders
+const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "" }: any) => (
+  <div className={`bg-white dark:bg-slate-800 px-4 py-1.5 flex items-center gap-3 border-slate-50 dark:border-slate-700/50 group ${className}`}>
+     <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0">
+        <Icon className="w-4 h-4" />
+     </div>
+     <div className="flex-1 flex flex-col min-w-0">
+        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">{label}</label>
+        {type === 'select' ? (
+           <div className="relative flex items-center">
+             <select 
+                value={value} 
+                onChange={onChange} 
+                className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-5 text-left outline-none"
+             >
+                {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+             </select>
+             <ChevronDown className="absolute right-0 w-3 h-3 text-slate-300 pointer-events-none" />
+           </div>
+        ) : (
+           <input 
+             type={type} 
+             value={value} 
+             onChange={onChange}
+             placeholder={placeholder}
+             className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 h-5 text-left outline-none"
+           />
+        )}
+     </div>
+  </div>
+);
+
 interface SettingsProps {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -16,7 +48,6 @@ interface SettingsProps {
   onProfileChange: (id: string) => void;
   onRefreshData: () => Promise<void>;
   
-  // Security Props
   passcode: string | null;
   isDetailsUnlocked: boolean;
   onUnlockRequest: () => void;
@@ -25,7 +56,6 @@ interface SettingsProps {
   onPasscodeRemove: () => void;
   onHideDetails: () => void;
 
-  // Data props for sub-views
   growthData: GrowthData[];
   memories: Memory[];
   onEditMemory: (mem: Memory) => void;
@@ -33,14 +63,10 @@ interface SettingsProps {
   onDeleteGrowth: (id: string) => void;
   onDeleteProfile: (id: string) => void;
 
-  // Auth
   isGuestMode?: boolean;
   onLogout: () => void; 
-  
-  // Navigation
   initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS';
 
-  // Reminders
   remindersEnabled?: boolean;
   toggleReminders?: () => void;
   remindersList?: Reminder[];
@@ -95,9 +121,7 @@ export const Settings: React.FC<SettingsProps> = ({
         months += 12;
     }
 
-    if (years > 0) {
-      return `${years} ${t('age_years')} ${months} ${t('age_months')}`;
-    }
+    if (years > 0) return `${years} ${t('age_years')} ${months} ${t('age_months')}`;
     return `${months} ${t('age_months')}`;
   };
 
@@ -184,46 +208,14 @@ export const Settings: React.FC<SettingsProps> = ({
     </div>
   );
 
-  const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "" }: any) => (
-    <div className={`bg-white dark:bg-slate-800 px-4 py-2 flex items-center gap-4 border-slate-50 dark:border-slate-700/50 group ${className}`}>
-       <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0">
-          <Icon className="w-4 h-4" />
-       </div>
-       <div className="flex-1 flex flex-col min-w-0">
-          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-left">{label}</label>
-          {type === 'select' ? (
-             <div className="relative flex items-center">
-               <select 
-                  value={value} 
-                  onChange={onChange} 
-                  className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-5 text-left outline-none"
-               >
-                  {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-               </select>
-               <ChevronDown className="absolute right-0 w-3 h-3 text-slate-300 pointer-events-none" />
-             </div>
-          ) : (
-             <input 
-               type={type} 
-               value={value} 
-               onChange={onChange}
-               placeholder={placeholder}
-               className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-slate-800 dark:text-slate-100 focus:ring-0 h-5 text-left outline-none"
-             />
-          )}
-       </div>
-    </div>
-  );
-
   const renderMainSettings = () => (
     <div className="space-y-4 animate-fade-in pb-24">
-      {/* Profile Switching Section */}
       <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 p-4">
-        <div className="flex items-center justify-between mb-4 px-2">
+        <div className="flex items-center justify-between mb-3 px-2">
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('switch_profile')}</h3>
             <button onClick={handleAddNewProfile} className="flex items-center gap-1 text-primary text-xs font-bold"><Plus className="w-3 h-3"/> {t('add_new_profile')}</button>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 px-1 no-scrollbar">
+        <div className="flex gap-3 overflow-x-auto pb-1 px-1 no-scrollbar">
             {profiles.map(p => (
                 <button 
                     key={p.id} 
@@ -277,17 +269,17 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
 
             <div className="divide-y divide-slate-50 dark:divide-slate-700/30 border border-slate-50 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
-                {/* Row 1: Date of Birth - Requested to be first */}
+                {/* Row 1: DOB (Requested to be first) */}
                 <IOSInput label={t('child_dob')} icon={Clock} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
 
                 {/* Row 2: Name */}
                 <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} placeholder="e.g. Liam" />
                 
-                {/* Row 3: Gender 2 Columns (Boy/Girl) */}
+                {/* Row 3: Gender (2 Cols) */}
                 <div className="grid grid-cols-2 divide-x divide-slate-50 dark:divide-slate-700/30">
                     <button 
                       onClick={() => setEditingProfile({...editingProfile, gender: 'boy'})}
-                      className={`flex items-center gap-3 px-3 py-2 transition-all ${editingProfile.gender === 'boy' ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
+                      className={`flex items-center gap-2.5 px-3 py-1.5 transition-all ${editingProfile.gender === 'boy' ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}
                     >
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'boy' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
                             <Baby className="w-4 h-4" />
@@ -299,7 +291,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     </button>
                     <button 
                       onClick={() => setEditingProfile({...editingProfile, gender: 'girl'})}
-                      className={`flex items-center gap-3 px-3 py-2 transition-all ${editingProfile.gender === 'girl' ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}
+                      className={`flex items-center gap-2.5 px-3 py-1.5 transition-all ${editingProfile.gender === 'girl' ? 'bg-rose-50/50 dark:bg-rose-900/10' : ''}`}
                     >
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${editingProfile.gender === 'girl' ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
                             <Baby className="w-4 h-4" />
@@ -311,39 +303,34 @@ export const Settings: React.FC<SettingsProps> = ({
                     </button>
                 </div>
 
-                {/* Row 4: Con 1 Time of Birth Con 2 Blood Type */}
+                {/* Row 4: Time/Blood */}
                 <div className="grid grid-cols-2 divide-x divide-slate-50 dark:divide-slate-700/30">
                     <IOSInput label={t('birth_time')} icon={Clock} type="time" value={editingProfile.birthTime || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} />
                     <IOSInput label={t('blood_type')} icon={Activity} type="select" value={editingProfile.bloodType || ''} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} options={[{label: 'Type', value: ''}, {label: 'A', value: 'A'}, {label: 'B', value: 'B'}, {label: 'AB', value: 'AB'}, {label: 'O', value: 'O'}]} />
                 </div>
 
-                {/* Row 5: Hospital */}
+                {/* Row 5, 6, 7: Hospital, Location, Country */}
                 <IOSInput label={t('hospital_name')} icon={Globe} value={editingProfile.hospitalName || ''} onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} />
-
-                {/* Row 6: Birth Location */}
                 <IOSInput label={t('city_label')} icon={MapPin} value={editingProfile.birthLocation || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthLocation: e.target.value})} placeholder={t('location_placeholder')} />
-
-                {/* Row 7: Country */}
                 <IOSInput label={t('country_label')} icon={Globe} value={editingProfile.country || ''} onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} placeholder={t('country_placeholder')} />
             </div>
 
             <div className="flex flex-col gap-2">
                 <button 
-                onClick={handleSaveProfile}
-                disabled={isSavingProfile}
-                className="w-full py-3.5 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile}
+                  className="w-full py-3.5 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                {t('save_changes')}
+                  {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  {t('save_changes')}
                 </button>
                 
-                {/* Delete Profile Button inside Edit Form */}
                 <button 
-                onClick={() => onDeleteProfile(editingProfile.id!)}
-                className="w-full py-3.5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-2xl flex items-center justify-center gap-2"
+                  onClick={() => onDeleteProfile(editingProfile.id!)}
+                  className="w-full py-3 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold rounded-2xl flex items-center justify-center gap-2"
                 >
-                <Trash2 className="w-4 h-4" />
-                {t('delete_profile')}
+                  <Trash2 className="w-4 h-4" />
+                  {t('delete_profile')}
                 </button>
             </div>
           </div>
