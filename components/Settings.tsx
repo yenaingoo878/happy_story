@@ -82,6 +82,9 @@ export const Settings: React.FC<SettingsProps> = ({
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isCloudEnabled = isSupabaseConfigured();
 
+  // If a passcode is set, and the user hasn't unlocked it, sensitive areas are "Locked"
+  const isLocked = passcode && !isDetailsUnlocked;
+
   useEffect(() => {
      const checkDB = async () => {
          try {
@@ -247,8 +250,6 @@ export const Settings: React.FC<SettingsProps> = ({
       </button>
     </div>
   );
-
-  const isLocked = passcode && !isDetailsUnlocked;
 
   if (view === 'GROWTH') {
       return (
@@ -548,7 +549,7 @@ export const Settings: React.FC<SettingsProps> = ({
             )}
         </div>
 
-        {/* The rest of Settings sections (Language, Theme, Profile Edit, Security) */}
+        {/* Global Settings */}
         <div className="space-y-4">
             <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1">
                 <div className="flex justify-between items-center p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-2xl transition-colors">
@@ -570,12 +571,19 @@ export const Settings: React.FC<SettingsProps> = ({
                 )}
             </div>
 
+            {/* Locked Edit Profile Section */}
             <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-all">
-                 <button onClick={() => setShowEditForm(!showEditForm)} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
-                     <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500"><Pencil className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('edit_profile')}</span></div>
-                     {showEditForm ? <ChevronUp className="w-5 h-5 text-slate-300"/> : <ChevronDown className="w-5 h-5 text-slate-300"/>}
+                 <button onClick={() => isLocked ? onUnlockRequest() : setShowEditForm(!showEditForm)} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
+                     <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 relative">
+                            <Pencil className="w-5 h-5"/>
+                            {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('edit_profile')}</span>
+                     </div>
+                     {isLocked ? <ChevronRight className="w-4 h-4 text-slate-200"/> : (showEditForm ? <ChevronUp className="w-5 h-5 text-slate-300"/> : <ChevronDown className="w-5 h-5 text-slate-300"/>)}
                  </button>
-                 {showEditForm && (
+                 {!isLocked && showEditForm && (
                      <div className="p-6 border-t border-slate-50 dark:border-slate-700 animate-slide-up space-y-5">
                         <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
                             <button onClick={() => { setEditingProfile({ id: '', name: '', dob: '', gender: 'boy' }); }} className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 border-dashed border-primary text-primary text-xs font-bold hover:bg-primary/5 transition-colors"><UserPlus className="w-4 h-4"/> {t('add_new_profile')}</button>
@@ -600,6 +608,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
         </div>
 
+        {/* Security & Data Management Links (All protected by isLocked) */}
         <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-2 space-y-1">
                  {!passcode ? <button onClick={onPasscodeSetup} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500"><KeyRound className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('setup_passcode')}</span></div><ChevronRight className="w-5 h-5 text-slate-200"/></button> : (
@@ -607,9 +616,46 @@ export const Settings: React.FC<SettingsProps> = ({
                  )}
             </div>
             <div className="p-2 space-y-1">
-                <button onClick={() => setView('GROWTH')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600"><Activity className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
-                <button onClick={() => setView('MEMORIES')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500"><ImageIcon className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_memories')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
-                <button onClick={() => setView('REMINDERS')} className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div><span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_reminders')}</span></div><ChevronRight className="w-4 h-4 text-slate-200"/></button>
+                {/* Each sub-view link checks isLocked */}
+                <button 
+                    onClick={() => isLocked ? onUnlockRequest() : setView('GROWTH')} 
+                    className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 relative">
+                            <Activity className="w-5 h-5"/>
+                            {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_growth')}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-200"/>
+                </button>
+                <button 
+                    onClick={() => isLocked ? onUnlockRequest() : setView('MEMORIES')} 
+                    className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 relative">
+                            <ImageIcon className="w-5 h-5"/>
+                            {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_memories')}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-200"/>
+                </button>
+                <button 
+                    onClick={() => isLocked ? onUnlockRequest() : setView('REMINDERS')} 
+                    className="w-full p-4 flex justify-between items-center hover:bg-slate-50 rounded-2xl transition-colors"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative">
+                            <Bell className="w-5 h-5"/>
+                            {isLocked && <div className="absolute -top-1 -right-1 bg-white dark:bg-slate-800 rounded-full p-0.5"><Lock className="w-2.5 h-2.5 text-slate-400" /></div>}
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('manage_reminders')}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-200"/>
+                </button>
             </div>
         </div>
 
