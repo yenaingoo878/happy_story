@@ -1,9 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon, X } from 'lucide-react';
+import { Lock, Baby, UserPlus, Camera, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Calendar, MapPin, Clock, Droplets, Home, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
-import { DataService } from '../lib/db';
+import { DataService, syncData } from '../lib/db';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface SettingsProps {
   language: Language;
@@ -64,6 +65,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingGrowth, setIsSavingGrowth] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const [showEditForm, setShowEditForm] = useState(false);
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
@@ -73,6 +75,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [isSavingReminder, setIsSavingReminder] = useState(false);
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
+  const isCloudEnabled = isSupabaseConfigured();
 
   useEffect(() => { if (initialView) setView(initialView); }, [initialView]);
 
@@ -89,6 +92,19 @@ export const Settings: React.FC<SettingsProps> = ({
         return () => clearTimeout(timer);
     }
   }, [saveSuccess]);
+
+  const handleManualSync = async () => {
+    if (!isCloudEnabled || isGuestMode) return;
+    setIsSyncing(true);
+    try {
+      await syncData();
+      await onRefreshData();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const calculateAge = (dobString: string) => {
     if (!dobString) return '';
@@ -171,7 +187,6 @@ export const Settings: React.FC<SettingsProps> = ({
       } finally { setIsSavingReminder(false); }
   };
 
-  // Modern Locked State for specific management views
   const renderLockedState = () => (
     <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in text-center max-w-sm mx-auto h-[60vh]">
       <div className="w-16 h-16 bg-primary/10 rounded-[28px] flex items-center justify-center mb-6">
@@ -356,6 +371,66 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
             </div>
         )}
+
+        {/* Cloud Sync & Backup Status Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 shadow-sm">
+                        <Cloud className="w-6 h-6"/>
+                    </div>
+                    <div>
+                        <h3 className="font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">{t('cloud_sync')}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            {isCloudEnabled ? (
+                                isGuestMode ? (
+                                    <span className="text-[10px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full uppercase tracking-wider">Local Only</span>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full uppercase tracking-wider">{t('sync_active')}</span>
+                                )
+                            ) : (
+                                <span className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-full uppercase tracking-wider">{t('missing_config')}</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                {isCloudEnabled && !isGuestMode && (
+                    <button 
+                        onClick={handleManualSync} 
+                        disabled={isSyncing} 
+                        className={`p-3 rounded-2xl transition-all shadow-sm ${isSyncing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100 active:scale-95'}`}
+                    >
+                        <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    </button>
+                )}
+            </div>
+
+            {isGuestMode && isCloudEnabled && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col gap-4 animate-fade-in">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {t('sync_guest_msg')}
+                        </p>
+                    </div>
+                    <button 
+                        onClick={onLogout} 
+                        className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all"
+                    >
+                        {t('enable_cloud')}
+                    </button>
+                </div>
+            )}
+
+            {!isCloudEnabled && (
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium text-rose-500 leading-relaxed">
+                        Cloud Sync environment variables (SUPABASE_URL, SUPABASE_ANON_KEY) are missing. Please configure them in your environment settings to enable cloud backup.
+                    </p>
+                </div>
+            )}
+        </div>
 
         {/* Global Settings (UNLOCKED as requested) */}
         <div className="space-y-4">

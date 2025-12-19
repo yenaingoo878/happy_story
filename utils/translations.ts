@@ -40,6 +40,16 @@ export const translations = {
   nav_gallery: { en: "Gallery", mm: "ဓာတ်ပုံ" },
   nav_settings: { en: "Settings", mm: "ဆက်တင်" },
 
+  // Cloud Sync
+  cloud_sync: { en: "Cloud Backup", mm: "Cloud တွင် သိမ်းဆည်းခြင်း" },
+  sync_status: { en: "Status", mm: "အခြေအနေ" },
+  sync_active: { en: "Connected", mm: "ချိတ်ဆက်ထားသည်" },
+  sync_disconnected: { en: "Offline", mm: "အော့ဖ်လိုင်း" },
+  sync_guest_msg: { en: "In guest mode, data is only saved on this device.", mm: "ဧည့်သည်အဖြစ် သုံးနေ၍ ဖုန်းထဲမှာပဲ သိမ်းထားပါမည်။" },
+  enable_cloud: { en: "Enable Cloud Sync", mm: "Cloud Backup ဖွင့်မည်" },
+  sync_now: { en: "Sync Now", mm: "ယခု သိမ်းဆည်းမည်" },
+  missing_config: { en: "Server not configured", mm: "Cloud ချိတ်ဆက်မှု မသေချာပါ" },
+
   // Add/Edit Memory
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },
   edit_memory_title: { en: "Edit Memory", mm: "အမှတ်တရ ပြင်ဆင်ရန်" },
