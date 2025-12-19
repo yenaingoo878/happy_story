@@ -273,7 +273,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3 pt-4">
-                    <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2.5 disabled:opacity-50 tracking-widest uppercase text-sm active:scale-[0.98] transition-all">{isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}{t('save_changes')}</button>
+                    <button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-5 bg-primary text-white font-black rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-3 disabled:opacity-50 tracking-[0.2em] uppercase text-base active:scale-[0.98] transition-all">{isSavingProfile ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}{t('save_changes')}</button>
                     <button onClick={() => onDeleteProfile(editingProfile.id!)} className="w-full py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-extrabold rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-[0.2em] active:scale-[0.98] transition-all"><Trash2 className="w-4 h-4" />{t('delete_profile')}</button>
                 </div>
               </div>
@@ -363,8 +363,8 @@ export const Settings: React.FC<SettingsProps> = ({
                    <IOSInput label={t('weight_label')} icon={Scale} type="number" value={newGrowth.weight ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value})} placeholder="kg" />
                 </div>
 
-                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || !newGrowth.month} className="w-full py-4.5 bg-teal-500 text-white font-black rounded-2xl shadow-xl shadow-teal-500/20 flex items-center justify-center gap-3 text-sm uppercase tracking-[0.15em] active:scale-[0.98] transition-all">
-                   {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || !newGrowth.month} className="w-full py-5.5 bg-teal-500 text-white font-black rounded-2xl shadow-2xl shadow-teal-500/30 flex items-center justify-center gap-3 text-base uppercase tracking-[0.2em] active:scale-[0.98] transition-all">
+                   {isSavingGrowth ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
                    {editingGrowthId ? t('update_record') : t('add_record')}
                 </button>
               </section>
@@ -412,7 +412,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   <IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} />
                </div>
 
-               <button onClick={handleAddReminder} className="w-full py-4.5 bg-amber-500 text-white font-black rounded-2xl shadow-xl shadow-amber-500/20 text-sm uppercase tracking-[0.2em] active:scale-[0.98] transition-all">{t('save_reminder')}</button>
+               <button onClick={handleAddReminder} className="w-full py-5.5 bg-amber-500 text-white font-black rounded-2xl shadow-2xl shadow-amber-500/30 text-base uppercase tracking-[0.2em] active:scale-[0.98] transition-all">{t('save_reminder')}</button>
             </section>
 
             <div className="space-y-3">
