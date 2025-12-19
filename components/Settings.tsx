@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, Wifi, Scale, Clock, User, ShieldCheck, ChevronLeft } from 'lucide-react';
+import { Lock, Baby, UserPlus, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, Wifi, Scale, Clock, User, ShieldCheck, ChevronLeft, MapPin } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService, syncData } from '../lib/db';
@@ -48,7 +48,6 @@ interface SettingsProps {
   onSaveReminder?: (reminder: Reminder) => Promise<void>;
 }
 
-// Fixed the Settings component by ensuring a proper return statement and completing the truncated logic
 export const Settings: React.FC<SettingsProps> = ({
   language, setLanguage, theme, toggleTheme,
   profiles, activeProfileId, onProfileChange, onRefreshData,
@@ -76,8 +75,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
-  const isCloudEnabled = isSupabaseConfigured();
-
   const isLocked = passcode && !isDetailsUnlocked;
 
   useEffect(() => {
@@ -136,7 +133,7 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const handleSaveGrowth = async () => {
-      if (newGrowth.month !== undefined && newGrowth.height && newGrowth.weight && activeProfileId) {
+      if (newGrowth.month !== undefined && newGrowth.height !== undefined && newGrowth.weight !== undefined && activeProfileId) {
           setIsSavingGrowth(true);
           try {
               await DataService.saveGrowth({ 
@@ -217,7 +214,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 <Baby className="w-8 h-8" />
               )}
             </div>
-            <div>
+            <div className="text-left">
               <h2 className="text-xl font-black text-slate-800 dark:text-white">{currentProfile?.name}</h2>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{calculateAge(currentProfile?.dob || '')}</p>
             </div>
@@ -243,12 +240,40 @@ export const Settings: React.FC<SettingsProps> = ({
                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleProfileImageUpload} className="hidden" />
                </button>
             </div>
-            <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} />
-            <IOSInput label={t('child_dob')} icon={Clock} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
-            <div className="grid grid-cols-2 gap-4">
-              <IOSInput label={t('gender_label')} icon={Baby} type="select" value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} options={[{label: t('boy'), value: 'boy'}, {label: t('girl'), value: 'girl'}]} />
-              <IOSInput label={t('blood_type')} icon={Activity} value={editingProfile.bloodType} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} placeholder="e.g. O+" />
+
+            <div className="divide-y divide-slate-50 dark:divide-slate-700/30 border border-slate-50 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+                {/* Row 1: Name */}
+                <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} />
+                
+                {/* Row 2: Gender Con 1 Boy Con 2 Girl */}
+                <div className="grid grid-cols-2 divide-x divide-slate-50 dark:divide-slate-700/30">
+                    <IOSInput label={t('gender_label')} icon={Baby} type="select" value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} options={[{label: t('boy'), value: 'boy'}, {label: t('girl'), value: 'girl'}]} />
+                    <div className="flex items-center px-4 bg-white dark:bg-slate-800">
+                        <span className={`text-xs font-black uppercase tracking-widest ${editingProfile.gender === 'boy' ? 'text-indigo-400' : 'text-rose-400'}`}>
+                            {editingProfile.gender === 'boy' ? t('boy') : t('girl')}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Row 3: DOB */}
+                <IOSInput label={t('child_dob')} icon={Clock} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
+
+                {/* Row 4: Con 1 Time of Birth Con 2 Blood Type */}
+                <div className="grid grid-cols-2 divide-x divide-slate-50 dark:divide-slate-700/30">
+                    <IOSInput label={t('birth_time')} icon={Clock} type="time" value={editingProfile.birthTime || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} />
+                    <IOSInput label={t('blood_type')} icon={Activity} value={editingProfile.bloodType || ''} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} placeholder="e.g. O+" />
+                </div>
+
+                {/* Row 5: Hospital */}
+                <IOSInput label={t('hospital_name')} icon={Globe} value={editingProfile.hospitalName || ''} onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} placeholder={t('hospital_placeholder')} />
+
+                {/* Row 6: Birth Location */}
+                <IOSInput label={t('city_label')} icon={MapPin} value={editingProfile.birthLocation || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthLocation: e.target.value})} placeholder={t('location_placeholder')} />
+
+                {/* Row 7: Country */}
+                <IOSInput label={t('country_label')} icon={Globe} value={editingProfile.country || ''} onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} placeholder={t('country_placeholder')} />
             </div>
+
             <button 
               onClick={handleSaveProfile}
               disabled={isSavingProfile}
@@ -348,21 +373,42 @@ export const Settings: React.FC<SettingsProps> = ({
          isLocked ? renderLockedState() : (
            <div className="space-y-6 animate-fade-in">
               <section className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700">
-                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2"><Activity className="w-6 h-6 text-teal-500" /> {t('manage_growth')}</h2>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                   <div className="flex flex-col"><label className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('month')}</label><input type="number" value={newGrowth.month || ''} onChange={e => setNewGrowth({...newGrowth, month: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-700 rounded-xl font-bold border-none outline-none focus:ring-2 focus:ring-teal-500/20" /></div>
-                   <div className="flex flex-col"><label className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('height_label')}</label><input type="number" value={newGrowth.height || ''} onChange={e => setNewGrowth({...newGrowth, height: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-700 rounded-xl font-bold border-none outline-none focus:ring-2 focus:ring-teal-500/20" /></div>
-                   <div className="flex flex-col"><label className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('weight_label')}</label><input type="number" value={newGrowth.weight || ''} onChange={e => setNewGrowth({...newGrowth, weight: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-700 rounded-xl font-bold border-none outline-none focus:ring-2 focus:ring-teal-500/20" /></div>
+                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2 text-left"><Activity className="w-6 h-6 text-teal-500" /> {t('manage_growth')}</h2>
+                <div className="divide-y divide-slate-50 dark:divide-slate-700/30 border border-slate-50 dark:border-slate-700/50 rounded-2xl overflow-hidden mb-6">
+                   <IOSInput 
+                      label={t('month')} 
+                      icon={Clock} 
+                      type="number" 
+                      value={newGrowth.month ?? ''} 
+                      onChange={(e: any) => setNewGrowth({...newGrowth, month: e.target.value === '' ? undefined : Number(e.target.value)})} 
+                      placeholder="0" 
+                   />
+                   <IOSInput 
+                      label={t('height_label')} 
+                      icon={Activity} 
+                      type="number" 
+                      value={newGrowth.height ?? ''} 
+                      onChange={(e: any) => setNewGrowth({...newGrowth, height: e.target.value === '' ? undefined : Number(e.target.value)})} 
+                      placeholder="cm" 
+                   />
+                   <IOSInput 
+                      label={t('weight_label')} 
+                      icon={Scale} 
+                      type="number" 
+                      value={newGrowth.weight ?? ''} 
+                      onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value === '' ? undefined : Number(e.target.value)})} 
+                      placeholder="kg" 
+                   />
                 </div>
-                <button onClick={handleSaveGrowth} disabled={isSavingGrowth} className="w-full py-4 bg-teal-500 text-white font-black rounded-2xl shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2">
+                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || newGrowth.month === undefined || newGrowth.height === undefined} className="w-full py-4 bg-teal-500 text-white font-black rounded-2xl shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2">
                    {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                   {t('add_record')}
+                   {editingGrowthId ? t('update_record') : t('add_record')}
                 </button>
               </section>
               <div className="space-y-3">
                  {growthData.map(g => (
                     <div key={g.id} className="bg-white dark:bg-slate-800 p-5 rounded-3xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm">
-                       <div><h4 className="font-black text-slate-800 dark:text-white">{g.month} {t('age_months')}</h4><p className="text-xs text-slate-400 font-bold uppercase">{g.height}cm • {g.weight}kg</p></div>
+                       <div className="text-left"><h4 className="font-black text-slate-800 dark:text-white">{g.month} {t('age_months')}</h4><p className="text-xs text-slate-400 font-bold uppercase">{g.height}cm • {g.weight}kg</p></div>
                        <button onClick={() => onDeleteGrowth(g.id!)} className="p-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"><Trash2 className="w-5 h-5" /></button>
                     </div>
                  ))}
@@ -376,7 +422,7 @@ export const Settings: React.FC<SettingsProps> = ({
             {memories.map(m => (
                <div key={m.id} className="bg-white dark:bg-slate-800 p-4 rounded-[32px] flex items-center gap-4 border border-slate-50 dark:border-slate-700 shadow-sm group">
                   <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0"><img src={m.imageUrl} className="w-full h-full object-cover" alt="" /></div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-left">
                      <h4 className="font-bold text-slate-800 dark:text-white truncate">{m.title}</h4>
                      <p className="text-xs text-slate-400 font-bold">{m.date}</p>
                   </div>
@@ -392,15 +438,15 @@ export const Settings: React.FC<SettingsProps> = ({
       {view === 'REMINDERS' && (
          <div className="space-y-6 animate-fade-in pb-24">
             <section className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700">
-               <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2>
-               <div className="space-y-4 mb-6">
-                  <div className="flex flex-col"><label className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('reminder_title')}</label><input type="text" id="rem_title" className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold border-none outline-none" /></div>
-                  <div className="flex flex-col"><label className="text-[10px] font-black text-slate-400 uppercase mb-1">{t('reminder_date')}</label><input type="date" id="rem_date" className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl font-bold border-none outline-none" /></div>
+               <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2 text-left"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2>
+               <div className="divide-y divide-slate-50 dark:divide-slate-700/30 border border-slate-50 dark:border-slate-700/50 rounded-2xl overflow-hidden mb-6">
+                  <IOSInput label={t('reminder_title')} icon={User} id="rem_title" placeholder="e.g. Vaccination" />
+                  <IOSInput label={t('reminder_date')} icon={Clock} type="date" id="rem_date" />
                </div>
                <button onClick={async () => {
                   const titleEl = document.getElementById('rem_title') as HTMLInputElement;
                   const dateEl = document.getElementById('rem_date') as HTMLInputElement;
-                  if (titleEl.value && dateEl.value && onSaveReminder) {
+                  if (titleEl && dateEl && titleEl.value && dateEl.value && onSaveReminder) {
                      await onSaveReminder({ id: crypto.randomUUID(), title: titleEl.value, date: dateEl.value, type: 'event' });
                      titleEl.value = ''; dateEl.value = '';
                   }
@@ -409,7 +455,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="space-y-3">
                {remindersList.map(r => (
                   <div key={r.id} className="bg-white dark:bg-slate-800 p-5 rounded-3xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm">
-                     <div><h4 className="font-bold text-slate-800 dark:text-white">{r.title}</h4><p className="text-xs text-slate-400 font-bold">{r.date}</p></div>
+                     <div className="text-left"><h4 className="font-bold text-slate-800 dark:text-white">{r.title}</h4><p className="text-xs text-slate-400 font-bold">{r.date}</p></div>
                      <button onClick={() => onDeleteReminder?.(r.id)} className="p-3 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"><Trash2 className="w-5 h-5" /></button>
                   </div>
                ))}
