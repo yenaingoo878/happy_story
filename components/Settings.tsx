@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-/* Fixed naming conflict by renaming Settings icon to SettingsIcon */
-import { Lock, Baby, UserPlus, Loader2, Save, KeyRound, Unlock, ChevronRight, Moon, ArrowLeft, Trash2, Pencil, LogOut, Check, ChevronDown, ChevronUp, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, RefreshCw, AlertCircle, Database, Wifi, Scale, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, CheckCircle2, CloudCheck, HardDrive, Settings as SettingsIcon, UserCircle } from 'lucide-react';
+/* Added Scale to fix missing import error on line 380 */
+import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -207,10 +207,15 @@ export const Settings: React.FC<SettingsProps> = ({
           {/* Cloud Stats & Storage Info (Save Stats) */}
           <section className="bg-white dark:bg-slate-800 rounded-3xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between transition-all">
              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500"><CloudCheck className="w-5 h-5" /></div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
+                  <div className="relative">
+                    <Cloud className="w-5 h-5" />
+                    <Check className="w-3 h-3 absolute -bottom-1 -right-1" />
+                  </div>
+                </div>
                 <div className="text-left">
-                   <h3 className="text-xs font-black text-slate-800 dark:text-white tracking-tight">Cloud Status</h3>
-                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{isGuestMode ? 'Saved on Phone' : `${totalSynced}/${totalItems} Items Synced`}</p>
+                   <h3 className="text-xs font-black text-slate-800 dark:text-white tracking-tight">Cloud Backup</h3>
+                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{isGuestMode ? 'Saved on Phone' : `${totalSynced}/${totalItems} Synced`}</p>
                 </div>
              </div>
              <div className="flex gap-1.5 shrink-0">
@@ -225,7 +230,7 @@ export const Settings: React.FC<SettingsProps> = ({
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2.5">
-                   <UserCircle className="w-4 h-4 text-slate-400"/>
+                   <CircleUser className="w-4 h-4 text-slate-400"/>
                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('about_child')}</h3>
                 </div>
                 <button onClick={handleAddNewProfile} className="flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-wider btn-active-scale px-3 py-1.5 bg-primary/5 rounded-xl"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button>
@@ -306,7 +311,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
           </section>
 
-          {/* Records & Memories Navigation Grid */}
+          {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 gap-4 px-1">
              <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group active:scale-95 transition-all">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform"><ImageIcon className="w-5 h-5" /></div>
