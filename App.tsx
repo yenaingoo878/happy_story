@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -433,7 +433,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden">
+    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-10 pl-2">
             <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1">
@@ -447,7 +447,17 @@ function App() {
               return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 btn-active-scale ${isActive ? 'bg-primary/10 text-primary font-extrabold shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}><tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/><span className="text-sm">{t(tab.label)}</span></button>);
             })}
           </nav>
-          <button onClick={handleLogout} className="flex items-center gap-4 px-4 py-3.5 text-rose-500 font-extrabold hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-2xl transition-colors mt-4 btn-active-scale"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+
+          <div className="mt-auto space-y-2">
+              <button 
+                onClick={toggleTheme} 
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 btn-active-scale text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400"
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <span className="text-sm">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3.5 text-rose-500 font-extrabold hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-2xl transition-colors btn-active-scale"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+          </div>
       </aside>
 
       <main id="root" className="flex-1 px-5 pt-8 min-h-screen md:ml-64 box-border relative overflow-x-hidden">{renderContent()}</main>

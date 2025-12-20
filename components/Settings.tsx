@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-/* Added Scale to fix missing import error on line 380 */
-import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale } from 'lucide-react';
+/* Added Scale and Sun to fix missing import errors */
+import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -346,6 +346,23 @@ export const Settings: React.FC<SettingsProps> = ({
                   ) : <button onClick={onPasscodeSetup} className="px-4 py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl uppercase tracking-widest ring-4 ring-indigo-500/5 active:scale-95 transition-all">{t('setup_passcode')}</button>}
                </div>
             </div>
+            
+            {/* Theme Toggle Switch */}
+            <div className="p-5 flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-500 shadow-sm transition-colors">
+                     {theme === 'dark' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+                  </div>
+                  <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{t('theme')}</h3>
+               </div>
+               <button 
+                 onClick={toggleTheme} 
+                 className={`w-12 h-6 rounded-full transition-all relative flex items-center px-1 shadow-inner ${theme === 'dark' ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-600'}`}
+               >
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`} />
+               </button>
+            </div>
+
             <div className="p-5 flex items-center justify-between">
                <div className="flex items-center gap-4">
                   <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-700 flex items-center justify-center text-slate-500 shadow-sm"><Globe className="w-4.5 h-4.5" /></div>
