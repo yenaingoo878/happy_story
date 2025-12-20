@@ -151,7 +151,7 @@ export const translations = {
   manage_growth: { en: "Growth Records", mm: "ကြီးထွားမှုမှတ်တမ်း" },
   manage_memories: { en: "Memories List", mm: "အမှတ်တရများ စာရင်း" },
   manage_reminders: { en: "Reminders List", mm: "အသိပေးချက်များ စာရင်း" },
-  add_reminder: { en: "Add Reminder", mm: "အသိပေးချက် အသစ်ထည့်ရန်" },
+  add_reminder: { en: "Add Reminder", mm: "အသစ်ထည့်ရန်" },
   reminder_title: { en: "Title", mm: "ခေါင်းစဉ်" },
   reminder_date: { en: "Date", mm: "နေ့စွဲ" },
   save_reminder: { en: "Save Reminder", mm: "သိမ်းဆည်းမည်" },
