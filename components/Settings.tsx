@@ -387,30 +387,30 @@ export const Settings: React.FC<SettingsProps> = ({
               <button onClick={onUnlockRequest} className="px-14 py-5 bg-slate-900 dark:bg-primary text-white text-base font-black rounded-[2.5rem] shadow-2xl active:scale-95 transition-all tracking-[0.2em] uppercase">{t('tap_to_unlock')}</button>
             </div>
          ) : (
-           <div className="space-y-8 animate-fade-in pb-32 px-1">
-              <section className="bg-white dark:bg-slate-800 rounded-[40px] p-8 shadow-xl border border-slate-100 dark:border-slate-700">
-                <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-8 flex items-center gap-4 text-left tracking-tight"><Activity className="w-8 h-8 text-teal-500" /> {t('manage_growth')}</h2>
+           <div className="animate-fade-in pb-32 px-1">
+              <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 mb-4">
+                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-4 flex items-center gap-3 text-left tracking-tight"><Activity className="w-6 h-6 text-teal-500" /> {t('manage_growth')}</h2>
                 
-                <div className="flex flex-col gap-5 mb-10">
+                <div className="flex flex-col gap-3 mb-6">
                    <IOSInput label={t('month')} icon={Clock} type="number" value={newGrowth.month ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, month: e.target.value})} placeholder="0" />
                    <IOSInput label={t('height_label')} icon={Activity} type="number" value={newGrowth.height ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, height: e.target.value})} placeholder="cm" />
                    <IOSInput label={t('weight_label')} icon={Scale} type="number" value={newGrowth.weight ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value})} placeholder="kg" />
                 </div>
 
-                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || !newGrowth.month} className="w-full py-5 bg-teal-500 text-white font-black rounded-3xl shadow-2xl shadow-teal-500/40 flex items-center justify-center gap-4 text-lg uppercase tracking-[0.25em] active:scale-[0.96] transition-all">
-                   {isSavingGrowth ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || !newGrowth.month} className="w-full py-3.5 bg-teal-500 text-white font-black rounded-2xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-3 text-sm uppercase tracking-[0.2em] active:scale-[0.96] transition-all">
+                   {isSavingGrowth ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                    {editingGrowthId ? t('update_record') : t('add_record')}
                 </button>
               </section>
 
-              <div className="space-y-4">
+              <div className="space-y-1.5">
                  {growthData.map(g => (
-                    <div key={g.id} className="bg-white dark:bg-slate-800 p-5 rounded-3xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <div key={g.id} className="bg-white dark:bg-slate-800 p-2.5 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm transition-all active:bg-slate-50 dark:active:bg-slate-700/50">
                        <div className="text-left">
-                          <h4 className="font-black text-slate-800 dark:text-white text-lg tracking-tight">{g.month} {t('age_months')}</h4>
-                          <p className="text-xs text-slate-400 font-extrabold uppercase tracking-widest mt-1.5">{g.height}cm • {g.weight}kg</p>
+                          <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{g.month} {t('age_months')}</h4>
+                          <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{g.height}cm • {g.weight}kg</p>
                        </div>
-                       <button onClick={() => onDeleteGrowth(g.id!)} className="p-3.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-2xl transition-all active:scale-90"><Trash2 className="w-6 h-6" /></button>
+                       <button onClick={() => onDeleteGrowth(g.id!)} className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button>
                     </div>
                  ))}
               </div>
@@ -419,17 +419,17 @@ export const Settings: React.FC<SettingsProps> = ({
       )}
 
       {view === 'MEMORIES' && (
-         <div className="space-y-5 animate-fade-in pb-32 px-1">
+         <div className="space-y-1.5 animate-fade-in pb-32 px-1">
             {memories.map(m => (
-               <div key={m.id} className="bg-white dark:bg-slate-800 p-4 rounded-[2.5rem] flex items-center gap-6 border border-slate-50 dark:border-slate-700 shadow-sm group">
-                  <div className="w-20 h-20 rounded-3xl overflow-hidden shrink-0 shadow-lg ring-4 ring-slate-50 dark:ring-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+               <div key={m.id} className="bg-white dark:bg-slate-800 p-1.5 rounded-[1.5rem] flex items-center gap-2.5 border border-slate-50 dark:border-slate-700 shadow-sm group active:bg-slate-50 dark:active:bg-slate-700/50 transition-colors">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm ring-1 ring-slate-50 dark:ring-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
                   <div className="flex-1 min-w-0 text-left">
-                     <h4 className="font-black text-slate-800 dark:text-white truncate text-base tracking-tight">{m.title}</h4>
-                     <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1.5">{m.date}</p>
+                     <h4 className="font-black text-slate-800 dark:text-white truncate text-xs tracking-tight">{m.title}</h4>
+                     <p className="text-[8px] text-slate-400 font-black uppercase tracking-[0.1em] mt-0.5">{m.date}</p>
                   </div>
-                  <div className="flex gap-2 pr-2">
-                     <button onClick={() => onEditMemory(m)} className="p-3.5 text-slate-400 hover:text-primary active:scale-90 transition-all"><Pencil className="w-6 h-6" /></button>
-                     <button onClick={() => onDeleteMemory(m.id)} className="p-3.5 text-rose-500 active:scale-90 transition-all"><Trash2 className="w-6 h-6" /></button>
+                  <div className="flex gap-0.5 pr-0.5">
+                     <button onClick={() => onEditMemory(m)} className="p-2 text-slate-400 hover:text-primary active:scale-90 transition-all"><Pencil className="w-4.5 h-4.5" /></button>
+                     <button onClick={() => onDeleteMemory(m.id)} className="p-2 text-rose-500 active:scale-90 transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
                   </div>
                </div>
             ))}
@@ -437,23 +437,23 @@ export const Settings: React.FC<SettingsProps> = ({
       )}
 
       {view === 'REMINDERS' && (
-         <div className="space-y-8 animate-fade-in pb-32 px-1">
-            <section className="bg-white dark:bg-slate-800 rounded-[40px] p-8 shadow-xl border border-slate-100 dark:border-slate-700">
-               <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-8 flex items-center gap-4 text-left tracking-tight"><Bell className="w-8 h-8 text-amber-500" /> {t('add_reminder')}</h2>
-               <div className="flex flex-col gap-5 mb-10">
+         <div className="space-y-6 animate-fade-in pb-32 px-1">
+            <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
+               <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 text-left tracking-tight"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2>
+               <div className="flex flex-col gap-4 mb-8">
                   <IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" />
                   <IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} />
                </div>
-               <button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-3xl shadow-2xl shadow-amber-500/40 text-lg uppercase tracking-[0.25em] active:scale-[0.96] transition-all">{t('save_reminder')}</button>
+               <button onClick={handleAddReminder} className="w-full py-4 bg-amber-500 text-white font-black rounded-2xl shadow-lg shadow-amber-500/30 text-base uppercase tracking-[0.2em] active:scale-[0.96] transition-all">{t('save_reminder')}</button>
             </section>
-            <div className="space-y-4">
+            <div className="space-y-2">
                {remindersList.map(r => (
-                  <div key={r.id} className="bg-white dark:bg-slate-800 p-6 rounded-3xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <div key={r.id} className="bg-white dark:bg-slate-800 p-3.5 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm transition-all active:bg-slate-50 dark:active:bg-slate-700/50">
                      <div className="text-left">
-                        <h4 className="font-black text-slate-800 dark:text-white text-lg tracking-tight">{r.title}</h4>
-                        <p className="text-xs text-slate-400 font-black uppercase tracking-[0.2em] mt-1.5">{r.date}</p>
+                        <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{r.title}</h4>
+                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mt-0.5">{r.date}</p>
                      </div>
-                     <button onClick={() => onDeleteReminder?.(r.id)} className="p-3.5 text-rose-500 active:scale-90 transition-all"><Trash2 className="w-6 h-6" /></button>
+                     <button onClick={() => onDeleteReminder?.(r.id)} className="p-1.5 text-rose-500 active:scale-90 transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
                   </div>
                ))}
             </div>
