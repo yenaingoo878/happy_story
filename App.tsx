@@ -92,12 +92,10 @@ function App() {
     if (session || isGuestMode) {
         const loadData = async () => {
           setIsLoading(true);
-          // Initial fast load from local DB
           await initDB();
           await refreshData();
           setIsLoading(false);
 
-          // Trigger background sync if online and configured
           if (navigator.onLine && session && isSupabaseConfigured()) {
             setIsSyncing(true);
             syncData().then(() => {
@@ -257,7 +255,6 @@ function App() {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  // Logic for passcode entry
   useEffect(() => {
       if (passcodeInput.length === 4) {
           const timeout = setTimeout(() => {
@@ -438,7 +435,12 @@ function App() {
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden">
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30"><Baby className="w-6 h-6 text-white"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1></div>
+          <div className="flex items-center gap-3 mb-10 pl-2">
+            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1">
+              <img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/>
+            </div>
+            <h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1>
+          </div>
           <nav className="flex-1 space-y-1">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;

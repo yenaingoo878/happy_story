@@ -69,10 +69,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
       <div className="w-full max-w-sm text-center relative z-10 animate-fade-in">
          {/* Brand */}
          <div className="flex flex-col items-center mb-10">
-            <div className="w-20 h-20 bg-primary rounded-[28px] flex items-center justify-center shadow-xl mb-4 transform -rotate-6">
-                <Baby className="w-10 h-10 text-white" />
+            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 overflow-hidden p-2">
+                <img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/>
             </div>
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Little Moments</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-60">Precious Memories</p>
          </div>
 
          {/* Email Login Form (Primary) */}
