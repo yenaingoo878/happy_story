@@ -27,14 +27,13 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Passcode states
+  // Passcode states - Enforced strictly 4 digits
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
-  const passcodeInputRef = useRef<HTMLInputElement>(null);
 
   const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'REMINDER' | 'STORY', id: string } | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -128,35 +127,35 @@ function App() {
      await refreshData(); setShowConfirmModal(false); setItemToDelete(null);
   };
 
-  const handlePasscodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const validatePasscode = (code: string) => {
+    if (code.length !== 4) return;
+    
     setPasscodeError(false);
-
     if (passcodeMode === 'UNLOCK') {
-      if (passcodeInput === passcode) {
+      if (code === passcode) {
         setIsAppUnlocked(true);
         setShowPasscodeModal(false);
         setPasscodeInput('');
       } else {
         setPasscodeError(true);
-      }
-    } else if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
-      if (passcodeInput.length >= 4) {
-        localStorage.setItem('app_passcode', passcodeInput);
-        setPasscode(passcodeInput);
-        setIsAppUnlocked(true);
-        setShowPasscodeModal(false);
         setPasscodeInput('');
       }
+    } else if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
+      localStorage.setItem('app_passcode', code);
+      setPasscode(code);
+      setIsAppUnlocked(true);
+      setShowPasscodeModal(false);
+      setPasscodeInput('');
     } else if (passcodeMode === 'CHANGE_VERIFY') {
-      if (passcodeInput === passcode) {
+      if (code === passcode) {
         setPasscodeMode('CHANGE_NEW');
         setPasscodeInput('');
       } else {
         setPasscodeError(true);
+        setPasscodeInput('');
       }
     } else if (passcodeMode === 'REMOVE') {
-      if (passcodeInput === passcode) {
+      if (code === passcode) {
         localStorage.removeItem('app_passcode');
         setPasscode(null);
         setIsAppUnlocked(true);
@@ -164,8 +163,22 @@ function App() {
         setPasscodeInput('');
       } else {
         setPasscodeError(true);
+        setPasscodeInput('');
       }
     }
+  };
+
+  // Improved Auto-submit for 4 digits
+  useEffect(() => {
+    if (passcodeInput.length === 4) {
+      const timer = setTimeout(() => validatePasscode(passcodeInput), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [passcodeInput]);
+
+  const handlePasscodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcodeInput.length === 4) validatePasscode(passcodeInput);
   };
 
   const getBirthdayStatus = () => {
@@ -299,38 +312,39 @@ function App() {
       </aside>
       <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
       
-      {/* Passcode Modal */}
+      {/* Strict 4-Digit Passcode Modal */}
       {showPasscodeModal && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/>
-          <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
-            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary"><ShieldCheck className="w-8 h-8"/></div>
-            <h3 className="text-xl font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/>
+          <div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
+            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div>
+            <h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">
               {passcodeMode === 'UNLOCK' ? t('enter_passcode') : 
                passcodeMode === 'SETUP' ? t('create_passcode') : 
                passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
                passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}
             </h3>
-            <p className="text-slate-400 text-[10px] font-bold mb-8 uppercase tracking-widest">
+            <p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">
               {passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}
             </p>
-            <form onSubmit={handlePasscodeSubmit} className="space-y-6">
+            <form onSubmit={handlePasscodeSubmit} className="space-y-8">
               <input 
                 autoFocus 
                 type="password" 
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={6}
+                maxLength={4}
                 value={passcodeInput}
                 onChange={(e) => {
-                  setPasscodeInput(e.target.value);
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setPasscodeInput(val);
                   if (passcodeError) setPasscodeError(false);
                 }}
-                className="w-full text-center text-4xl tracking-[0.8em] font-black bg-slate-50 dark:bg-slate-900/50 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none"
+                className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner"
                 placeholder="••••"
               />
               <div className="flex flex-col gap-2">
-                <button type="submit" className="w-full py-4.5 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/30 active:scale-95 transition-all uppercase tracking-widest text-xs">
+                <button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>
                   {t('confirm')}
                 </button>
                 {passcodeMode !== 'UNLOCK' && (

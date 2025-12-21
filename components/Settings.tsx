@@ -27,24 +27,27 @@ const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placehold
 );
 
 const SettingToggle = ({ icon: Icon, label, sublabel, active, onToggle, colorClass = "text-primary", bgClass = "bg-primary/10" }: any) => (
-  <div className="p-5 flex items-center justify-between group">
+  <button 
+    type="button"
+    onClick={(e) => {
+        e.preventDefault();
+        onToggle();
+    }}
+    className="w-full p-5 flex items-center justify-between group bg-transparent border-none outline-none cursor-pointer active:bg-slate-50 dark:active:bg-slate-700/20 transition-all rounded-2xl"
+  >
      <div className="flex items-center gap-4">
         <div className={`w-10 h-10 rounded-2xl ${bgClass} flex items-center justify-center ${colorClass} shadow-sm transition-transform group-hover:scale-110 duration-300`}>
             <Icon className="w-5 h-5" />
         </div>
         <div className="text-left">
-           <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{label}</h3>
+           <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{label}</h3>
            {sublabel && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sublabel}</p>}
         </div>
      </div>
-     <button 
-       type="button"
-       onClick={(e) => { e.preventDefault(); onToggle(); }} 
-       className={`w-11 h-6 rounded-full transition-all relative flex items-center px-1 shadow-inner ${active ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
-     >
+     <div className={`w-11 h-6 rounded-full transition-all relative flex items-center px-1 shadow-inner ${active ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}>
         <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${active ? 'translate-x-5' : 'translate-x-0'}`} />
-     </button>
-  </div>
+     </div>
+  </button>
 );
 
 interface SettingsProps {
@@ -76,11 +79,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isSavingGrowth, setIsSavingGrowth] = useState(false);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
-  const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({});
   const [newReminder, setNewReminder] = useState({ title: '', date: '' });
-  const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
@@ -89,17 +89,6 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => { if (activeProfileId) { const p = profiles.find(pr => pr.id === activeProfileId); if (p) setEditingProfile(p); } }, [activeProfileId, profiles]);
 
   const triggerSuccess = () => { setShowSuccess(true); setTimeout(() => setShowSuccess(false), 2000); };
-
-  const handleSaveGrowth = async () => {
-      if (newGrowth.month !== undefined && newGrowth.height !== undefined && newGrowth.weight !== undefined && activeProfileId) {
-          setIsSavingGrowth(true);
-          try {
-              await DataService.saveGrowth({ id: editingGrowthId || crypto.randomUUID(), childId: activeProfileId, month: Number(newGrowth.month), height: Number(newGrowth.height), weight: Number(newGrowth.weight), synced: 0 });
-              await onRefreshData(); setNewGrowth({}); setEditingGrowthId(null); triggerSuccess();
-          } catch (e) { alert("Failed to save growth record."); } 
-          finally { setIsSavingGrowth(false); }
-      }
-  };
 
   const handleSaveProfile = async () => {
       if (editingProfile.name && editingProfile.id) {
@@ -131,7 +120,7 @@ export const Settings: React.FC<SettingsProps> = ({
     <div className="max-w-4xl mx-auto px-2 relative">
       {showSuccess && (<div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] animate-fade-in pointer-events-none"><div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-white/20"><CheckCircle2 className="w-5 h-5" /><span className="text-xs font-black uppercase tracking-widest">{t('profile_saved')}</span></div></div>)}
       
-      {view !== 'MAIN' && (<button onClick={() => setView('MAIN')} className="mb-6 flex items-center gap-3 text-slate-500 font-black hover:text-primary transition-colors px-2 text-lg"><ChevronLeft className="w-7 h-7" />{t('back')}</button>)}
+      {view !== 'MAIN' && (<button onClick={() => setView('MAIN')} className="mb-6 flex items-center gap-3 text-slate-500 font-black hover:text-primary transition-colors px-2 text-lg active:scale-95"><ChevronLeft className="w-7 h-7" />{t('back')}</button>)}
       
       {view === 'MAIN' && (
         <div className="animate-fade-in space-y-5 pb-32">
@@ -140,7 +129,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-tight">{t('settings_title')}</h1>
                 <p className="text-slate-500 dark:text-slate-400 font-bold text-sm mt-0.5">{t('settings_subtitle')}</p>
             </div>
-            <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><SettingsIcon className="w-5 h-5"/></div>
+            <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner"><SettingsIcon className="w-5 h-5"/></div>
           </div>
 
           {/* User Profile Card */}
@@ -157,15 +146,15 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
             <div className="flex items-center justify-between px-1">
                 <div className="text-left">
-                    <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">{currentProfile?.name}</h2>
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1.5">{currentProfile?.dob}</p>
+                    <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-1">{currentProfile?.name}</h2>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{currentProfile?.dob}</p>
                 </div>
                 <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
             </div>
             {showProfileDetails && !isLocked && (<div className="animate-slide-up space-y-4 pt-5"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em] active:scale-95">{t('save_changes')}</button></div>)}
           </section>
 
-          {/* Personalization Section */}
+          {/* App Settings Section */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('app_settings')}</h3></div>
             
@@ -179,28 +168,28 @@ export const Settings: React.FC<SettingsProps> = ({
               bgClass="bg-indigo-50 dark:bg-indigo-900/20"
             />
 
-            {/* Language Selection: MM / EN Buttons */}
+            {/* Language Selector: MM / EN Segmented Control */}
             <div className="p-5 flex items-center justify-between group">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 shadow-sm transition-transform group-hover:scale-110 duration-300">
                       <Languages className="w-5 h-5" />
                   </div>
                   <div className="text-left">
-                     <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{t('language')}</h3>
+                     <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('language')}</h3>
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}</p>
                   </div>
                </div>
-               <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-600/50">
+               <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-600/50 shadow-inner">
                   <button 
                     type="button"
-                    onClick={() => setLanguage('mm')}
+                    onClick={(e) => { e.preventDefault(); setLanguage('mm'); }}
                     className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     MM
                   </button>
                   <button 
                     type="button"
-                    onClick={() => setLanguage('en')}
+                    onClick={(e) => { e.preventDefault(); setLanguage('en'); }}
                     className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     EN
@@ -219,7 +208,7 @@ export const Settings: React.FC<SettingsProps> = ({
             />
           </section>
 
-          {/* Quick Access Grid */}
+          {/* Quick Access Shortcuts Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
              <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
                 <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300"><Bell className="w-4.5 h-4.5" /></div>
@@ -235,40 +224,42 @@ export const Settings: React.FC<SettingsProps> = ({
              </button>
           </div>
 
+          {/* Security Section */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-5 flex items-center justify-between">
                <div className="flex items-center gap-4">
                   <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm"><ShieldCheck className="w-4.5 h-4.5" /></div>
-                  <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{t('security_title')}</h3>
+                  <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none">{t('security_title')}</h3>
                </div>
                <div className="flex gap-2">
                   {passcode ? (
                     <div className="flex gap-1">
-                      <button onClick={onPasscodeChange} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-primary transition-all active:scale-90"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={onPasscodeRemove} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 transition-all active:scale-90"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => { e.preventDefault(); onPasscodeChange(); }} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-primary transition-all active:scale-90"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => { e.preventDefault(); onPasscodeRemove(); }} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 transition-all active:scale-90"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                  ) : <button onClick={onPasscodeSetup} className="px-4 py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl uppercase tracking-widest active:scale-95 shadow-md shadow-indigo-500/20">{t('setup_passcode')}</button>}
+                  ) : <button onClick={(e) => { e.preventDefault(); onPasscodeSetup(); }} className="px-4 py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl uppercase tracking-widest active:scale-95 shadow-md shadow-indigo-500/20">{t('setup_passcode')}</button>}
                </div>
             </div>
           </section>
 
-          {/* Account & Logout Section at the Bottom */}
-          <section className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700 p-5 mt-10 shadow-sm">
+          {/* Account Details & Logout Card at the Bottom */}
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700 p-5 mt-10 shadow-sm mb-12">
              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                    <div className="w-12 h-12 bg-slate-50 dark:bg-slate-700 rounded-2xl shadow-inner flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-600">
                       <CircleUser className="w-6 h-6" />
                    </div>
                    <div className="text-left flex-1 min-w-0">
-                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight uppercase tracking-widest">{isGuestMode ? 'Guest Mode' : 'Account Active'}</h4>
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight uppercase tracking-widest">{isGuestMode ? 'Guest Session' : 'Account Active'}</h4>
                       <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mt-1">
                          <Mail className="w-3.5 h-3.5 shrink-0" />
-                         <span className="truncate max-w-[180px]">{isGuestMode ? 'Locally Stored Data' : (session?.user?.email || 'Logged In')}</span>
+                         <span className="truncate max-w-[200px]">{isGuestMode ? 'Local Storage Only' : (session?.user?.email || 'Authenticated')}</span>
                       </div>
                    </div>
                 </div>
                 <button 
-                  onClick={onLogout} 
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); onLogout(); }} 
                   className="w-full sm:w-auto px-6 py-4 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-500 hover:text-white text-rose-500 text-[11px] font-black rounded-2xl uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/20"
                 >
                    <LogOut className="w-4 h-4" />
@@ -284,7 +275,7 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="space-y-4 animate-fade-in pb-32 px-1">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2>
-              <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Filter className="w-5 h-5" /></div>
+              <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner"><Filter className="w-5 h-5" /></div>
             </div>
             {memories.length > 0 ? (
                 <div className="grid gap-3">
@@ -292,8 +283,8 @@ export const Settings: React.FC<SettingsProps> = ({
                       <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
                          <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
                          <div className="flex-1 min-w-0 text-left">
-                            <h4 className="font-black text-slate-800 dark:text-white text-sm truncate">{m.title}</h4>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
+                            <h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
                          </div>
                          <div className="flex gap-1 pr-1">
                             <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4.5 h-4.5" /></button>
@@ -312,7 +303,7 @@ export const Settings: React.FC<SettingsProps> = ({
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-6 animate-fade-in pb-32 px-1">
             <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
-                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2>
+                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2>
                 <div className="flex flex-col gap-4 mb-8">
                     <IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" />
                     <IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} />
@@ -322,7 +313,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="space-y-2">
                {remindersList.map(r => (
                    <div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all">
-                       <div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{r.date}</p></div>
+                       <div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div>
                        <button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button>
                    </div>
                ))}
@@ -335,11 +326,11 @@ export const Settings: React.FC<SettingsProps> = ({
         <div className="space-y-4 animate-fade-in pb-32 px-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2>
-            <div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500"><BookOpen className="w-5 h-5" /></div>
+            <div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div>
           </div>
           {stories.length > 0 ? stories.map(s => (
             <div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200">
-              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px]">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button></div>
+              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button></div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p>
             </div>
           )) : (
