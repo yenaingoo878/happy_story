@@ -277,11 +277,11 @@ export const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50">
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
                     <button 
                       onClick={handleSaveProfile} 
                       disabled={isSavingProfile} 
-                      className="w-full py-4.5 bg-primary text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-primary/20"
+                      className="flex-1 py-4 bg-primary text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-primary/20"
                     >
                       {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                       {t('save_changes')}
@@ -289,10 +289,10 @@ export const Settings: React.FC<SettingsProps> = ({
                     <button 
                       onClick={() => { if(editingProfile.id) { onDeleteProfile(editingProfile.id); setShowProfileDetails(false); } }}
                       disabled={isSavingProfile || profiles.length <= 1}
-                      className="w-full mt-3 py-4 bg-transparent text-rose-500 font-bold rounded-2xl text-xs uppercase tracking-widest active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label={t('delete_profile')}
+                      className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl active:scale-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      {t('delete_profile')}
+                      <Trash2 className="w-5 h-5" />
                     </button>
                 </div>
               </div>
