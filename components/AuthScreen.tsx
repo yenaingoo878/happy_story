@@ -101,7 +101,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                 </div>
-                <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={loading} className="w-full py-4.5 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><LogIn className="w-5 h-5"/> {isSignUp ? t('sign_up') : t('sign_in')}</>}
                 </button>
             </form>

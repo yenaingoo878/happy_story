@@ -117,7 +117,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
               <BookOpen className="w-5 h-5 mr-2" />
               <span className="font-bold">{t('result_title')}</span>
             </div>
-            <button onClick={handleSaveEbook} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+            <button onClick={handleSaveEbook} disabled={isSaving} className="flex items-center gap-2 px-5 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
               {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {language === 'mm' ? 'Ebook အဖြစ်သိမ်းမည်' : 'Save as Ebook'}
             </button>
