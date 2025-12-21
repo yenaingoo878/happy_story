@@ -1,17 +1,15 @@
 import React from 'react';
 import { Memory, Language } from '../types';
-import { X, Calendar, Tag, Pencil, Trash2 } from 'lucide-react';
+import { X, Calendar, Tag } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 
 interface MemoryDetailModalProps {
   memory: Memory | null;
   language: Language;
   onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
 }
 
-export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose, onEdit, onDelete }) => {
+export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose }) => {
   if (!memory) return null;
   const t = (key: any) => getTranslation(language, key);
 
@@ -70,21 +68,6 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
           )}
         </div>
         
-        {/* Footer with actions */}
-        <div className="p-4 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex gap-3 shrink-0">
-            <button 
-                onClick={onEdit}
-                className="flex-1 py-4 bg-primary/10 text-primary font-black rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2">
-                <Pencil className="w-4 h-4" />
-                {t('edit')}
-            </button>
-            <button 
-                onClick={() => { onDelete(); onClose(); }} 
-                className="px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-black rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center">
-                <Trash2 className="w-4 h-4" />
-            </button>
-        </div>
-
       </div>
     </div>
   );

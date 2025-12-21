@@ -384,7 +384,7 @@ function App() {
         </div>
       )}
 
-      {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => { setEditingMemory(selectedMemory); setActiveTab(TabView.ADD_MEMORY); setSelectedMemory(null); }} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory.id}); setShowConfirmModal(true); }} /></Suspense>)}
+      {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} /></Suspense>)}
       {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => { setItemToDelete({type:'STORY', id:selectedStory.id}); setShowConfirmModal(true); }} /></Suspense>)}
 
       {showConfirmModal && (
