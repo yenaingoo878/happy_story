@@ -153,7 +153,7 @@ export const Settings: React.FC<SettingsProps> = ({
     <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade-in text-center">
       <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-primary/10"><Lock className="w-10 h-10 text-primary" /></div>
       <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('private_info')}</h2><p className="text-slate-400 font-bold text-sm mb-12 max-w-[240px] leading-relaxed">{t('locked_msg')}</p>
-      <button onClick={onUnlockRequest} className="px-14 py-4.5 bg-slate-900 dark:bg-primary text-white text-sm font-black rounded-[2rem] shadow-xl uppercase tracking-[0.2em] transition-all active:scale-95">{t('tap_to_unlock')}</button>
+      <button onClick={onUnlockRequest} className="px-14 py-5 bg-slate-900 dark:bg-primary text-white text-sm font-black rounded-[2rem] shadow-xl uppercase tracking-[0.2em] transition-all active:scale-95">{t('tap_to_unlock')}</button>
     </div>
   );
 
@@ -342,9 +342,11 @@ export const Settings: React.FC<SettingsProps> = ({
             />
           </section>
 
-          {/* Quick Access List */}
-          <div className="flex flex-col gap-3 px-1">
-             <button onClick={() => setView('GROWTH')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+          {/* Data & Content Section */}
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
+            <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('data_management')}</h3></div>
+            
+             <button onClick={() => setView('GROWTH')} className="w-full text-left p-5 flex items-center group transition-colors active:bg-slate-50 dark:active:bg-slate-700/20">
                 <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300 mr-4">
                    <Activity className="w-5 h-5" />
                 </div>
@@ -354,7 +356,7 @@ export const Settings: React.FC<SettingsProps> = ({
                    <ChevronRight className="w-4 h-4"/>
                 </div>
              </button>
-             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+             <button onClick={() => setView('REMINDERS')} className="w-full text-left p-5 flex items-center group transition-colors active:bg-slate-50 dark:active:bg-slate-700/20">
                 <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 mr-4">
                    <Bell className="w-5 h-5" />
                 </div>
@@ -364,7 +366,7 @@ export const Settings: React.FC<SettingsProps> = ({
                    <ChevronRight className="w-4 h-4"/>
                 </div>
              </button>
-             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+             <button onClick={() => setView('STORIES')} className="w-full text-left p-5 flex items-center group transition-colors active:bg-slate-50 dark:active:bg-slate-700/20">
                 <div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300 mr-4">
                    <BookOpen className="w-5 h-5" />
                 </div>
@@ -374,7 +376,7 @@ export const Settings: React.FC<SettingsProps> = ({
                    <ChevronRight className="w-4 h-4"/>
                 </div>
              </button>
-             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+             <button onClick={() => setView('MEMORIES')} className="w-full text-left p-5 flex items-center group transition-colors active:bg-slate-50 dark:active:bg-slate-700/20">
                 <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300 mr-4">
                    <ImageIcon className="w-5 h-5" />
                 </div>
@@ -384,7 +386,7 @@ export const Settings: React.FC<SettingsProps> = ({
                    <ChevronRight className="w-4 h-4"/>
                 </div>
              </button>
-          </div>
+          </section>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-5 flex items-center justify-between">
