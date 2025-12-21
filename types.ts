@@ -13,6 +13,15 @@ export interface Memory {
   synced?: number; 
 }
 
+export interface Story {
+  id: string;
+  childId: string;
+  title: string;
+  content: string;
+  date: string;
+  synced?: number;
+}
+
 export interface GrowthData {
   id?: string;
   childId: string;
@@ -58,5 +67,6 @@ export enum TabView {
   STORY = 'STORY',
   GROWTH = 'GROWTH',
   GALLERY = 'GALLERY',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  STORIES = 'STORIES'
 }

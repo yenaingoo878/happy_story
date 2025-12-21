@@ -1,10 +1,11 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Memory, GrowthData, ChildProfile, Reminder } from '../types';
+import { Memory, GrowthData, ChildProfile, Reminder, Story } from '../types';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
+  stories: Table<Story>;
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
@@ -13,8 +14,9 @@ export type LittleMomentsDB = Dexie & {
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
 // Store definitions
-db.version(4).stores({
+db.version(5).stores({
   memories: 'id, childId, date, synced',
+  stories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
   profiles: 'id, name, synced',
   reminders: 'id, date, synced'
@@ -27,9 +29,6 @@ export const initDB = async () => {
       if (!db.isOpen()) {
         await db.open();
       }
-      console.log("Local Database Initialized Successfully");
-      // CRITICAL: We no longer wait for syncData here to speed up app loading.
-      // Syncing is triggered in the background by App.tsx
       return { success: true };
   } catch (err: any) {
       console.error("Failed to open db:", err);
@@ -53,7 +52,14 @@ export const syncData = async () => {
 
         let errors: string[] = [];
 
-        // --- PUSH ---
+        // Push Stories
+        const unsyncedStories = await db.stories.where('synced').equals(0).toArray();
+        for (const s of unsyncedStories) {
+            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
+            if (!error) await db.stories.update(s.id, { synced: 1 });
+            else errors.push(`Stories Push: ${error.message}`);
+        }
+
         // Memories
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         for (const mem of unsyncedMemories) {
@@ -86,28 +92,23 @@ export const syncData = async () => {
             else errors.push(`Reminders Push: ${error.message}`);
         }
 
-        // --- PULL ---
-        const { data: profiles, error: pError } = await supabase.from('child_profile').select('*');
-        if (profiles) await db.profiles.bulkPut(profiles.map(p => ({ ...p, synced: 1 })));
-        else if (pError) errors.push(`Profiles Pull: ${pError.message}`);
+        // Pulling Logic
+        const { data: profileData } = await supabase.from('child_profile').select('*');
+        if (profileData) await db.profiles.bulkPut(profileData.map(p => ({ ...p, synced: 1 })));
 
-        const { data: growth, error: gError } = await supabase.from('growth_data').select('*');
-        if (growth) await db.growth.bulkPut(growth.map(g => ({ ...g, synced: 1 })));
-        else if (gError) errors.push(`Growth Pull: ${gError.message}`);
+        const { data: storyData } = await supabase.from('stories').select('*');
+        if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1 })));
 
-        const { data: memories, error: mError } = await supabase.from('memories').select('*');
-        if (memories) await db.memories.bulkPut(memories.map(m => ({ ...m, synced: 1 })));
-        else if (mError) errors.push(`Memories Pull: ${mError.message}`);
+        const { data: growthData } = await supabase.from('growth_data').select('*');
+        if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1 })));
 
-        const { data: reminders, error: rError } = await supabase.from('reminders').select('*');
-        if (reminders) await db.reminders.bulkPut(reminders.map(r => ({ ...r, synced: 1 })));
-        else if (rError) errors.push(`Reminders Pull: ${rError.message}`);
+        const { data: memoryData } = await supabase.from('memories').select('*');
+        if (memoryData) await db.memories.bulkPut(memoryData.map(m => ({ ...m, synced: 1 })));
+
+        const { data: reminderData } = await supabase.from('reminders').select('*');
+        if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1 })));
         
-        if (errors.length > 0) {
-            return { success: false, reason: errors.join('; ') };
-        }
-
-        return { success: true };
+        return { success: errors.length === 0 };
     } catch (err: any) {
         console.error("Sync process failed:", err);
         return { success: false, error: err.message };
@@ -115,16 +116,6 @@ export const syncData = async () => {
 };
 
 export const DataService = {
-    testSupabaseConnection: async () => {
-        try {
-            const { data, error } = await supabase.from('child_profile').select('count', { count: 'exact', head: true });
-            if (error) throw error;
-            return { success: true };
-        } catch (e: any) {
-            return { success: false, error: e.message };
-        }
-    },
-
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         if (!isSupabaseConfigured()) {
             return URL.createObjectURL(file);
@@ -154,6 +145,19 @@ export const DataService = {
     deleteMemory: async (id: string) => {
         await db.memories.delete(id);
         if (navigator.onLine && isSupabaseConfigured()) await supabase.from('memories').delete().eq('id', id);
+    },
+
+    getStories: async (childId?: string) => {
+        if (childId) return await db.stories.where('childId').equals(childId).reverse().sortBy('date');
+        return await db.stories.orderBy('date').reverse().toArray();
+    },
+    addStory: async (story: Story) => {
+        await db.stories.put({ ...story, synced: 0 });
+        if (isSupabaseConfigured()) await syncData();
+    },
+    deleteStory: async (id: string) => {
+        await db.stories.delete(id);
+        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('stories').delete().eq('id', id);
     },
 
     getGrowth: async (childId?: string) => {
@@ -191,10 +195,5 @@ export const DataService = {
     deleteReminder: async (id: string) => {
         await db.reminders.delete(id);
         if (navigator.onLine && isSupabaseConfigured()) await supabase.from('reminders').delete().eq('id', id);
-    },
-
-    resetLocalDatabase: async () => {
-        await db.delete();
-        window.location.reload();
     }
 };
