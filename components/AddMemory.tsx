@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Loader2, Save, Tag, X, Image as ImageIcon } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -24,7 +24,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   
   const getTodayLocal = () => {
     const d = new Date();
@@ -133,12 +132,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
           };
           await DataService.addMemory(memory);
         }
-        
-        setShowSuccess(true);
-        setTimeout(() => {
-          setShowSuccess(false);
-          onSaveComplete();
-        }, 1500);
+        onSaveComplete();
     } catch (error) {
         console.error("Save failed", error);
         alert("Failed to save memory.");
@@ -157,18 +151,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto relative">
-        {showSuccess && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in pointer-events-none">
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-8 rounded-[40px] shadow-2xl flex flex-col items-center gap-4 animate-zoom-in border border-white/20">
-              <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
-                <CheckCircle2 className="w-12 h-12" />
-              </div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('profile_saved')}</h3>
-            </div>
-          </div>
-        )}
-
+    <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6 px-1">
             <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
             {editMemory && <button onClick={onCancel} disabled={isSaving} className="text-sm font-bold text-slate-500 disabled:opacity-50">{t('cancel_btn')}</button>}
