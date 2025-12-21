@@ -385,38 +385,31 @@ function App() {
               </div>
             </div>
 
-            {/* Sub View List: Recent Memories */}
+            {/* Sub View List: Recent Memories - No Passcode protection here as per user request */}
             <div className="mt-8 animate-slide-up">
               <div className="flex justify-between items-center mb-5 px-2">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
                 <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
               </div>
               
-              {isLocked ? (
-                <div onClick={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-3 active:scale-95 transition-all cursor-pointer shadow-sm">
-                   <div className="w-12 h-12 bg-slate-50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-slate-300"><Lock className="w-6 h-6" /></div>
-                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('locked_msg')}</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                   {memories.slice(0, 4).map(m => (
-                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
-                         <div className="w-16 h-16 rounded-[22px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
-                         <div className="flex-1 min-w-0">
-                            <h4 className="font-black text-slate-800 dark:text-white truncate text-base tracking-tight leading-none mb-1.5">{m.title}</h4>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
-                         </div>
-                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-5 h-5" /></div>
-                      </div>
-                   ))}
-                   {memories.length === 0 && (
-                      <div className="py-10 text-center bg-white dark:bg-slate-800 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
-                         <ImageIcon className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                         <p className="text-sm font-bold text-slate-400">{t('no_photos')}</p>
-                      </div>
-                   )}
-                </div>
-              )}
+              <div className="space-y-3">
+                 {memories.slice(0, 4).map(m => (
+                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-3.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                       <div className="w-16 h-16 rounded-[22px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                       <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-slate-800 dark:text-white truncate text-base tracking-tight leading-none mb-1.5">{m.title}</h4>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                       </div>
+                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-5 h-5" /></div>
+                    </div>
+                 ))}
+                 {memories.length === 0 && (
+                    <div className="py-10 text-center bg-white dark:bg-slate-800 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
+                       <ImageIcon className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                       <p className="text-sm font-bold text-slate-400">{t('no_photos')}</p>
+                    </div>
+                 )}
+              </div>
             </div>
           </div>
         );
