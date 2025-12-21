@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles, ShieldCheck, Heart, LogIn, UserCircle } from 'lucide-react';
@@ -76,8 +75,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
             <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-60">Precious Memories</p>
          </div>
 
-         {/* Email Login Form (Primary) */}
-         <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md p-8 rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-700/50 mb-8">
+         {/* Combined Auth Card */}
+         <div className="bg-white dark:bg-slate-800 backdrop-blur-md p-8 rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-700/50">
             <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mb-6">
                 {isSignUp ? t('sign_up') : t('sign_in')}
             </h2>
@@ -101,7 +100,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                 </div>
-                <button type="submit" disabled={loading} className="w-full py-4.5 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><LogIn className="w-5 h-5"/> {isSignUp ? t('sign_up') : t('sign_in')}</>}
                 </button>
             </form>
@@ -109,27 +108,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
             <button onClick={() => setIsSignUp(!isSignUp)} className="mt-6 text-xs font-bold text-slate-400 hover:text-primary transition-colors">
                 {isSignUp ? t('have_account') : t('no_account')} <span className="text-primary underline underline-offset-4 ml-1">{isSignUp ? t('sign_in') : t('sign_up')}</span>
             </button>
-         </div>
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-slate-200 dark:border-slate-700" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white dark:bg-slate-800 px-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  {language === 'mm' ? 'သို့မဟုတ်' : 'OR'}
+                </span>
+              </div>
+            </div>
 
-         {/* Guest Mode (Secondary) */}
-         <div className="space-y-4">
-            <p className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em] mb-4">
-                {language === 'mm' ? 'သို့မဟုတ်' : 'OR'}
-            </p>
             <button 
               onClick={onGuestLogin}
-              className="w-full py-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3"
+              className="w-full py-4 bg-white dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 font-bold rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3"
             >
               <UserCircle className="w-5 h-5" />
               {language === 'mm' ? 'ဧည့်သည်အဖြစ် အသုံးပြုမည်' : 'Continue as Guest'}
             </button>
-            
-            <div className="flex items-center justify-center gap-2 py-4 text-slate-400">
-               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-               <span className="text-[10px] font-bold uppercase tracking-widest">
-                 {language === 'mm' ? 'သင့်ဖုန်းထဲတွင်သာ သိမ်းဆည်းမည်' : 'Private • Saved Locally'}
-               </span>
-            </div>
          </div>
       </div>
     </div>
