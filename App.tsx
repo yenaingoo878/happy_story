@@ -8,10 +8,9 @@ const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(mod
 const AddMemory = React.lazy(() => import('./components/AddMemory').then(module => ({ default: module.AddMemory })));
 const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
-const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 
 import { AuthScreen } from './components/AuthScreen';
-import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
+import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder } from './types';
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
@@ -19,7 +18,6 @@ import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -27,6 +25,7 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Passcode Logic
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
@@ -35,38 +34,64 @@ function App() {
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
   const passcodeInputRef = useRef<HTMLInputElement>(null);
 
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'REMINDER' | 'STORY', id: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'REMINDER', id: string } | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [stories, setStories] = useState<Story[]>([]);
   const [profiles, setProfiles] = useState<ChildProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
-  const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES'>('MAIN');
+  const [settingsInitialView, setSettingsInitialView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS'>('MAIN');
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => {
     return localStorage.getItem('reminders_enabled') !== 'false';
   });
 
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'mm');
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
+
+  const [language, setLanguage] = useState<Language>(() => {
+     return (localStorage.getItem('language') as Language) || 'mm';
+  });
+
+  const [theme, setTheme] = useState<Theme>(() => {
+     return (localStorage.getItem('theme') as Theme) || 'light';
+  });
+
   const t = (key: any) => getTranslation(language, key);
 
-  useEffect(() => { if (!passcode) setIsAppUnlocked(true); }, [passcode]);
-  useEffect(() => { if (showPasscodeModal) setTimeout(() => passcodeInputRef.current?.focus(), 100); }, [showPasscodeModal]);
+  useEffect(() => {
+    if (!passcode) {
+      setIsAppUnlocked(true);
+    }
+  }, [passcode]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) { setAuthLoading(false); return; }
+    if (showPasscodeModal) {
+      setTimeout(() => passcodeInputRef.current?.focus(), 100);
+    }
+  }, [showPasscodeModal]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setAuthLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }: any) => {
       setSession(data?.session || null);
       setAuthLoading(false);
-    }).catch(() => setAuthLoading(false));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
+    }).catch(() => {
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    
     return () => subscription.unsubscribe();
   }, []);
 
@@ -77,9 +102,13 @@ function App() {
           await initDB();
           await refreshData();
           setIsLoading(false);
+
           if (navigator.onLine && session && isSupabaseConfigured()) {
             setIsSyncing(true);
-            syncData().then(() => { refreshData(); setIsSyncing(false); }).catch(() => setIsSyncing(false));
+            syncData().then(() => {
+              refreshData();
+              setIsSyncing(false);
+            }).catch(() => setIsSyncing(false));
           }
         };
         loadData();
@@ -91,12 +120,19 @@ function App() {
         setIsOnline(true); 
         if(session && isSupabaseConfigured()) {
           setIsSyncing(true);
-          syncData().then(() => { refreshData(); setIsSyncing(false); });
+          syncData().then(() => {
+            refreshData();
+            setIsSyncing(false);
+          });
         }
     };
+    const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', () => setIsOnline(false));
-    return () => { window.removeEventListener('online', handleOnline); };
+    window.addEventListener('offline', handleOffline);
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
   }, [session]);
 
   useEffect(() => {
@@ -105,15 +141,64 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const toggleReminders = () => {
+    const newVal = !remindersEnabled;
+    setRemindersEnabled(newVal);
+    localStorage.setItem('reminders_enabled', String(newVal));
+  };
+
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
+
+  const getBirthdayStatus = () => {
+    if (!activeProfile.dob) return 'NONE';
+    const today = new Date();
+    const dob = new Date(activeProfile.dob);
+    const isBirthdayToday = today.getMonth() === dob.getMonth() && today.getDate() === dob.getDate();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const isBirthdayTomorrow = tomorrow.getMonth() === dob.getMonth() && tomorrow.getDate() === dob.getDate();
+    if (isBirthdayToday) return 'TODAY';
+    if (isBirthdayTomorrow) return 'TOMORROW';
+    return 'NONE';
+  };
+
+  const getActiveReminders = () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      return reminders.filter(r => r.date === todayStr);
+  };
+
+  const BirthdayCelebration = () => {
+    const particles = useMemo(() => {
+      const colors = ['bg-rose-400', 'bg-blue-400', 'bg-yellow-400', 'bg-emerald-400', 'bg-violet-400', 'bg-orange-400'];
+      const explosive = Array.from({ length: 60 }).map((_, i) => ({
+        id: `burst-${i}`,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        left: '50%',
+        top: '50%',
+        delay: `${Math.random() * 0.5}s`,
+        tx: `${(Math.random() - 0.5) * 800}px`,
+        ty: `${(Math.random() - 0.5) * 800}px`,
+        rotate: `${Math.random() * 720}deg`,
+        size: `${Math.random() * 10 + 6}px`,
+        type: 'burst'
+      }));
+      return explosive;
+    }, []);
+
+    return (
+      <div className="fixed inset-0 pointer-events-none z-[1000] overflow-hidden">
+        {particles.map(p => (
+          <div key={p.id} className={`celebration-particle ${p.color} animate-confetti-burst`} style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDelay: p.delay, borderRadius: '50%', '--tw-translate-x': p.tx, '--tw-translate-y': p.ty, '--tw-rotate': p.rotate } as any} />
+        ))}
+      </div>
+    );
+  };
 
   const loadChildData = async (childId: string) => {
       const mems = await DataService.getMemories(childId);
-      const strs = await DataService.getStories(childId);
       const growth = await DataService.getGrowth(childId);
       const rems = await DataService.getReminders();
       setMemories(mems);
-      setStories(strs);
       setGrowthData(growth);
       setReminders(rems);
   };
@@ -121,13 +206,22 @@ function App() {
   const refreshData = async () => {
       let fetchedProfiles = await DataService.getProfiles();
       if (fetchedProfiles.length === 0) {
-          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: 'My Child', dob: new Date().toISOString().split('T')[0], gender: 'boy', synced: 0 };
+          const defaultProfile: ChildProfile = {
+              id: crypto.randomUUID(),
+              name: 'My Child',
+              dob: new Date().toISOString().split('T')[0],
+              gender: 'boy',
+              synced: 0
+          };
           await DataService.saveProfile(defaultProfile);
           fetchedProfiles = [defaultProfile];
       }
       setProfiles(fetchedProfiles);
       let targetId = activeProfileId;
-      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) { targetId = fetchedProfiles[0].id || ''; setActiveProfileId(targetId); }
+      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
+         targetId = fetchedProfiles[0].id || '';
+         setActiveProfileId(targetId);
+      }
       if (targetId) await loadChildData(targetId);
   };
 
@@ -140,23 +234,70 @@ function App() {
   };
 
   const handleLogout = async () => {
-      try { if (session && isSupabaseConfigured()) await supabase.auth.signOut(); } 
-      catch (e) { console.error("Logout error", e); } 
-      finally {
+      try { 
+          if (session && isSupabaseConfigured()) {
+            await supabase.auth.signOut();
+          } 
+      } catch (e) {
+        console.error("Logout error", e);
+      } finally {
           localStorage.removeItem('guest_mode');
           setIsGuestMode(false);
           setSession(null);
-          setProfiles([]); setMemories([]); setStories([]); setGrowthData([]); setReminders([]);
+          setProfiles([]); 
+          setMemories([]); 
+          setGrowthData([]); 
+          setReminders([]);
           setActiveTab(TabView.HOME);
           setIsAppUnlocked(false);
           setShowPasscodeModal(false);
       }
   };
 
+  const handleEditStart = (memory: Memory) => {
+    setEditingMemory(memory);
+    setSelectedMemory(null);
+    setActiveTab(TabView.ADD_MEMORY);
+  };
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+  useEffect(() => {
+      if (passcodeInput.length === 4) {
+          const timeout = setTimeout(() => {
+              if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
+                  localStorage.setItem('app_passcode', passcodeInput);
+                  setPasscode(passcodeInput); 
+                  setIsAppUnlocked(true);
+                  setShowPasscodeModal(false); 
+                  setPasscodeInput('');
+                  return;
+              }
+              
+              if (passcodeInput === passcode) {
+                  setIsAppUnlocked(true); 
+                  setShowPasscodeModal(false); 
+                  setPasscodeInput('');
+                  if (passcodeMode === 'CHANGE_VERIFY') { 
+                    setPasscodeMode('CHANGE_NEW'); 
+                    setShowPasscodeModal(true);
+                  } else if (passcodeMode === 'REMOVE') { 
+                    localStorage.removeItem('app_passcode'); 
+                    setPasscode(null); 
+                  }
+              } else {
+                  setPasscodeError(true); 
+                  setPasscodeInput('');
+                  setTimeout(() => setPasscodeError(false), 800);
+              }
+          }, 200);
+          return () => clearTimeout(timeout);
+      }
+  }, [passcodeInput, passcodeMode, passcode]);
+
   const executeDelete = async () => {
      if (!itemToDelete) return;
      if (itemToDelete.type === 'MEMORY') await DataService.deleteMemory(itemToDelete.id);
-     else if (itemToDelete.type === 'STORY') await DataService.deleteStory(itemToDelete.id);
      else if (itemToDelete.type === 'GROWTH') await DataService.deleteGrowth(itemToDelete.id);
      else if (itemToDelete.type === 'PROFILE') await DataService.deleteProfile(itemToDelete.id);
      else if (itemToDelete.type === 'REMINDER') await DataService.deleteReminder(itemToDelete.id);
@@ -173,17 +314,59 @@ function App() {
   ];
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
-  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => { setIsGuestMode(true); localStorage.setItem('guest_mode', 'true'); }} />;
+  
+  if (!session && !isGuestMode) {
+    return (
+      <AuthScreen 
+        language={language} 
+        setLanguage={setLanguage} 
+        onGuestLogin={() => {
+          setIsGuestMode(true);
+          localStorage.setItem('guest_mode', 'true');
+        }} 
+      />
+    );
+  }
 
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
-    const activeRemindersList = reminders.filter(r => r.date === new Date().toISOString().split('T')[0]);
+    const bStatus = getBirthdayStatus();
+    const activeRemindersList = getActiveReminders();
 
     switch (activeTab) {
       case TabView.HOME:
         const latestMemory = memories[0];
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
+            {remindersEnabled && bStatus === 'TODAY' && <BirthdayCelebration />}
+            {remindersEnabled && (
+                <div className="space-y-3 mb-6">
+                    {showBirthdayBanner && bStatus !== 'NONE' && (
+                       <div className={`rounded-3xl p-5 text-white shadow-xl relative animate-zoom-in overflow-hidden ${bStatus === 'TODAY' ? 'bg-gradient-to-br from-rose-400 via-pink-500 to-purple-600' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
+                           <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none"><Sparkles className="w-24 h-24 rotate-12" /></div>
+                           <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-3 right-3 p-1.5 bg-white/20 rounded-full hover:bg-white/30 z-20 transition-colors"><X className="w-4 h-4"/></button>
+                           <div className="flex items-center gap-4 relative z-10">
+                               <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/30">
+                                   {bStatus === 'TODAY' ? <Gift className="w-8 h-8 animate-bounce" /> : <Calendar className="w-8 h-8 animate-pulse" />}
+                               </div>
+                               <div>
+                                   <h3 className="font-extrabold text-xl leading-tight">{bStatus === 'TODAY' ? t('happy_birthday_title') : t('birthday_tomorrow_title')}</h3>
+                                   <p className="text-sm font-medium opacity-90 mt-0.5">{bStatus === 'TODAY' ? t('happy_birthday_msg').replace('{name}', activeProfile.name) : t('birthday_tomorrow_msg').replace('{name}', activeProfile.name)}</p>
+                               </div>
+                           </div>
+                       </div>
+                    )}
+                    {activeRemindersList.map(rem => (
+                        <div key={rem.id} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between animate-slide-up hover:border-primary/30 transition-colors btn-active-scale">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary"><Bell className="w-5 h-5"/></div>
+                                <div><h4 className="font-bold text-slate-800 dark:text-slate-100">{rem.title}</h4><p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('nav_home')}</p></div>
+                            </div>
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-full uppercase">Today</div>
+                        </div>
+                    ))}
+                </div>
+            )}
             <div className="flex justify-between items-center mb-2">
                <div><h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1><p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">{new Date().toLocaleDateString('en-GB')}{session && isSupabaseConfigured() && (<span onClick={handleManualSync} className={`cursor-pointer transition-colors ${isOnline ? 'text-teal-500' : 'text-slate-300'}`}>{isSyncing ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Cloud className="w-3 h-3"/>}</span>)}</p></div>
                {activeProfile.profileImage && (<div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white dark:border-slate-700 shadow-md ring-4 ring-slate-100 dark:ring-slate-800/50 transition-all"><img src={activeProfile.profileImage} className="w-full h-full object-cover" alt="Profile"/></div>)}
@@ -208,19 +391,30 @@ function App() {
               </div>
             </div>
 
+            {/* Sub View List: Recent Memories - Compact size */}
             <div className="mt-8 animate-slide-up">
               <div className="flex justify-between items-center mb-5 px-2">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
                 <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
               </div>
+              
               <div className="space-y-3">
                  {memories.slice(0, 4).map(m => (
                     <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
                        <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
-                       <div className="flex-1 min-w-0"><h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p></div>
+                       <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                       </div>
                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-4.5 h-4.5" /></div>
                     </div>
                  ))}
+                 {memories.length === 0 && (
+                    <div className="py-10 text-center bg-white dark:bg-slate-800 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
+                       <ImageIcon className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                       <p className="text-sm font-bold text-slate-400">{t('no_photos')}</p>
+                    </div>
+                 )}
               </div>
             </div>
           </div>
@@ -235,20 +429,34 @@ function App() {
                 {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} />}
                 {activeTab === TabView.SETTINGS && (
                   <SettingsComponent 
-                    language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
-                    profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} onRefreshData={refreshData} 
-                    passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
-                    onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
-                    onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} onHideDetails={() => setIsAppUnlocked(false)} 
-                    growthData={growthData} memories={memories} stories={stories} onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }} 
+                    language={language} 
+                    setLanguage={setLanguage} 
+                    theme={theme} 
+                    toggleTheme={toggleTheme} 
+                    profiles={profiles} 
+                    activeProfileId={activeProfileId} 
+                    onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} 
+                    onRefreshData={refreshData} 
+                    passcode={passcode} 
+                    isDetailsUnlocked={isAppUnlocked} 
+                    onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
+                    onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} 
+                    onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
+                    onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} 
+                    onHideDetails={() => setIsAppUnlocked(false)} 
+                    growthData={growthData} 
+                    memories={memories} 
+                    onEditMemory={handleEditStart} 
                     onDeleteMemory={(id) => { setItemToDelete({type:'MEMORY', id}); setShowConfirmModal(true); }} 
-                    onStoryClick={setSelectedStory}
-                    onDeleteStory={(id) => { setItemToDelete({type:'STORY', id}); setShowConfirmModal(true); }}
                     onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }} 
                     onDeleteProfile={(id) => { setItemToDelete({type:'PROFILE', id}); setShowConfirmModal(true); }} 
-                    isGuestMode={isGuestMode} onLogout={handleLogout} initialView={settingsInitialView} remindersEnabled={remindersEnabled} 
-                    toggleReminders={() => { setRemindersEnabled(!remindersEnabled); localStorage.setItem('reminders_enabled', String(!remindersEnabled)); }} 
-                    remindersList={reminders} onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
+                    isGuestMode={isGuestMode} 
+                    onLogout={handleLogout} 
+                    initialView={settingsInitialView} 
+                    remindersEnabled={remindersEnabled} 
+                    toggleReminders={toggleReminders} 
+                    remindersList={reminders} 
+                    onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
                     onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); }} 
                   />
                 )}
@@ -261,27 +469,125 @@ function App() {
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"><img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1></div>
-          <nav className="flex-1 space-y-1">{tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 btn-active-scale ${isActive ? 'bg-primary/10 text-primary font-extrabold shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}><tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/><span className="text-sm">{t(tab.label)}</span></button>); })}</nav>
+          <div className="flex items-center gap-3 mb-10 pl-2">
+            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1">
+              <img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/>
+            </div>
+            <h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1>
+          </div>
+          <nav className="flex-1 space-y-1">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 btn-active-scale ${isActive ? 'bg-primary/10 text-primary font-extrabold shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}><tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/><span className="text-sm">{t(tab.label)}</span></button>);
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-2">
+              <button 
+                onClick={toggleTheme} 
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 btn-active-scale text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400"
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <span className="text-sm">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+              <button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3.5 text-rose-500 font-extrabold hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-2xl transition-colors btn-active-scale"><LogOut className="w-5 h-5"/>{t('logout')}</button>
+          </div>
       </aside>
-      <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
-      
-      {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => { setEditingMemory(selectedMemory); setActiveTab(TabView.ADD_MEMORY); setSelectedMemory(null); }} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory.id}); setShowConfirmModal(true); }} /></Suspense>)}
-      
-      {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => { setItemToDelete({type:'STORY', id:selectedStory.id}); setShowConfirmModal(true); }} /></Suspense>)}
+
+      <main id="root" className="flex-1 px-5 pt-8 min-h-screen md:ml-64 box-border relative overflow-x-hidden">{renderContent()}</main>
+
+      {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => handleEditStart(selectedMemory!)} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory!.id}); setShowConfirmModal(true); }} /></Suspense>)}
 
       {showConfirmModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/>
           <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
             <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div>
-            <h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p>
+            <h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p>
             <div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-extrabold shadow-lg shadow-rose-500/30 btn-primary-active btn-active-scale">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold btn-active-scale">{t('cancel_btn')}</button></div>
           </div>
         </div>
       )}
+
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-3xl animate-fade-in" onClick={() => setShowPasscodeModal(false)}/>
+          <div className="relative w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-[56px] p-12 shadow-2xl animate-zoom-in border border-white/30 flex flex-col items-center">
+            {/* Added missing ShieldCheck icon */}
+            <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mb-10 shadow-lg shadow-primary/10">
+              <ShieldCheck className="w-10 h-10" />
+            </div>
+            
+            <h3 className="text-center font-black text-2xl mb-2 dark:text-white tracking-tight">
+              {passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('security_title')}
+            </h3>
+            <p className="text-slate-400 text-sm font-bold mb-12 uppercase tracking-[0.1em]">{t('enter_passcode')}</p>
+
+            <div className="relative w-full flex flex-col items-center">
+               {/* Invisible Input for better UX/A11y */}
+               <input 
+                 ref={passcodeInputRef}
+                 type="tel" 
+                 pattern="[0-9]*"
+                 inputMode="numeric"
+                 maxLength={4}
+                 value={passcodeInput}
+                 onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    if (val.length <= 4) setPasscodeInput(val);
+                 }}
+                 className="absolute inset-0 opacity-0 cursor-default"
+                 autoFocus
+               />
+
+               {/* Visual Indicator Boxes */}
+               <div className="flex justify-center gap-5 mb-8">
+                {[0, 1, 2, 3].map(i => (
+                  <div 
+                    key={i} 
+                    className={`w-14 h-18 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                      passcodeInput.length === i ? 'border-primary ring-4 ring-primary/10 bg-primary/5 scale-110' : 
+                      passcodeInput.length > i ? 'bg-primary border-primary shadow-lg shadow-primary/20' : 
+                      'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800'
+                    }`}
+                  >
+                    {passcodeInput.length > i ? (
+                      <div className="w-2.5 h-2.5 rounded-full bg-white animate-fade-in" />
+                    ) : (
+                      <div className={`w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 transition-opacity ${passcodeInput.length === i ? 'animate-pulse' : 'opacity-50'}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {passcodeError && (
+                <div className="absolute -bottom-8 flex items-center gap-2 text-rose-500 font-black text-xs animate-bounce">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {t('wrong_passcode')}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-20 flex flex-col items-center gap-6">
+              <button 
+                onClick={() => passcodeInputRef.current?.focus()} 
+                className="flex items-center gap-2 text-slate-300 dark:text-slate-600 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-[0.2em]"
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                Show Keyboard
+              </button>
+              <button onClick={() => setShowPasscodeModal(false)} className="text-sm font-black text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors uppercase tracking-widest">{t('cancel_btn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
-        {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 btn-active-scale ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-extrabold animate-fade-in">{t(tab.label)}</span>}</button>); })}
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 btn-active-scale ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-extrabold animate-fade-in">{t(tab.label)}</span>}</button>);
+        })}
       </nav>
     </div>
   );

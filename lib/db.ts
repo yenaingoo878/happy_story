@@ -1,25 +1,23 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Memory, GrowthData, ChildProfile, Reminder, Story } from '../types';
+import { Memory, GrowthData, ChildProfile, Reminder } from '../types';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
-  stories: Table<Story>;
 };
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
 // Store definitions
-db.version(5).stores({
+db.version(4).stores({
   memories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
   profiles: 'id, name, synced',
-  reminders: 'id, date, synced',
-  stories: 'id, childId, date, synced'
+  reminders: 'id, date, synced'
 });
 
 export { db };
@@ -30,6 +28,8 @@ export const initDB = async () => {
         await db.open();
       }
       console.log("Local Database Initialized Successfully");
+      // CRITICAL: We no longer wait for syncData here to speed up app loading.
+      // Syncing is triggered in the background by App.tsx
       return { success: true };
   } catch (err: any) {
       console.error("Failed to open db:", err);
@@ -54,6 +54,7 @@ export const syncData = async () => {
         let errors: string[] = [];
 
         // --- PUSH ---
+        // Memories
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         for (const mem of unsyncedMemories) {
             const { error } = await supabase.from('memories').upsert(cleanForSync(mem));
@@ -61,6 +62,7 @@ export const syncData = async () => {
             else errors.push(`Memories Push: ${error.message}`);
         }
 
+        // Growth
         const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
         for (const g of unsyncedGrowth) {
             const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
@@ -68,6 +70,7 @@ export const syncData = async () => {
             else errors.push(`Growth Push: ${error.message}`);
         }
 
+        // Profiles
         const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
         for (const p of unsyncedProfiles) {
             const { error } = await supabase.from('child_profile').upsert(cleanForSync(p));
@@ -75,6 +78,7 @@ export const syncData = async () => {
             else errors.push(`Profiles Push: ${error.message}`);
         }
 
+        // Reminders
         const unsyncedReminders = await db.reminders.where('synced').equals(0).toArray();
         for (const r of unsyncedReminders) {
             const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
@@ -82,30 +86,27 @@ export const syncData = async () => {
             else errors.push(`Reminders Push: ${error.message}`);
         }
 
-        const unsyncedStories = await db.stories.where('synced').equals(0).toArray();
-        for (const s of unsyncedStories) {
-            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
-            if (!error) await db.stories.update(s.id, { synced: 1 });
-            else errors.push(`Stories Push: ${error.message}`);
+        // --- PULL ---
+        const { data: profiles, error: pError } = await supabase.from('child_profile').select('*');
+        if (profiles) await db.profiles.bulkPut(profiles.map(p => ({ ...p, synced: 1 })));
+        else if (pError) errors.push(`Profiles Pull: ${pError.message}`);
+
+        const { data: growth, error: gError } = await supabase.from('growth_data').select('*');
+        if (growth) await db.growth.bulkPut(growth.map(g => ({ ...g, synced: 1 })));
+        else if (gError) errors.push(`Growth Pull: ${gError.message}`);
+
+        const { data: memories, error: mError } = await supabase.from('memories').select('*');
+        if (memories) await db.memories.bulkPut(memories.map(m => ({ ...m, synced: 1 })));
+        else if (mError) errors.push(`Memories Pull: ${mError.message}`);
+
+        const { data: reminders, error: rError } = await supabase.from('reminders').select('*');
+        if (reminders) await db.reminders.bulkPut(reminders.map(r => ({ ...r, synced: 1 })));
+        else if (rError) errors.push(`Reminders Pull: ${rError.message}`);
+        
+        if (errors.length > 0) {
+            return { success: false, reason: errors.join('; ') };
         }
 
-        // --- PULL ---
-        const { data: profiles } = await supabase.from('child_profile').select('*');
-        if (profiles) await db.profiles.bulkPut(profiles.map(p => ({ ...p, synced: 1 })));
-
-        const { data: growth } = await supabase.from('growth_data').select('*');
-        if (growth) await db.growth.bulkPut(growth.map(g => ({ ...g, synced: 1 })));
-
-        const { data: memories } = await supabase.from('memories').select('*');
-        if (memories) await db.memories.bulkPut(memories.map(m => ({ ...m, synced: 1 })));
-
-        const { data: reminders } = await supabase.from('reminders').select('*');
-        if (reminders) await db.reminders.bulkPut(reminders.map(r => ({ ...r, synced: 1 })));
-
-        const { data: stories } = await supabase.from('stories').select('*');
-        if (stories) await db.stories.bulkPut(stories.map(s => ({ ...s, synced: 1 })));
-        
-        if (errors.length > 0) return { success: false, reason: errors.join('; ') };
         return { success: true };
     } catch (err: any) {
         console.error("Sync process failed:", err);
@@ -114,8 +115,20 @@ export const syncData = async () => {
 };
 
 export const DataService = {
+    testSupabaseConnection: async () => {
+        try {
+            const { data, error } = await supabase.from('child_profile').select('count', { count: 'exact', head: true });
+            if (error) throw error;
+            return { success: true };
+        } catch (e: any) {
+            return { success: false, error: e.message };
+        }
+    },
+
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
-        if (!isSupabaseConfigured()) return URL.createObjectURL(file);
+        if (!isSupabaseConfigured()) {
+            return URL.createObjectURL(file);
+        }
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -141,19 +154,6 @@ export const DataService = {
     deleteMemory: async (id: string) => {
         await db.memories.delete(id);
         if (navigator.onLine && isSupabaseConfigured()) await supabase.from('memories').delete().eq('id', id);
-    },
-
-    getStories: async (childId?: string) => {
-        if (childId) return await db.stories.where('childId').equals(childId).reverse().sortBy('date');
-        return await db.stories.orderBy('date').reverse().toArray();
-    },
-    addStory: async (story: Story) => {
-        await db.stories.put({ ...story, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
-    },
-    deleteStory: async (id: string) => {
-        await db.stories.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('stories').delete().eq('id', id);
     },
 
     getGrowth: async (childId?: string) => {
@@ -192,4 +192,9 @@ export const DataService = {
         await db.reminders.delete(id);
         if (navigator.onLine && isSupabaseConfigured()) await supabase.from('reminders').delete().eq('id', id);
     },
+
+    resetLocalDatabase: async () => {
+        await db.delete();
+        window.location.reload();
+    }
 };
