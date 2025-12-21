@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -27,6 +27,7 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Passcode states
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
@@ -125,6 +126,46 @@ function App() {
      else if (itemToDelete.type === 'PROFILE') await DataService.deleteProfile(itemToDelete.id);
      else if (itemToDelete.type === 'REMINDER') await DataService.deleteReminder(itemToDelete.id);
      await refreshData(); setShowConfirmModal(false); setItemToDelete(null);
+  };
+
+  const handlePasscodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasscodeError(false);
+
+    if (passcodeMode === 'UNLOCK') {
+      if (passcodeInput === passcode) {
+        setIsAppUnlocked(true);
+        setShowPasscodeModal(false);
+        setPasscodeInput('');
+      } else {
+        setPasscodeError(true);
+      }
+    } else if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
+      if (passcodeInput.length >= 4) {
+        localStorage.setItem('app_passcode', passcodeInput);
+        setPasscode(passcodeInput);
+        setIsAppUnlocked(true);
+        setShowPasscodeModal(false);
+        setPasscodeInput('');
+      }
+    } else if (passcodeMode === 'CHANGE_VERIFY') {
+      if (passcodeInput === passcode) {
+        setPasscodeMode('CHANGE_NEW');
+        setPasscodeInput('');
+      } else {
+        setPasscodeError(true);
+      }
+    } else if (passcodeMode === 'REMOVE') {
+      if (passcodeInput === passcode) {
+        localStorage.removeItem('app_passcode');
+        setPasscode(null);
+        setIsAppUnlocked(true);
+        setShowPasscodeModal(false);
+        setPasscodeInput('');
+      } else {
+        setPasscodeError(true);
+      }
+    }
   };
 
   const getBirthdayStatus = () => {
@@ -258,6 +299,51 @@ function App() {
       </aside>
       <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
       
+      {/* Passcode Modal */}
+      {showPasscodeModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/>
+          <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
+            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary"><ShieldCheck className="w-8 h-8"/></div>
+            <h3 className="text-xl font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest">
+              {passcodeMode === 'UNLOCK' ? t('enter_passcode') : 
+               passcodeMode === 'SETUP' ? t('create_passcode') : 
+               passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
+               passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}
+            </h3>
+            <p className="text-slate-400 text-[10px] font-bold mb-8 uppercase tracking-widest">
+              {passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}
+            </p>
+            <form onSubmit={handlePasscodeSubmit} className="space-y-6">
+              <input 
+                autoFocus 
+                type="password" 
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={passcodeInput}
+                onChange={(e) => {
+                  setPasscodeInput(e.target.value);
+                  if (passcodeError) setPasscodeError(false);
+                }}
+                className="w-full text-center text-4xl tracking-[0.8em] font-black bg-slate-50 dark:bg-slate-900/50 py-4 rounded-2xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none"
+                placeholder="••••"
+              />
+              <div className="flex flex-col gap-2">
+                <button type="submit" className="w-full py-4.5 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/30 active:scale-95 transition-all uppercase tracking-widest text-xs">
+                  {t('confirm')}
+                </button>
+                {passcodeMode !== 'UNLOCK' && (
+                   <button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">
+                     {t('cancel_btn')}
+                   </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} onEdit={() => { setEditingMemory(selectedMemory); setActiveTab(TabView.ADD_MEMORY); setSelectedMemory(null); }} onDelete={() => { setItemToDelete({type:'MEMORY', id:selectedMemory.id}); setShowConfirmModal(true); }} /></Suspense>)}
       {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => { setItemToDelete({type:'STORY', id:selectedStory.id}); setShowConfirmModal(true); }} /></Suspense>)}
 

@@ -38,10 +38,11 @@ const SettingToggle = ({ icon: Icon, label, sublabel, active, onToggle, colorCla
         </div>
      </div>
      <button 
-       onClick={onToggle} 
-       className={`w-12 h-6.5 rounded-full transition-all relative flex items-center px-1 shadow-inner ${active ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+       type="button"
+       onClick={(e) => { e.preventDefault(); onToggle(); }} 
+       className={`w-11 h-6 rounded-full transition-all relative flex items-center px-1 shadow-inner ${active ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
      >
-        <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 ${active ? 'translate-x-5.5' : 'translate-x-0'}`} />
+        <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${active ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
   </div>
 );
@@ -122,7 +123,7 @@ export const Settings: React.FC<SettingsProps> = ({
     <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade-in text-center">
       <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-primary/10"><Lock className="w-10 h-10 text-primary" /></div>
       <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('private_info')}</h2><p className="text-slate-400 font-bold text-sm mb-12 max-w-[240px] leading-relaxed">{t('locked_msg')}</p>
-      <button onClick={onUnlockRequest} className="px-14 py-4.5 bg-slate-900 dark:bg-primary text-white text-sm font-black rounded-[2rem] shadow-xl uppercase tracking-[0.2em] transition-all">{t('tap_to_unlock')}</button>
+      <button onClick={onUnlockRequest} className="px-14 py-4.5 bg-slate-900 dark:bg-primary text-white text-sm font-black rounded-[2rem] shadow-xl uppercase tracking-[0.2em] transition-all active:scale-95">{t('tap_to_unlock')}</button>
     </div>
   );
 
@@ -149,7 +150,7 @@ export const Settings: React.FC<SettingsProps> = ({
                    <CircleUser className="w-4 h-4 text-slate-400"/>
                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('about_child')}</h3>
                 </div>
-                <button onClick={() => DataService.saveProfile({ id: crypto.randomUUID(), name: t('add_new_profile'), dob: new Date().toISOString().split('T')[0], gender: 'boy' }).then(() => onRefreshData())} className="text-primary text-[10px] font-black uppercase tracking-wider px-3 py-1.5 bg-primary/5 rounded-xl flex items-center gap-1.5"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button>
+                <button onClick={() => DataService.saveProfile({ id: crypto.randomUUID(), name: t('add_new_profile'), dob: new Date().toISOString().split('T')[0], gender: 'boy' }).then(() => onRefreshData())} className="text-primary text-[10px] font-black uppercase tracking-wider px-3 py-1.5 bg-primary/5 rounded-xl flex items-center gap-1.5 active:scale-95 transition-all"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar border-b border-slate-50 dark:border-slate-700/50 mb-5 items-center">
                 {profiles.map(p => (<button key={p.id} onClick={() => onProfileChange(p.id!)} className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 ${p.id === activeProfileId ? 'scale-105' : 'opacity-40 grayscale'}`}><div className={`w-12 h-12 rounded-[18px] border-2 overflow-hidden flex items-center justify-center ${p.id === activeProfileId ? 'border-primary ring-4 ring-primary/10 shadow-lg' : 'border-transparent bg-slate-100 dark:bg-slate-700'}`}>{p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover" /> : <Baby className="w-5 h-5 text-slate-400" />}</div><span className="text-[9px] font-black truncate max-w-[50px]">{p.name}</span></button>))}
@@ -159,9 +160,9 @@ export const Settings: React.FC<SettingsProps> = ({
                     <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">{currentProfile?.name}</h2>
                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1.5">{currentProfile?.dob}</p>
                 </div>
-                <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
+                <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
             </div>
-            {showProfileDetails && !isLocked && (<div className="animate-slide-up space-y-4 pt-5"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em]">{t('save_changes')}</button></div>)}
+            {showProfileDetails && !isLocked && (<div className="animate-slide-up space-y-4 pt-5"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em] active:scale-95">{t('save_changes')}</button></div>)}
           </section>
 
           {/* Personalization Section */}
@@ -189,16 +190,18 @@ export const Settings: React.FC<SettingsProps> = ({
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}</p>
                   </div>
                </div>
-               <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl border border-slate-200 dark:border-slate-600/50">
+               <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-600/50">
                   <button 
+                    type="button"
                     onClick={() => setLanguage('mm')}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm' : 'text-slate-400'}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     MM
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setLanguage('en')}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm' : 'text-slate-400'}`}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}
                   >
                     EN
                   </button>
@@ -218,17 +221,16 @@ export const Settings: React.FC<SettingsProps> = ({
 
           {/* Quick Access Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
-             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
-                <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><Bell className="w-4.5 h-4.5" /></div>
+             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
+                <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300"><Bell className="w-4.5 h-4.5" /></div>
                 <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div>
              </button>
-             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
-                <div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-4.5 h-4.5" /></div>
+             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
+                <div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300"><BookOpen className="w-4.5 h-4.5" /></div>
                 <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{stories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ebooks</p></div>
              </button>
-             {/* Memories Manager Shortcut - Replaced 'Add Memory' */}
-             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
-                <div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><ImageIcon className="w-4.5 h-4.5" /></div>
+             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
+                <div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300"><ImageIcon className="w-4.5 h-4.5" /></div>
                 <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{memories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_memories')}</p></div>
              </button>
           </div>
@@ -241,30 +243,33 @@ export const Settings: React.FC<SettingsProps> = ({
                </div>
                <div className="flex gap-2">
                   {passcode ? (
-                    <button onClick={onPasscodeChange} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-all"><Pencil className="w-3.5 h-3.5" /></button>
-                  ) : <button onClick={onPasscodeSetup} className="px-4 py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl uppercase tracking-widest">{t('setup_passcode')}</button>}
+                    <div className="flex gap-1">
+                      <button onClick={onPasscodeChange} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-primary transition-all active:scale-90"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={onPasscodeRemove} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 transition-all active:scale-90"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : <button onClick={onPasscodeSetup} className="px-4 py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl uppercase tracking-widest active:scale-95 shadow-md shadow-indigo-500/20">{t('setup_passcode')}</button>}
                </div>
             </div>
           </section>
 
           {/* Account & Logout Section at the Bottom */}
-          <section className="bg-rose-50/30 dark:bg-rose-900/10 rounded-[32px] border border-rose-100 dark:border-rose-900/20 p-5 mt-10">
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                   <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-2xl shadow-sm flex items-center justify-center text-slate-400">
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700 p-5 mt-10 shadow-sm">
+             <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                   <div className="w-12 h-12 bg-slate-50 dark:bg-slate-700 rounded-2xl shadow-inner flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-600">
                       <CircleUser className="w-6 h-6" />
                    </div>
-                   <div className="text-left">
-                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{isGuestMode ? 'Guest Session' : 'Active Account'}</h4>
-                      <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold mt-0.5">
-                         <Mail className="w-3 h-3" />
-                         <span className="truncate max-w-[140px]">{isGuestMode ? 'Saved Locally' : (session?.user?.email || 'Authenticated')}</span>
+                   <div className="text-left flex-1 min-w-0">
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight uppercase tracking-widest">{isGuestMode ? 'Guest Mode' : 'Account Active'}</h4>
+                      <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mt-1">
+                         <Mail className="w-3.5 h-3.5 shrink-0" />
+                         <span className="truncate max-w-[180px]">{isGuestMode ? 'Locally Stored Data' : (session?.user?.email || 'Logged In')}</span>
                       </div>
                    </div>
                 </div>
                 <button 
                   onClick={onLogout} 
-                  className="px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-black rounded-2xl shadow-lg shadow-rose-500/30 uppercase tracking-[0.15em] transition-all active:scale-95 flex items-center gap-2"
+                  className="w-full sm:w-auto px-6 py-4 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-500 hover:text-white text-rose-500 text-[11px] font-black rounded-2xl uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900/20"
                 >
                    <LogOut className="w-4 h-4" />
                    {t('logout')}
@@ -282,17 +287,17 @@ export const Settings: React.FC<SettingsProps> = ({
               <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Filter className="w-5 h-5" /></div>
             </div>
             {memories.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid gap-3">
                    {memories.map(m => (
-                      <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                      <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
                          <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
                          <div className="flex-1 min-w-0 text-left">
                             <h4 className="font-black text-slate-800 dark:text-white text-sm truncate">{m.title}</h4>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{m.date}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
                          </div>
                          <div className="flex gap-1 pr-1">
-                            <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors"><Pencil className="w-4.5 h-4.5" /></button>
-                            <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 className="w-4.5 h-4.5" /></button>
+                            <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4.5 h-4.5" /></button>
+                            <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button>
                          </div>
                       </div>
                    ))}
@@ -312,13 +317,13 @@ export const Settings: React.FC<SettingsProps> = ({
                     <IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" />
                     <IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} />
                 </div>
-                <button onClick={handleAddReminder} className="w-full py-4 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em]">{t('save_reminder')}</button>
+                <button onClick={handleAddReminder} className="w-full py-4.5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button>
             </section>
             <div className="space-y-2">
                {remindersList.map(r => (
-                   <div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm">
-                       <div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div>
-                       <button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500"><Trash2 className="w-5 h-5" /></button>
+                   <div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all">
+                       <div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{r.date}</p></div>
+                       <button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button>
                    </div>
                ))}
             </div>
@@ -333,8 +338,8 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500"><BookOpen className="w-5 h-5" /></div>
           </div>
           {stories.length > 0 ? stories.map(s => (
-            <div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all">
-              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[200px]">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 className="w-4.5 h-4.5" /></button></div>
+            <div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200">
+              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px]">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button></div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p>
             </div>
           )) : (
