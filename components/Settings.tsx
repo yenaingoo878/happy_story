@@ -98,6 +98,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const [newReminder, setNewReminder] = useState({ title: '', date: '' });
   const [showSuccess, setShowSuccess] = useState(false);
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
@@ -110,6 +112,28 @@ export const Settings: React.FC<SettingsProps> = ({
   }, [activeProfileId, profiles]);
 
   const triggerSuccess = () => { setShowSuccess(true); setTimeout(() => setShowSuccess(false), 2000); };
+
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && editingProfile.id) {
+        setIsUploadingImage(true);
+        try {
+            const url = await DataService.uploadImage(file, editingProfile.id, 'profile');
+            setEditingProfile(prev => ({ ...prev, profileImage: url }));
+        } catch (error) {
+            console.error("Profile image upload failed:", error);
+            alert("Profile image upload failed.");
+        } finally {
+            setIsUploadingImage(false);
+            if(imageInputRef.current) imageInputRef.current.value = "";
+        }
+    }
+  };
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditingProfile(prev => ({...prev, profileImage: undefined}));
+  };
 
   const handleSaveProfile = async () => {
       if (editingProfile.name && editingProfile.id) {
@@ -195,6 +219,46 @@ export const Settings: React.FC<SettingsProps> = ({
 
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-6 pt-5 pb-4 overflow-y-auto max-h-[60vh] no-scrollbar">
+                 <div className="flex justify-center mb-2">
+                    <div className="relative group">
+                        <button 
+                            type="button"
+                            onClick={() => !isUploadingImage && imageInputRef.current?.click()}
+                            disabled={isUploadingImage}
+                            className="w-28 h-28 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:ring-4 hover:ring-primary/20"
+                        >
+                            {isUploadingImage ? (
+                                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                            ) : editingProfile.profileImage ? (
+                                <img src={editingProfile.profileImage} className="w-full h-full object-cover" alt="Profile"/>
+                            ) : (
+                                <Baby className="w-12 h-12 text-slate-400" />
+                            )}
+                            
+                            {!isUploadingImage && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Pencil className="w-6 h-6" />
+                                </div>
+                            )}
+                        </button>
+                        <input 
+                            type="file" 
+                            ref={imageInputRef} 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={handleProfileImageUpload}
+                        />
+                        {editingProfile.profileImage && !isUploadingImage && (
+                            <button 
+                                type="button" 
+                                onClick={handleRemoveImage}
+                                className="absolute -top-1 -right-1 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"
+                            >
+                                <X className="w-3 h-3"/>
+                            </button>
+                        )}
+                    </div>
+                </div>
                 
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 px-1 mb-2">
