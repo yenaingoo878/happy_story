@@ -1,4 +1,3 @@
-
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder, Story } from '../types';
@@ -115,22 +114,44 @@ export const syncData = async () => {
     }
 };
 
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
+
 export const DataService = {
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
-        if (!isSupabaseConfigured()) {
-            return URL.createObjectURL(file);
+        const isGuest = localStorage.getItem('guest_mode') === 'true';
+
+        // For guest mode, offline, or if Supabase isn't configured, store as base64 data URI
+        if (isGuest || !navigator.onLine || !isSupabaseConfigured()) {
+            return fileToBase64(file);
         }
+
+        // If online, logged-in, and Supabase is configured, try to upload
         try {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `${childId}/${tag}/${fileName}`;
+            
             const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
-            if (uploadError) throw uploadError;
+            
+            if (uploadError) {
+                console.error("Supabase upload error, falling back to local storage:", uploadError);
+                // Fallback to base64 if Supabase fails for any reason (e.g., policy error)
+                return fileToBase64(file);
+            }
+            
             const { data } = supabase.storage.from('images').getPublicUrl(filePath);
             return data.publicUrl;
         } catch (error) {
-            if (!navigator.onLine) return URL.createObjectURL(file);
-            throw error;
+            console.error("Caught an exception during image upload, falling back to local storage:", error);
+            // Fallback to base64 on any other exception
+            return fileToBase64(file);
         }
     },
 
