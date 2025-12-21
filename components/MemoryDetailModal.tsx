@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Memory, Language } from '../types';
-import { X, Calendar, Tag } from 'lucide-react';
+import { X, Calendar, Tag, Loader2 } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 
 interface MemoryDetailModalProps {
@@ -11,7 +11,16 @@ interface MemoryDetailModalProps {
 
 export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose }) => {
   if (!memory) return null;
+  
+  const [isImageLoading, setIsImageLoading] = useState(true);
   const t = (key: any) => getTranslation(language, key);
+
+  useEffect(() => {
+    // Reset loading state when the memory prop changes
+    if (memory?.imageUrl) {
+      setIsImageLoading(true);
+    }
+  }, [memory?.imageUrl]);
 
   const formatDate = (isoDate: string) => {
      if (!isoDate) return '';
@@ -28,12 +37,19 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       />
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
         
-        {/* Image Section */}
-        <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0">
+        {/* Image Section with Loading Spinner */}
+        <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+          {isImageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+          )}
           <img 
             src={memory.imageUrl} 
             alt={memory.title} 
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-500 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
+            onLoad={() => setIsImageLoading(false)}
+            onError={() => setIsImageLoading(false)} // Stop spinner on error too
           />
           <button 
             onClick={onClose}
