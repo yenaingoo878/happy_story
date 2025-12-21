@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, BellRing, Languages, Mail } from 'lucide-react';
+import { Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, BellRing, Languages, Mail, Filter } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -58,7 +58,6 @@ interface SettingsProps {
   isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES';
   remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => void;
   onSaveReminder: (reminder: Reminder) => Promise<void>;
-  onAddMemoryClick: () => void;
   session: any;
 }
 
@@ -70,7 +69,6 @@ export const Settings: React.FC<SettingsProps> = ({
   growthData, memories, stories, onEditMemory, onDeleteMemory, onStoryClick, onDeleteStory, onDeleteGrowth, onDeleteProfile,
   isGuestMode, onLogout, initialView, remindersEnabled, toggleReminders,
   remindersList = [], onDeleteReminder, onSaveReminder,
-  onAddMemoryClick,
   session
 }) => {
   const t = (key: any) => getTranslation(language, key);
@@ -220,10 +218,19 @@ export const Settings: React.FC<SettingsProps> = ({
 
           {/* Quick Access Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
-             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110"><Bell className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div></button>
-             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110"><BookOpen className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{stories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ebooks</p></div></button>
-             {/* New Add Memory Shortcut */}
-             <button onClick={onAddMemoryClick} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110"><Plus className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-xs mb-1 uppercase tracking-tight">{language === 'mm' ? 'အမှတ်တရအသစ်' : 'Add Memory'}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Capture</p></div></button>
+             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
+                <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><Bell className="w-4.5 h-4.5" /></div>
+                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div>
+             </button>
+             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
+                <div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-4.5 h-4.5" /></div>
+                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{stories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ebooks</p></div>
+             </button>
+             {/* Memories Manager Shortcut - Replaced 'Add Memory' */}
+             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all">
+                <div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><ImageIcon className="w-4.5 h-4.5" /></div>
+                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{memories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_memories')}</p></div>
+             </button>
           </div>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
@@ -251,7 +258,7 @@ export const Settings: React.FC<SettingsProps> = ({
                       <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{isGuestMode ? 'Guest Session' : 'Active Account'}</h4>
                       <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold mt-0.5">
                          <Mail className="w-3 h-3" />
-                         <span className="truncate max-w-[150px]">{isGuestMode ? 'Saved Locally' : (session?.user?.email || 'Authenticated')}</span>
+                         <span className="truncate max-w-[140px]">{isGuestMode ? 'Saved Locally' : (session?.user?.email || 'Authenticated')}</span>
                       </div>
                    </div>
                 </div>
@@ -267,7 +274,36 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
-      {/* Sub-views logic */}
+      {/* Memories Manager View */}
+      {view === 'MEMORIES' && (isLocked ? <LockedScreen /> : (
+        <div className="space-y-4 animate-fade-in pb-32 px-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2>
+              <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Filter className="w-5 h-5" /></div>
+            </div>
+            {memories.length > 0 ? (
+                <div className="space-y-3">
+                   {memories.map(m => (
+                      <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                         <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                         <div className="flex-1 min-w-0 text-left">
+                            <h4 className="font-black text-slate-800 dark:text-white text-sm truncate">{m.title}</h4>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{m.date}</p>
+                         </div>
+                         <div className="flex gap-1 pr-1">
+                            <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors"><Pencil className="w-4.5 h-4.5" /></button>
+                            <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 className="w-4.5 h-4.5" /></button>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+            ) : (
+                <div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p></div>
+            )}
+        </div>
+      ))}
+
+      {/* Reminders View */}
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-6 animate-fade-in pb-32 px-1">
             <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
@@ -289,14 +325,21 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       ))}
 
+      {/* Stories View */}
       {view === 'STORIES' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-4 animate-fade-in pb-32 px-1">
-          {stories.map(s => (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2>
+            <div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500"><BookOpen className="w-5 h-5" /></div>
+          </div>
+          {stories.length > 0 ? stories.map(s => (
             <div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all">
               <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[200px]">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 className="w-4.5 h-4.5" /></button></div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p>
             </div>
-          ))}
+          )) : (
+            <div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>
+          )}
         </div>
       ))}
     </div>

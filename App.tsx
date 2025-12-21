@@ -241,7 +241,6 @@ function App() {
                     toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
                     remindersList={reminders} onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
                     onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); }} 
-                    onAddMemoryClick={() => setActiveTab(TabView.ADD_MEMORY)}
                     session={session}
                   />
                 )}
