@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -32,6 +32,7 @@ function App() {
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
+  const passcodeInputRef = useRef<HTMLInputElement>(null);
 
   const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'REMINDER', id: string } | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -66,6 +67,12 @@ function App() {
       setIsAppUnlocked(true);
     }
   }, [passcode]);
+
+  useEffect(() => {
+    if (showPasscodeModal) {
+      setTimeout(() => passcodeInputRef.current?.focus(), 100);
+    }
+  }, [showPasscodeModal]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -325,7 +332,6 @@ function App() {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
-    const isLocked = passcode && !isAppUnlocked;
 
     switch (activeTab) {
       case TabView.HOME:
@@ -385,7 +391,7 @@ function App() {
               </div>
             </div>
 
-            {/* Sub View List: Recent Memories - Compact size requested */}
+            {/* Sub View List: Recent Memories - Compact size */}
             <div className="mt-8 animate-slide-up">
               <div className="flex justify-between items-center mb-5 px-2">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
@@ -506,25 +512,73 @@ function App() {
 
       {showPasscodeModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl animate-fade-in" onClick={() => setShowPasscodeModal(false)}/>
-          <div className="relative w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-[48px] p-10 shadow-2xl animate-zoom-in border border-white/20 flex flex-col items-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center text-primary mb-8"><Lock className="w-8 h-8"/></div>
-            <h3 className="text-center font-black text-xl mb-10 dark:text-white tracking-tight">{passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3>
-            <div className="flex justify-center gap-6 mb-16">
-              {[0,1,2,3].map(i => (
-                  <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${passcodeInput.length > i ? 'bg-primary border-primary scale-125 shadow-lg shadow-primary/40' : 'border-slate-300 dark:border-slate-600'}`}/>
-              ))}
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-3xl animate-fade-in" onClick={() => setShowPasscodeModal(false)}/>
+          <div className="relative w-full max-w-sm bg-white/95 dark:bg-slate-900/95 rounded-[56px] p-12 shadow-2xl animate-zoom-in border border-white/30 flex flex-col items-center">
+            {/* Added missing ShieldCheck icon */}
+            <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mb-10 shadow-lg shadow-primary/10">
+              <ShieldCheck className="w-10 h-10" />
             </div>
-            {passcodeError && <p className="text-rose-500 text-center text-xs font-bold mb-6 animate-bounce">{t('wrong_passcode')}</p>}
-            <div className="grid grid-cols-3 gap-6 w-full px-4">
-              {[1,2,3,4,5,6,7,8,9].map(num => (
-                  <button key={num} onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + num)} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 md:hover:bg-primary md:hover:text-white transition-all shadow-sm btn-active-scale">{num}</button>
-              ))}
-              <div className="w-16 h-16"></div>
-              <button onClick={() => passcodeInput.length < 4 && setPasscodeInput(p => p + '0')} className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800 text-2xl font-bold text-slate-700 dark:text-slate-200 md:hover:bg-primary md:hover:text-white transition-all shadow-sm btn-active-scale">0</button>
-              <button onClick={() => setPasscodeInput(p => p.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-all btn-active-scale"><Delete className="w-8 h-8"/></button>
+            
+            <h3 className="text-center font-black text-2xl mb-2 dark:text-white tracking-tight">
+              {passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('security_title')}
+            </h3>
+            <p className="text-slate-400 text-sm font-bold mb-12 uppercase tracking-[0.1em]">{t('enter_passcode')}</p>
+
+            <div className="relative w-full flex flex-col items-center">
+               {/* Invisible Input for better UX/A11y */}
+               <input 
+                 ref={passcodeInputRef}
+                 type="tel" 
+                 pattern="[0-9]*"
+                 inputMode="numeric"
+                 maxLength={4}
+                 value={passcodeInput}
+                 onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    if (val.length <= 4) setPasscodeInput(val);
+                 }}
+                 className="absolute inset-0 opacity-0 cursor-default"
+                 autoFocus
+               />
+
+               {/* Visual Indicator Boxes */}
+               <div className="flex justify-center gap-5 mb-8">
+                {[0, 1, 2, 3].map(i => (
+                  <div 
+                    key={i} 
+                    className={`w-14 h-18 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                      passcodeInput.length === i ? 'border-primary ring-4 ring-primary/10 bg-primary/5 scale-110' : 
+                      passcodeInput.length > i ? 'bg-primary border-primary shadow-lg shadow-primary/20' : 
+                      'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800'
+                    }`}
+                  >
+                    {passcodeInput.length > i ? (
+                      <div className="w-2.5 h-2.5 rounded-full bg-white animate-fade-in" />
+                    ) : (
+                      <div className={`w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 transition-opacity ${passcodeInput.length === i ? 'animate-pulse' : 'opacity-50'}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {passcodeError && (
+                <div className="absolute -bottom-8 flex items-center gap-2 text-rose-500 font-black text-xs animate-bounce">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {t('wrong_passcode')}
+                </div>
+              )}
             </div>
-            <button onClick={() => setShowPasscodeModal(false)} className="mt-12 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">{t('cancel_btn')}</button>
+
+            <div className="mt-20 flex flex-col items-center gap-6">
+              <button 
+                onClick={() => passcodeInputRef.current?.focus()} 
+                className="flex items-center gap-2 text-slate-300 dark:text-slate-600 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-[0.2em]"
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                Show Keyboard
+              </button>
+              <button onClick={() => setShowPasscodeModal(false)} className="text-sm font-black text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors uppercase tracking-widest">{t('cancel_btn')}</button>
+            </div>
           </div>
         </div>
       )}
