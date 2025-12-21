@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 /* Added Scale and Sun to fix missing import errors */
-import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw, CheckCircle2, BookOpen } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -66,7 +66,7 @@ interface SettingsProps {
 
   isGuestMode?: boolean;
   onLogout: () => void; 
-  initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS';
+  initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES';
 
   remindersEnabled?: boolean;
   toggleReminders?: () => void;
@@ -85,7 +85,7 @@ export const Settings: React.FC<SettingsProps> = ({
   remindersList = [], onDeleteReminder, onSaveReminder
 }) => {
   const t = (key: any) => getTranslation(language, key);
-  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS'>(initialView || 'MAIN');
+  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({
     id: '', name: '', dob: '', gender: 'boy', hospitalName: '', birthLocation: '', country: '', birthTime: '', bloodType: '', profileImage: '', birthWeight: undefined, birthHeight: undefined
   });
@@ -103,6 +103,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const growthFormRef = useRef<HTMLDivElement>(null);
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
+
+  const savedStories = memories.filter(m => m.tags?.includes('Story'));
 
   useEffect(() => {
      if (activeProfileId) {
@@ -208,7 +210,7 @@ export const Settings: React.FC<SettingsProps> = ({
       }
   };
 
-  const handleViewRequest = (targetView: 'MEMORIES' | 'GROWTH' | 'REMINDERS') => {
+  const handleViewRequest = (targetView: 'MEMORIES' | 'GROWTH' | 'REMINDERS' | 'STORIES') => {
       setView(targetView);
   };
 
@@ -378,7 +380,7 @@ export const Settings: React.FC<SettingsProps> = ({
           </section>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 px-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
              <button onClick={() => handleViewRequest('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group active:scale-95 transition-all">
                 <div className="w-9 h-9 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
                     {isLocked ? <Lock className="w-4.5 h-4.5" /> : <ImageIcon className="w-4.5 h-4.5" />}
@@ -390,6 +392,12 @@ export const Settings: React.FC<SettingsProps> = ({
                     {isLocked ? <Lock className="w-4.5 h-4.5" /> : <Activity className="w-4.5 h-4.5" />}
                 </div>
                 <div><h3 className="font-black text-slate-800 dark:text-white text-base tracking-tight leading-none mb-1">{growthData.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Records</p></div>
+             </button>
+             <button onClick={() => handleViewRequest('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group active:scale-95 transition-all">
+                <div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform">
+                    {isLocked ? <Lock className="w-4.5 h-4.5" /> : <BookOpen className="w-4.5 h-4.5" />}
+                </div>
+                <div><h3 className="font-black text-slate-800 dark:text-white text-base tracking-tight leading-none mb-1">{savedStories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stories</p></div>
              </button>
           </div>
 
@@ -516,7 +524,7 @@ export const Settings: React.FC<SettingsProps> = ({
       {view === 'MEMORIES' && (
          isLocked ? <LockedScreen /> : (
             <div className="space-y-2 animate-fade-in pb-32 px-1">
-                {memories.map(m => (
+                {memories.filter(m => !m.tags?.includes('Story')).map(m => (
                     <div key={m.id} className="bg-white dark:bg-slate-800 p-2 rounded-[2rem] flex items-center gap-3 border border-slate-50 dark:border-slate-700 shadow-sm group active:bg-slate-50 dark:active:bg-slate-700/50 transition-colors">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 shadow ring-2 ring-slate-50 dark:ring-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
                         <div className="flex-1 min-w-0 text-left px-1">
@@ -529,6 +537,50 @@ export const Settings: React.FC<SettingsProps> = ({
                         </div>
                     </div>
                 ))}
+            </div>
+         )
+      )}
+
+      {view === 'STORIES' && (
+         isLocked ? <LockedScreen /> : (
+            <div className="space-y-4 animate-fade-in pb-32 px-1">
+                {savedStories.map(s => (
+                    <div key={s.id} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500">
+                                 <BookOpen className="w-5 h-5" />
+                              </div>
+                              <div className="text-left">
+                                 <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{s.title}</h4>
+                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p>
+                              </div>
+                           </div>
+                           <div className="flex gap-1">
+                              <button onClick={() => onDeleteMemory(s.id)} className="p-2.5 text-slate-300 hover:text-rose-500 active:scale-90 transition-all"><Trash2 className="w-5 h-5" /></button>
+                           </div>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-[1.5rem] text-left">
+                           <p className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-4 italic">
+                              "{s.description}"
+                           </p>
+                        </div>
+                        <button 
+                           onClick={() => onEditMemory(s)}
+                           className="mt-4 w-full py-3 bg-white dark:bg-slate-700 text-[10px] font-black text-violet-500 uppercase tracking-widest rounded-xl border border-violet-100 dark:border-violet-900/30 active:scale-95 transition-all"
+                        >
+                           {t('edit')} Story
+                        </button>
+                    </div>
+                ))}
+                {savedStories.length === 0 && (
+                   <div className="py-20 text-center flex flex-col items-center gap-3">
+                      <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-200">
+                         <BookOpen className="w-10 h-10" />
+                      </div>
+                      <p className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">No Saved Stories</p>
+                   </div>
+                )}
             </div>
          )
       )}
