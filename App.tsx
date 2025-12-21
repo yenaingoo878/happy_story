@@ -325,6 +325,7 @@ function App() {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
     const bStatus = getBirthdayStatus();
     const activeRemindersList = getActiveReminders();
+    const isLocked = passcode && !isAppUnlocked;
 
     switch (activeTab) {
       case TabView.HOME:
@@ -382,6 +383,40 @@ function App() {
                   <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all group overflow-hidden relative btn-primary-active btn-active-scale"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform group-hover:scale-125" /><h3 className="font-bold text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
                   <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all group overflow-hidden btn-active-scale"><Activity className="w-8 h-8 text-teal-500 group-hover:animate-pulse" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
+            </div>
+
+            {/* Sub View List: Recent Memories */}
+            <div className="mt-8 animate-slide-up">
+              <div className="flex justify-between items-center mb-5 px-2">
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
+                <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
+              </div>
+              
+              {isLocked ? (
+                <div onClick={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-100 dark:border-slate-700 flex flex-col items-center gap-3 active:scale-95 transition-all cursor-pointer shadow-sm">
+                   <div className="w-12 h-12 bg-slate-50 dark:bg-slate-700/50 rounded-2xl flex items-center justify-center text-slate-300"><Lock className="w-6 h-6" /></div>
+                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('locked_msg')}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                   {memories.slice(0, 4).map(m => (
+                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                         <div className="w-16 h-16 rounded-[22px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                         <div className="flex-1 min-w-0">
+                            <h4 className="font-black text-slate-800 dark:text-white truncate text-base tracking-tight leading-none mb-1.5">{m.title}</h4>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                         </div>
+                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-5 h-5" /></div>
+                      </div>
+                   ))}
+                   {memories.length === 0 && (
+                      <div className="py-10 text-center bg-white dark:bg-slate-800 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700">
+                         <ImageIcon className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                         <p className="text-sm font-bold text-slate-400">{t('no_photos')}</p>
+                      </div>
+                   )}
+                </div>
+              )}
             </div>
           </div>
         );
