@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 /* Added Scale and Sun to fix missing import errors */
-import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw } from 'lucide-react';
+import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -97,6 +97,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({ month: undefined, height: undefined, weight: undefined });
   const [newReminder, setNewReminder] = useState({ title: '', date: '' });
   const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const growthFormRef = useRef<HTMLDivElement>(null);
@@ -109,6 +110,11 @@ export const Settings: React.FC<SettingsProps> = ({
          if (p) setEditingProfile(p);
      }
   }, [activeProfileId, profiles]);
+
+  const triggerSuccess = () => {
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  };
 
   const calculateAge = (dobString: string) => {
     if (!dobString) return '';
@@ -145,6 +151,7 @@ export const Settings: React.FC<SettingsProps> = ({
         await onRefreshData();
         onProfileChange(profileToSave.id || '');
         setShowProfileDetails(false);
+        triggerSuccess();
     } catch (error) { alert("Failed to save profile."); } 
     finally { setIsSavingProfile(false); }
   };
@@ -179,6 +186,7 @@ export const Settings: React.FC<SettingsProps> = ({
               });
               await onRefreshData(); 
               setNewGrowth({}); setEditingGrowthId(null);
+              triggerSuccess();
           } catch (e) { alert("Failed to save growth record."); } 
           finally { setIsSavingGrowth(false); }
       }
@@ -188,6 +196,7 @@ export const Settings: React.FC<SettingsProps> = ({
       if (newReminder.title && newReminder.date && onSaveReminder) {
           await onSaveReminder({ id: crypto.randomUUID(), title: newReminder.title, date: newReminder.date, type: 'event' });
           setNewReminder({ title: '', date: '' });
+          triggerSuccess();
       }
   };
 
@@ -226,7 +235,16 @@ export const Settings: React.FC<SettingsProps> = ({
   const totalItems = memories.length + growthData.length;
 
   return (
-    <div className="max-w-4xl mx-auto px-2">
+    <div className="max-w-4xl mx-auto px-2 relative">
+      {showSuccess && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] animate-fade-in pointer-events-none">
+          <div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center gap-3 border border-white/20">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="text-xs font-black uppercase tracking-widest">{t('profile_saved')}</span>
+          </div>
+        </div>
+      )}
+
       {view !== 'MAIN' && (
         <button onClick={() => setView('MAIN')} className="mb-6 flex items-center gap-3 text-slate-500 font-black hover:text-primary transition-colors px-2 text-lg">
           <ChevronLeft className="w-7 h-7" />
