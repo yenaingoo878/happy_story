@@ -474,7 +474,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <div className="flex gap-3">
                   {editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}
-                  <button onClick={handleSaveGrowth} className="w-full py-4.5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button>
+                  <button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button>
                 </div>
             </section>
             <div className="space-y-2">
@@ -508,7 +508,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" />
                     <IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} />
                 </div>
-                <button onClick={handleAddReminder} className="w-full py-4.5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button>
+                <button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button>
             </section>
             <div className="space-y-2">
                {remindersList.map(r => (
