@@ -6,7 +6,7 @@ import {
   HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, 
   Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
   BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, FileText, UserPlus
+  Calendar, Heart, FileText, UserPlus, ChevronRight
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
@@ -343,23 +343,47 @@ export const Settings: React.FC<SettingsProps> = ({
             />
           </section>
 
-          {/* Quick Access Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
-             <button onClick={() => setView('GROWTH')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
-                <div className="w-9 h-9 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300"><Activity className="w-4.5 h-4.5" /></div>
-                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{growthData.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_growth')}</p></div>
+          {/* Quick Access List */}
+          <div className="flex flex-col gap-3 px-1">
+             <button onClick={() => setView('GROWTH')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300 mr-4">
+                   <Activity className="w-5 h-5" />
+                </div>
+                <p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_growth')}</p>
+                <div className="ml-auto flex items-center gap-3 text-slate-400">
+                   <span className="text-sm font-black">{growthData.length}</span>
+                   <ChevronRight className="w-4 h-4"/>
+                </div>
              </button>
-             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
-                <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300"><Bell className="w-4.5 h-4.5" /></div>
-                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div>
+             <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 mr-4">
+                   <Bell className="w-5 h-5" />
+                </div>
+                <p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_reminders')}</p>
+                <div className="ml-auto flex items-center gap-3 text-slate-400">
+                   <span className="text-sm font-black">{remindersList.length}</span>
+                   <ChevronRight className="w-4 h-4"/>
+                </div>
              </button>
-             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
-                <div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300"><BookOpen className="w-4.5 h-4.5" /></div>
-                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{stories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ebooks</p></div>
+             <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+                <div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300 mr-4">
+                   <BookOpen className="w-5 h-5" />
+                </div>
+                <p className="font-black text-slate-800 dark:text-white text-sm">Ebooks</p>
+                <div className="ml-auto flex items-center gap-3 text-slate-400">
+                   <span className="text-sm font-black">{stories.length}</span>
+                   <ChevronRight className="w-4 h-4"/>
+                </div>
              </button>
-             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
-                <div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300"><ImageIcon className="w-4.5 h-4.5" /></div>
-                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{memories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_memories')}</p></div>
+             <button onClick={() => setView('MEMORIES')} className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm text-left flex items-center w-full group transition-all active:scale-[0.98]">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300 mr-4">
+                   <ImageIcon className="w-5 h-5" />
+                </div>
+                <p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_memories')}</p>
+                <div className="ml-auto flex items-center gap-3 text-slate-400">
+                   <span className="text-sm font-black">{memories.length}</span>
+                   <ChevronRight className="w-4 h-4"/>
+                </div>
              </button>
           </div>
 
