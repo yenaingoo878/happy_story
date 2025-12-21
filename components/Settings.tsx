@@ -445,11 +445,11 @@ export const Settings: React.FC<SettingsProps> = ({
                    {memories.map(m => (
                       <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
                          <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
-                         <div className="flex-1 min-w-0 text-left">
+                         <div className="min-w-0 text-left">
                             <h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
                          </div>
-                         <div className="flex gap-1 pr-1">
+                         <div className="flex gap-1 pr-1 ml-auto">
                             <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4.5 h-4.5" /></button>
                             <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button>
                          </div>
