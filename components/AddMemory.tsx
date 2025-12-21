@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import { Memory, Language } from '../types';
@@ -248,7 +247,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                   <button 
                       onClick={handleSave} 
                       disabled={isUploading || isSaving || !formState.title} 
-                      className={`w-full py-4.5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
+                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
                   >
                       {isSaving ? (
                           <>
