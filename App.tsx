@@ -385,7 +385,7 @@ function App() {
               </div>
             </div>
 
-            {/* Sub View List: Recent Memories - No Passcode protection here as per user request */}
+            {/* Sub View List: Recent Memories - Compact size requested */}
             <div className="mt-8 animate-slide-up">
               <div className="flex justify-between items-center mb-5 px-2">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
@@ -394,13 +394,13 @@ function App() {
               
               <div className="space-y-3">
                  {memories.slice(0, 4).map(m => (
-                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-3.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
-                       <div className="w-16 h-16 rounded-[22px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
                        <div className="flex-1 min-w-0">
-                          <h4 className="font-black text-slate-800 dark:text-white truncate text-base tracking-tight leading-none mb-1.5">{m.title}</h4>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                          <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
                        </div>
-                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-5 h-5" /></div>
+                       <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary group-hover:bg-primary/5 transition-all"><ChevronRight className="w-4.5 h-4.5" /></div>
                     </div>
                  ))}
                  {memories.length === 0 && (
