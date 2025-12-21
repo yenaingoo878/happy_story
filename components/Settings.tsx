@@ -5,37 +5,44 @@ import {
   HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, 
   Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
   BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, FileText, UserPlus, ChevronRight
+  Calendar, Heart, FileText, UserPlus, ChevronRight, KeyRound, Sparkles, Eye, EyeOff
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
 
-const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
+const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
      <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0 shadow-inner mt-0.5">
         <Icon className="w-4 h-4" />
      </div>
      <div className="flex-1 flex flex-col min-w-0">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] leading-none mb-1 text-left">{label}</label>
-        {type === 'select' ? (
-           <div className="relative flex items-center">
-             <select id={id} value={value} onChange={onChange} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-6 text-left outline-none">
-                {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-             </select>
-             <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
-           </div>
-        ) : multiline ? (
-           <textarea 
-             id={id} 
-             value={value} 
-             onChange={onChange} 
-             placeholder={placeholder} 
-             className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 min-h-[60px] resize-none text-left outline-none"
-           />
-        ) : (
-           <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} step={step} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
-        )}
+        <div className="flex items-center">
+            {type === 'select' ? (
+               <div className="relative flex items-center w-full">
+                 <select id={id} value={value} onChange={onChange} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-6 text-left outline-none">
+                    {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+               </div>
+            ) : multiline ? (
+               <textarea 
+                 id={id} 
+                 value={value} 
+                 onChange={onChange} 
+                 placeholder={placeholder} 
+                 className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 min-h-[60px] resize-none text-left outline-none"
+               />
+            ) : (
+               <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} step={step} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
+            )}
+            {onRightIconClick && (
+                <button type="button" onClick={onRightIconClick} className="ml-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                    {type === 'password' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+            )}
+        </div>
      </div>
   </div>
 );
@@ -100,6 +107,44 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    DataService.getSetting('geminiApiKey').then(setting => {
+        if (setting && setting.value) {
+            setSavedApiKey(setting.value);
+        }
+    });
+  }, []);
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyInput.trim()) return;
+    setIsSavingApiKey(true);
+    try {
+        await DataService.saveSetting('geminiApiKey', apiKeyInput.trim());
+        setSavedApiKey(apiKeyInput.trim());
+        setApiKeyInput('');
+        triggerSuccess();
+    } catch (e) {
+        alert("Failed to save API Key.");
+    } finally {
+        setIsSavingApiKey(false);
+    }
+  };
+
+  const handleRemoveApiKey = async () => {
+    try {
+        await DataService.removeSetting('geminiApiKey');
+        setSavedApiKey(null);
+        setApiKeyInput('');
+    } catch (e) {
+        alert("Failed to remove API Key.");
+    }
+  };
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
@@ -414,6 +459,62 @@ export const Settings: React.FC<SettingsProps> = ({
               colorClass="text-amber-500" 
               bgClass="bg-amber-50 dark:bg-amber-900/20"
             />
+          </section>
+
+          {/* AI Settings Section */}
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700">
+            <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">AI & Services</h3></div>
+            <div className="p-5 space-y-4">
+                <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
+                        <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('api_key_title')}</h3>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {t('api_key_desc_1')}
+                            <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold underline underline-offset-2">
+                                Google AI Studio
+                            </a>
+                            {t('api_key_desc_2')}
+                        </p>
+                    </div>
+                </div>
+
+                {savedApiKey ? (
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-2xl p-4 flex items-center justify-between border border-slate-100 dark:border-slate-600/50 shadow-inner">
+                        <div className="flex items-center gap-3">
+                           <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                           <div>
+                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('api_key_saved')}</p>
+                             <p className="text-sm font-bold text-slate-600 dark:text-slate-300 font-mono tracking-tight">{`••••${savedApiKey.slice(-4)}`}</p>
+                           </div>
+                        </div>
+                        <button onClick={handleRemoveApiKey} className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-900/20 rounded-xl active:scale-90 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                            <IOSInput 
+                                label={t('api_key_label')}
+                                icon={KeyRound}
+                                value={apiKeyInput}
+                                onChange={(e: any) => setApiKeyInput(e.target.value)}
+                                type={showApiKey ? 'text' : 'password'}
+                                onRightIconClick={() => setShowApiKey(!showApiKey)}
+                                placeholder={t('api_key_placeholder')}
+                            />
+                        </div>
+                        <button 
+                            onClick={handleSaveApiKey}
+                            disabled={!apiKeyInput || isSavingApiKey}
+                            className="h-[60px] px-6 bg-primary text-white rounded-2xl active:scale-95 shadow-lg shadow-primary/20 transition-all flex items-center justify-center disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
+                        >
+                            {isSavingApiKey ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        </button>
+                    </div>
+                )}
+            </div>
           </section>
 
           {/* Data & Content Section */}

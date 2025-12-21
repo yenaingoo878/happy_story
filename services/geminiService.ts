@@ -1,11 +1,20 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
+import { DataService } from '../lib/db';
+
+const getApiKey = async (): Promise<string | null> => {
+    const setting = await DataService.getSetting('geminiApiKey');
+    return setting?.value || process.env.API_KEY || null;
+}
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    // CRITICAL: Always create a new GoogleGenAI instance right before use using process.env.API_KEY directly
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = await getApiKey();
+    if (!apiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -26,16 +35,22 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating story:", error);
+    if (error.message === "API_KEY_MISSING") {
+        throw new Error("API key not configured. Please set it in the app settings.");
+    }
     throw error;
   }
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        // CRITICAL: Always create a new GoogleGenAI instance right before use using process.env.API_KEY directly
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const apiKey = await getApiKey();
+        if (!apiKey) {
+            return language === 'mm' ? "သင်၏ API Key ကို ဆက်တင်တွင် ထည့်သွင်းပေးပါ။" : "Please set your API Key in the settings.";
+        }
+        const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         

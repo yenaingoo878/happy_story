@@ -1,6 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Memory, GrowthData, ChildProfile, Reminder, Story } from '../types';
+import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
@@ -8,11 +8,21 @@ export type LittleMomentsDB = Dexie & {
   growth: Table<GrowthData>;
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
+  app_settings: Table<AppSetting>;
 };
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
-// Store definitions
+// Store definitions - Version updated to 6
+db.version(6).stores({
+  memories: 'id, childId, date, synced',
+  stories: 'id, childId, date, synced',
+  growth: 'id, childId, month, synced',
+  profiles: 'id, name, synced',
+  reminders: 'id, date, synced',
+  app_settings: 'key' // New table for app settings like API keys
+});
+
 db.version(5).stores({
   memories: 'id, childId, date, synced',
   stories: 'id, childId, date, synced',
@@ -20,6 +30,7 @@ db.version(5).stores({
   profiles: 'id, name, synced',
   reminders: 'id, date, synced'
 });
+
 
 export { db };
 
@@ -124,6 +135,17 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const DataService = {
+    // --- App Settings ---
+    getSetting: async (key: string) => {
+        return await db.app_settings.get(key);
+    },
+    saveSetting: async (key: string, value: any) => {
+        await db.app_settings.put({ key, value });
+    },
+    removeSetting: async (key: string) => {
+        await db.app_settings.delete(key);
+    },
+
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         const isGuest = localStorage.getItem('guest_mode') === 'true';
 

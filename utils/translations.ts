@@ -189,7 +189,15 @@ export const translations = {
   remove_passcode: { en: "Turn off PIN", mm: "နံပါတ်ဖြုတ်" },
   enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
   enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
-  setup_passcode: { en: "Setup PIN", mm: "နံပါတ်သတ်မှတ်" }
+  setup_passcode: { en: "Setup PIN", mm: "နံပါတ်သတ်မှတ်" },
+
+  // API Key Management
+  api_key_title: { en: "Gemini API Key", mm: "Gemini API Key" },
+  api_key_desc_1: { en: "To use AI features, get your own free API key from ", mm: "AI လုပ်ဆောင်ချက်များကို အသုံးပြုရန်အတွက် သင်၏ကိုယ်ပိုင် API Key ကို " },
+  api_key_desc_2: { en: " and add it here. Your key is stored securely on your device only.", mm: " မှ အခမဲ့ ရယူပြီး ဤနေရာတွင် ထည့်သွင်းပါ။ သင်၏ Key ကို သင့်စက်တွင်သာ လုံခြုံစွာ သိမ်းဆည်းထားမည်ဖြစ်သည်။" },
+  api_key_label: { en: "Your API Key", mm: "သင်၏ API Key" },
+  api_key_placeholder: { en: "Enter your Gemini API Key here", mm: "သင်၏ Gemini API Key ကို ဤနေရာတွင် ထည့်ပါ" },
+  api_key_saved: { en: "API Key Is Set", mm: "API Key ထည့်သွင်းပြီး" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {

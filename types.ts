@@ -2,6 +2,11 @@
 export type Language = 'en' | 'mm';
 export type Theme = 'light' | 'dark';
 
+export interface AppSetting {
+  key: string; // e.g., 'geminiApiKey'
+  value: any;
+}
+
 export interface Memory {
   id: string;
   childId: string;
