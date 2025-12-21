@@ -13,6 +13,16 @@ export interface Memory {
   synced?: number; 
 }
 
+export interface Story {
+  id: string;
+  childId: string;
+  title: string;
+  topic: string;
+  content: string;
+  date: string;
+  synced?: number;
+}
+
 export interface GrowthData {
   id?: string;
   childId: string;
