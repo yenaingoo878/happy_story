@@ -177,7 +177,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
             </div>
 
-            {/* Comprehensive Edit Form */}
+            {/* Simplified Edit Form */}
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-6 pt-5 pb-4 overflow-y-auto max-h-[60vh] no-scrollbar">
                 
@@ -202,29 +202,21 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} 
                     />
                     <IOSInput 
+                      label={t('birth_time')} 
+                      icon={Clock} 
+                      type="time"
+                      value={editingProfile.birthTime || ''} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
                       label={t('gender_label')} 
                       icon={Baby} 
                       type="select"
                       options={[{ value: 'boy', label: t('boy') }, { value: 'girl', label: t('girl') }]}
                       value={editingProfile.gender} 
                       onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} 
-                    />
-                  </div>
-                </div>
-
-                {/* Birth Details Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <Building2 className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Birth Records</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <IOSInput 
-                      label={t('birth_time')} 
-                      icon={Clock} 
-                      type="time"
-                      value={editingProfile.birthTime || ''} 
-                      onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} 
                     />
                     <IOSInput 
                       label={t('blood_type')} 
@@ -239,6 +231,14 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} 
                     />
                   </div>
+                </div>
+
+                {/* Birth Location Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Birth Records</h4>
+                  </div>
                   <IOSInput 
                     label={t('hospital_name')} 
                     icon={Building2} 
@@ -246,53 +246,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     placeholder={t('hospital_placeholder')}
                     onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} 
                   />
-                  <div className="grid grid-cols-2 gap-3">
-                    <IOSInput 
-                      label={t('birth_weight_label')} 
-                      icon={Scale} 
-                      type="number"
-                      value={editingProfile.birthWeight || ''} 
-                      onChange={(e: any) => setEditingProfile({...editingProfile, birthWeight: Number(e.target.value)})} 
-                    />
-                    <IOSInput 
-                      label={t('birth_height_label')} 
-                      icon={Ruler} 
-                      type="number"
-                      value={editingProfile.birthHeight || ''} 
-                      onChange={(e: any) => setEditingProfile({...editingProfile, birthHeight: Number(e.target.value)})} 
-                    />
-                  </div>
-                </div>
-
-                {/* Parents Info Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <UserPlus className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parents Info</h4>
-                  </div>
-                  <IOSInput 
-                    label={t('father_name')} 
-                    icon={User} 
-                    value={editingProfile.fatherName || ''} 
-                    placeholder={t('father_placeholder')}
-                    onChange={(e: any) => setEditingProfile({...editingProfile, fatherName: e.target.value})} 
-                  />
-                  <IOSInput 
-                    label={t('mother_name')} 
-                    icon={User} 
-                    value={editingProfile.motherName || ''} 
-                    placeholder={t('mother_placeholder')}
-                    onChange={(e: any) => setEditingProfile({...editingProfile, motherName: e.target.value})} 
-                  />
-                </div>
-
-                {/* Location & Nationality */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Origin</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+                   <div className="grid grid-cols-2 gap-3">
                     <IOSInput 
                       label={t('city_label')} 
                       icon={MapPin} 
@@ -308,53 +262,6 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} 
                     />
                   </div>
-                  <IOSInput 
-                    label={t('nationality_label')} 
-                    icon={Globe} 
-                    value={editingProfile.nationality || ''} 
-                    placeholder={t('nationality_placeholder')}
-                    onChange={(e: any) => setEditingProfile({...editingProfile, nationality: e.target.value})} 
-                  />
-                </div>
-
-                {/* Physical Appearance Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <Heart className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Attributes</h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <IOSInput 
-                      label={t('eye_color')} 
-                      icon={CircleUser} 
-                      value={editingProfile.eyeColor || ''} 
-                      placeholder={t('eye_placeholder')}
-                      onChange={(e: any) => setEditingProfile({...editingProfile, eyeColor: e.target.value})} 
-                    />
-                    <IOSInput 
-                      label={t('hair_color')} 
-                      icon={CircleUser} 
-                      value={editingProfile.hairColor || ''} 
-                      placeholder={t('hair_placeholder')}
-                      onChange={(e: any) => setEditingProfile({...editingProfile, hairColor: e.target.value})} 
-                    />
-                  </div>
-                </div>
-
-                {/* Notes & Allergies Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <FileText className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Health & Notes</h4>
-                  </div>
-                  <IOSInput 
-                    label={t('special_notes')} 
-                    icon={FileText} 
-                    multiline={true}
-                    value={editingProfile.notes || ''} 
-                    placeholder={t('notes_placeholder')}
-                    onChange={(e: any) => setEditingProfile({...editingProfile, notes: e.target.value})} 
-                  />
                 </div>
 
                 <button 
