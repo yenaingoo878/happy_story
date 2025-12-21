@@ -263,21 +263,21 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
 
             {showProfileDetails && !isLocked && (
-              <div className="animate-slide-up space-y-6 pt-5 pb-4 overflow-y-auto max-h-[60vh] no-scrollbar">
+              <div className="animate-slide-up space-y-4 pt-4 pb-4 overflow-y-auto max-h-[70vh] no-scrollbar">
                  <div className="flex justify-center mb-2">
                     <div className="relative group">
                         <button 
                             type="button"
                             onClick={() => !isUploadingImage && imageInputRef.current?.click()}
                             disabled={isUploadingImage}
-                            className="w-28 h-28 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:ring-4 hover:ring-primary/20"
+                            className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:ring-4 hover:ring-primary/20"
                         >
                             {isUploadingImage ? (
                                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
                             ) : editingProfile.profileImage ? (
                                 <img src={editingProfile.profileImage} className="w-full h-full object-cover" alt="Profile"/>
                             ) : (
-                                <Baby className="w-12 h-12 text-slate-400" />
+                                <Baby className="w-10 h-10 text-slate-400" />
                             )}
                             
                             {!isUploadingImage && (
@@ -305,11 +305,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <User className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('nav_home')} Info</h4>
-                  </div>
+                <div className="space-y-3">
                   <IOSInput 
                     label={t('child_name_label')} 
                     icon={User} 
@@ -332,8 +328,8 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} 
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <IOSInput 
+                   <div className="grid grid-cols-2 gap-3">
+                     <IOSInput 
                       label={t('gender_label')} 
                       icon={Baby} 
                       type="select"
@@ -354,13 +350,6 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} 
                     />
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <Building2 className="w-3.5 h-3.5 text-primary" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Birth Records</h4>
-                  </div>
                   <IOSInput 
                     label={t('hospital_name')} 
                     icon={Building2} 
@@ -368,7 +357,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     placeholder={t('hospital_placeholder')}
                     onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} 
                   />
-                   <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <IOSInput 
                       label={t('city_label')} 
                       icon={MapPin} 

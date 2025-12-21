@@ -110,6 +110,7 @@ export const translations = {
   about_child: { en: "Child Profile", mm: "ကလေးအချက်အလက်" },
   edit_profile: { en: "Edit Details", mm: "အချက်အလက်ပြင်ရန်" },
   close_edit: { en: "Close Editing", mm: "ပြင်ဆင်မှုပိတ်ရန်" },
+  more_details: { en: "More Details", mm: "အသေးစိတ် ကြည့်ရန်" },
   app_settings: { en: "App Preferences", mm: "App ဆက်တင်များ" },
   data_management: { en: "Data Management", mm: "အချက်အလက် စီမံခန့်ခွဲမှု" },
   currently_active: { en: "Currently Active", mm: "လက်ရှိရွေးချယ်ထားသည်" },
