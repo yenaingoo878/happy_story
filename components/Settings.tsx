@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw, CheckCircle2, BookOpen, BellRing, Languages } from 'lucide-react';
+import { Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, BellRing, Languages, Mail } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -58,6 +58,8 @@ interface SettingsProps {
   isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES';
   remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => void;
   onSaveReminder: (reminder: Reminder) => Promise<void>;
+  onAddMemoryClick: () => void;
+  session: any;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -67,13 +69,14 @@ export const Settings: React.FC<SettingsProps> = ({
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
   growthData, memories, stories, onEditMemory, onDeleteMemory, onStoryClick, onDeleteStory, onDeleteGrowth, onDeleteProfile,
   isGuestMode, onLogout, initialView, remindersEnabled, toggleReminders,
-  remindersList = [], onDeleteReminder, onSaveReminder
+  remindersList = [], onDeleteReminder, onSaveReminder,
+  onAddMemoryClick,
+  session
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  // Add missing state for saving growth data
   const [isSavingGrowth, setIsSavingGrowth] = useState(false);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [newGrowth, setNewGrowth] = useState<Partial<GrowthData>>({});
@@ -81,7 +84,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const growthFormRef = useRef<HTMLDivElement>(null);
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
 
@@ -89,7 +91,6 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const triggerSuccess = () => { setShowSuccess(true); setTimeout(() => setShowSuccess(false), 2000); };
 
-  // Fixed handleSaveGrowth by ensuring isSavingGrowth is defined
   const handleSaveGrowth = async () => {
       if (newGrowth.month !== undefined && newGrowth.height !== undefined && newGrowth.weight !== undefined && activeProfileId) {
           setIsSavingGrowth(true);
@@ -101,7 +102,6 @@ export const Settings: React.FC<SettingsProps> = ({
       }
   };
 
-  // Added missing handleSaveProfile function
   const handleSaveProfile = async () => {
       if (editingProfile.name && editingProfile.id) {
           setIsSavingProfile(true);
@@ -166,7 +166,7 @@ export const Settings: React.FC<SettingsProps> = ({
             {showProfileDetails && !isLocked && (<div className="animate-slide-up space-y-4 pt-5"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em]">{t('save_changes')}</button></div>)}
           </section>
 
-          {/* Personalization Section (NEW) */}
+          {/* Personalization Section */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('app_settings')}</h3></div>
             
@@ -180,15 +180,32 @@ export const Settings: React.FC<SettingsProps> = ({
               bgClass="bg-indigo-50 dark:bg-indigo-900/20"
             />
 
-            <SettingToggle 
-              icon={Languages} 
-              label={t('language')} 
-              sublabel={language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}
-              active={language === 'mm'} 
-              onToggle={() => setLanguage(language === 'mm' ? 'en' : 'mm')} 
-              colorClass="text-teal-500" 
-              bgClass="bg-teal-50 dark:bg-teal-900/20"
-            />
+            {/* Language Selection: MM / EN Buttons */}
+            <div className="p-5 flex items-center justify-between group">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 shadow-sm transition-transform group-hover:scale-110 duration-300">
+                      <Languages className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                     <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{t('language')}</h3>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}</p>
+                  </div>
+               </div>
+               <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl border border-slate-200 dark:border-slate-600/50">
+                  <button 
+                    onClick={() => setLanguage('mm')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm' : 'text-slate-400'}`}
+                  >
+                    MM
+                  </button>
+                  <button 
+                    onClick={() => setLanguage('en')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm' : 'text-slate-400'}`}
+                  >
+                    EN
+                  </button>
+               </div>
+            </div>
 
             <SettingToggle 
               icon={BellRing} 
@@ -205,7 +222,8 @@ export const Settings: React.FC<SettingsProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
              <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110"><Bell className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div></button>
              <button onClick={() => setView('STORIES')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110"><BookOpen className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{stories.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ebooks</p></div></button>
-             <button onClick={onLogout} className="bg-rose-50 dark:bg-rose-900/10 p-5 rounded-[32px] border border-rose-100 dark:border-rose-900/20 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-rose-100 dark:bg-rose-800/50 flex items-center justify-center text-rose-500 group-hover:scale-110"><LogOut className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-rose-600 dark:text-rose-400 text-sm mb-1 uppercase tracking-tighter">{t('logout')}</h3><p className="text-[9px] font-black text-rose-300 uppercase tracking-widest">Sign Out</p></div></button>
+             {/* New Add Memory Shortcut */}
+             <button onClick={onAddMemoryClick} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-32 group transition-all"><div className="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110"><Plus className="w-4.5 h-4.5" /></div><div><h3 className="font-black text-slate-800 dark:text-white text-xs mb-1 uppercase tracking-tight">{language === 'mm' ? 'အမှတ်တရအသစ်' : 'Add Memory'}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Capture</p></div></button>
           </div>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
@@ -221,10 +239,35 @@ export const Settings: React.FC<SettingsProps> = ({
                </div>
             </div>
           </section>
+
+          {/* Account & Logout Section at the Bottom */}
+          <section className="bg-rose-50/30 dark:bg-rose-900/10 rounded-[32px] border border-rose-100 dark:border-rose-900/20 p-5 mt-10">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                   <div className="w-11 h-11 bg-white dark:bg-slate-800 rounded-2xl shadow-sm flex items-center justify-center text-slate-400">
+                      <CircleUser className="w-6 h-6" />
+                   </div>
+                   <div className="text-left">
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{isGuestMode ? 'Guest Session' : 'Active Account'}</h4>
+                      <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold mt-0.5">
+                         <Mail className="w-3 h-3" />
+                         <span className="truncate max-w-[150px]">{isGuestMode ? 'Saved Locally' : (session?.user?.email || 'Authenticated')}</span>
+                      </div>
+                   </div>
+                </div>
+                <button 
+                  onClick={onLogout} 
+                  className="px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-black rounded-2xl shadow-lg shadow-rose-500/30 uppercase tracking-[0.15em] transition-all active:scale-95 flex items-center gap-2"
+                >
+                   <LogOut className="w-4 h-4" />
+                   {t('logout')}
+                </button>
+             </div>
+          </section>
         </div>
       )}
 
-      {/* Other views remain the same but use the updated navigation logic */}
+      {/* Sub-views logic */}
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-6 animate-fade-in pb-32 px-1">
             <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
