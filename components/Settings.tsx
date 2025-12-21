@@ -1,13 +1,20 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, BellRing, Languages, Mail, Filter } from 'lucide-react';
+import { 
+  Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, 
+  ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, 
+  HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, 
+  Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
+  BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
+  Calendar, Heart, FileText, UserPlus
+} from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
 
-const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id }: any) => (
-  <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-center gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
-     <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0 shadow-inner">
+const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false }: any) => (
+  <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
+     <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0 shadow-inner mt-0.5">
         <Icon className="w-4 h-4" />
      </div>
      <div className="flex-1 flex flex-col min-w-0">
@@ -19,6 +26,14 @@ const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placehold
              </select>
              <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
            </div>
+        ) : multiline ? (
+           <textarea 
+             id={id} 
+             value={value} 
+             onChange={onChange} 
+             placeholder={placeholder} 
+             className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 min-h-[60px] resize-none text-left outline-none"
+           />
         ) : (
            <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
         )}
@@ -86,7 +101,12 @@ export const Settings: React.FC<SettingsProps> = ({
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
 
-  useEffect(() => { if (activeProfileId) { const p = profiles.find(pr => pr.id === activeProfileId); if (p) setEditingProfile(p); } }, [activeProfileId, profiles]);
+  useEffect(() => { 
+    if (activeProfileId) { 
+      const p = profiles.find(pr => pr.id === activeProfileId); 
+      if (p) setEditingProfile(p); 
+    } 
+  }, [activeProfileId, profiles]);
 
   const triggerSuccess = () => { setShowSuccess(true); setTimeout(() => setShowSuccess(false), 2000); };
 
@@ -95,9 +115,14 @@ export const Settings: React.FC<SettingsProps> = ({
           setIsSavingProfile(true);
           try {
               await DataService.saveProfile({ ...editingProfile, synced: 0 });
-              await onRefreshData(); setShowProfileDetails(false); triggerSuccess();
-          } catch (e) { alert("Failed to save profile."); } 
-          finally { setIsSavingProfile(false); }
+              await onRefreshData(); 
+              setShowProfileDetails(false); 
+              triggerSuccess();
+          } catch (e) { 
+              alert("Failed to save profile."); 
+          } finally { 
+              setIsSavingProfile(false); 
+          }
       }
   };
 
@@ -151,7 +176,197 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
             </div>
-            {showProfileDetails && !isLocked && (<div className="animate-slide-up space-y-4 pt-5"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><button onClick={handleSaveProfile} disabled={isSavingProfile} className="w-full py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em] active:scale-95">{t('save_changes')}</button></div>)}
+
+            {/* Comprehensive Edit Form */}
+            {showProfileDetails && !isLocked && (
+              <div className="animate-slide-up space-y-6 pt-5 pb-4 overflow-y-auto max-h-[60vh] no-scrollbar">
+                
+                {/* Basic Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <User className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('nav_home')} Info</h4>
+                  </div>
+                  <IOSInput 
+                    label={t('child_name_label')} 
+                    icon={User} 
+                    value={editingProfile.name} 
+                    onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} 
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
+                      label={t('child_dob')} 
+                      icon={Calendar} 
+                      type="date"
+                      value={editingProfile.dob} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} 
+                    />
+                    <IOSInput 
+                      label={t('gender_label')} 
+                      icon={Baby} 
+                      type="select"
+                      options={[{ value: 'boy', label: t('boy') }, { value: 'girl', label: t('girl') }]}
+                      value={editingProfile.gender} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
+                {/* Birth Details Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Birth Records</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
+                      label={t('birth_time')} 
+                      icon={Clock} 
+                      type="time"
+                      value={editingProfile.birthTime || ''} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} 
+                    />
+                    <IOSInput 
+                      label={t('blood_type')} 
+                      icon={ShieldCheck} 
+                      type="select"
+                      options={[
+                        { value: '', label: 'Select' }, { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' },
+                        { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' }, { value: 'AB+', label: 'AB+' },
+                        { value: 'AB-', label: 'AB-' }, { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' }
+                      ]}
+                      value={editingProfile.bloodType || ''} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} 
+                    />
+                  </div>
+                  <IOSInput 
+                    label={t('hospital_name')} 
+                    icon={Building2} 
+                    value={editingProfile.hospitalName || ''} 
+                    placeholder={t('hospital_placeholder')}
+                    onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} 
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
+                      label={t('birth_weight_label')} 
+                      icon={Scale} 
+                      type="number"
+                      value={editingProfile.birthWeight || ''} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, birthWeight: Number(e.target.value)})} 
+                    />
+                    <IOSInput 
+                      label={t('birth_height_label')} 
+                      icon={Ruler} 
+                      type="number"
+                      value={editingProfile.birthHeight || ''} 
+                      onChange={(e: any) => setEditingProfile({...editingProfile, birthHeight: Number(e.target.value)})} 
+                    />
+                  </div>
+                </div>
+
+                {/* Parents Info Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <UserPlus className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Parents Info</h4>
+                  </div>
+                  <IOSInput 
+                    label={t('father_name')} 
+                    icon={User} 
+                    value={editingProfile.fatherName || ''} 
+                    placeholder={t('father_placeholder')}
+                    onChange={(e: any) => setEditingProfile({...editingProfile, fatherName: e.target.value})} 
+                  />
+                  <IOSInput 
+                    label={t('mother_name')} 
+                    icon={User} 
+                    value={editingProfile.motherName || ''} 
+                    placeholder={t('mother_placeholder')}
+                    onChange={(e: any) => setEditingProfile({...editingProfile, motherName: e.target.value})} 
+                  />
+                </div>
+
+                {/* Location & Nationality */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Origin</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
+                      label={t('city_label')} 
+                      icon={MapPin} 
+                      value={editingProfile.birthLocation || ''} 
+                      placeholder={t('location_placeholder')}
+                      onChange={(e: any) => setEditingProfile({...editingProfile, birthLocation: e.target.value})} 
+                    />
+                    <IOSInput 
+                      label={t('country_label')} 
+                      icon={Globe} 
+                      value={editingProfile.country || ''} 
+                      placeholder={t('country_placeholder')}
+                      onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} 
+                    />
+                  </div>
+                  <IOSInput 
+                    label={t('nationality_label')} 
+                    icon={Globe} 
+                    value={editingProfile.nationality || ''} 
+                    placeholder={t('nationality_placeholder')}
+                    onChange={(e: any) => setEditingProfile({...editingProfile, nationality: e.target.value})} 
+                  />
+                </div>
+
+                {/* Physical Appearance Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <Heart className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Physical Attributes</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput 
+                      label={t('eye_color')} 
+                      icon={CircleUser} 
+                      value={editingProfile.eyeColor || ''} 
+                      placeholder={t('eye_placeholder')}
+                      onChange={(e: any) => setEditingProfile({...editingProfile, eyeColor: e.target.value})} 
+                    />
+                    <IOSInput 
+                      label={t('hair_color')} 
+                      icon={CircleUser} 
+                      value={editingProfile.hairColor || ''} 
+                      placeholder={t('hair_placeholder')}
+                      onChange={(e: any) => setEditingProfile({...editingProfile, hairColor: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
+                {/* Notes & Allergies Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 px-1 mb-2">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Health & Notes</h4>
+                  </div>
+                  <IOSInput 
+                    label={t('special_notes')} 
+                    icon={FileText} 
+                    multiline={true}
+                    value={editingProfile.notes || ''} 
+                    placeholder={t('notes_placeholder')}
+                    onChange={(e: any) => setEditingProfile({...editingProfile, notes: e.target.value})} 
+                  />
+                </div>
+
+                <button 
+                  onClick={handleSaveProfile} 
+                  disabled={isSavingProfile} 
+                  className="w-full sticky bottom-0 py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em] active:scale-95 flex items-center justify-center gap-3 mt-4"
+                >
+                  {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                  {t('save_changes')}
+                </button>
+              </div>
+            )}
           </section>
 
           {/* App Settings Section */}
@@ -208,7 +423,7 @@ export const Settings: React.FC<SettingsProps> = ({
             />
           </section>
 
-          {/* Quick Access Shortcuts Grid */}
+          {/* Quick Access Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
              <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
                 <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300"><Bell className="w-4.5 h-4.5" /></div>
@@ -224,7 +439,6 @@ export const Settings: React.FC<SettingsProps> = ({
              </button>
           </div>
 
-          {/* Security Section */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-5 flex items-center justify-between">
                <div className="flex items-center gap-4">
@@ -242,7 +456,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
           </section>
 
-          {/* Account Details & Logout Card at the Bottom */}
+          {/* Account & Logout Card at the Bottom */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700 p-5 mt-10 shadow-sm mb-12">
              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -250,10 +464,10 @@ export const Settings: React.FC<SettingsProps> = ({
                       <CircleUser className="w-6 h-6" />
                    </div>
                    <div className="text-left flex-1 min-w-0">
-                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight uppercase tracking-widest">{isGuestMode ? 'Guest Session' : 'Account Active'}</h4>
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight uppercase tracking-widest">{isGuestMode ? 'Guest Mode' : 'Account Active'}</h4>
                       <div className="flex items-center gap-2 text-slate-400 text-xs font-bold mt-1">
                          <Mail className="w-3.5 h-3.5 shrink-0" />
-                         <span className="truncate max-w-[200px]">{isGuestMode ? 'Local Storage Only' : (session?.user?.email || 'Authenticated')}</span>
+                         <span className="truncate max-w-[200px]">{isGuestMode ? 'Locally Stored Data' : (session?.user?.email || 'Logged In')}</span>
                       </div>
                    </div>
                 </div>
@@ -270,7 +484,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
-      {/* Memories Manager View */}
+      {/* Other Views (Memories, Reminders, Stories) remain unchanged */}
       {view === 'MEMORIES' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-4 animate-fade-in pb-32 px-1">
             <div className="flex items-center justify-between mb-4">
@@ -299,7 +513,6 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       ))}
 
-      {/* Reminders View */}
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-6 animate-fade-in pb-32 px-1">
             <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
@@ -321,7 +534,6 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       ))}
 
-      {/* Stories View */}
       {view === 'STORIES' && (isLocked ? <LockedScreen /> : (
         <div className="space-y-4 animate-fade-in pb-32 px-1">
           <div className="flex items-center justify-between mb-4">

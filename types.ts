@@ -40,10 +40,16 @@ export interface ChildProfile {
   hospitalName?: string;
   birthLocation?: string;
   country?: string;
+  nationality?: string;
+  fatherName?: string;
+  motherName?: string;
   bloodType?: string;
   gender: 'boy' | 'girl';
   birthWeight?: number;
   birthHeight?: number;
+  eyeColor?: string;
+  hairColor?: string;
+  notes?: string;
   synced?: number;
 }
 
