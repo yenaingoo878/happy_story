@@ -12,7 +12,7 @@ import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } fr
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
 
-const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false }: any) => (
+const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
      <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0 shadow-inner mt-0.5">
         <Icon className="w-4 h-4" />
@@ -35,7 +35,7 @@ const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placehold
              className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 min-h-[60px] resize-none text-left outline-none"
            />
         ) : (
-           <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
+           <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} step={step} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
         )}
      </div>
   </div>
@@ -73,7 +73,8 @@ interface SettingsProps {
   growthData: GrowthData[]; memories: Memory[]; stories: Story[];
   onEditMemory: (mem: Memory) => void; onDeleteMemory: (id: string) => void; 
   onStoryClick: (story: Story) => void; onDeleteStory: (id: string) => void;
-  onDeleteGrowth: (id: string) => void; onDeleteProfile: (id: string) => void;
+  onDeleteGrowth: (id: string) => void; onSaveGrowth: (growth: GrowthData) => Promise<void>;
+  onDeleteProfile: (id: string) => void;
   isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES';
   remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => void;
   onSaveReminder: (reminder: Reminder) => Promise<void>;
@@ -85,7 +86,7 @@ export const Settings: React.FC<SettingsProps> = ({
   profiles, activeProfileId, onProfileChange, onRefreshData,
   passcode, isDetailsUnlocked, onUnlockRequest,
   onPasscodeSetup, onPasscodeChange, onPasscodeRemove, onHideDetails,
-  growthData, memories, stories, onEditMemory, onDeleteMemory, onStoryClick, onDeleteStory, onDeleteGrowth, onDeleteProfile,
+  growthData, memories, stories, onEditMemory, onDeleteMemory, onStoryClick, onDeleteStory, onDeleteGrowth, onSaveGrowth, onDeleteProfile,
   isGuestMode, onLogout, initialView, remindersEnabled, toggleReminders,
   remindersList = [], onDeleteReminder, onSaveReminder,
   session
@@ -97,6 +98,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [showProfileDetails, setShowProfileDetails] = useState(false);
   const [newReminder, setNewReminder] = useState({ title: '', date: '' });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
 
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
@@ -126,6 +128,21 @@ export const Settings: React.FC<SettingsProps> = ({
       }
   };
 
+  const handleSaveGrowth = async () => {
+      if (editingGrowth.month && editingGrowth.height && editingGrowth.weight && activeProfileId) {
+          const dataToSave: GrowthData = {
+              id: editingGrowth.id || crypto.randomUUID(),
+              childId: activeProfileId,
+              month: Number(editingGrowth.month),
+              height: Number(editingGrowth.height),
+              weight: Number(editingGrowth.weight)
+          };
+          await onSaveGrowth(dataToSave);
+          setEditingGrowth({});
+          triggerSuccess();
+      }
+  };
+  
   const handleAddReminder = async () => {
       if (newReminder.title && newReminder.date && onSaveReminder) {
           await onSaveReminder({ id: crypto.randomUUID(), title: newReminder.title, date: newReminder.date, type: 'event' });
@@ -177,11 +194,9 @@ export const Settings: React.FC<SettingsProps> = ({
                 <button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button>
             </div>
 
-            {/* Simplified Edit Form */}
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-6 pt-5 pb-4 overflow-y-auto max-h-[60vh] no-scrollbar">
                 
-                {/* Basic Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 px-1 mb-2">
                     <User className="w-3.5 h-3.5 text-primary" />
@@ -233,7 +248,6 @@ export const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </div>
 
-                {/* Birth Location Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 px-1 mb-2">
                     <Building2 className="w-3.5 h-3.5 text-primary" />
@@ -290,7 +304,6 @@ export const Settings: React.FC<SettingsProps> = ({
               bgClass="bg-indigo-50 dark:bg-indigo-900/20"
             />
 
-            {/* Language Selector: MM / EN Segmented Control */}
             <div className="p-5 flex items-center justify-between group">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 shadow-sm transition-transform group-hover:scale-110 duration-300">
@@ -332,6 +345,10 @@ export const Settings: React.FC<SettingsProps> = ({
 
           {/* Quick Access Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 px-1">
+             <button onClick={() => setView('GROWTH')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
+                <div className="w-9 h-9 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300"><Activity className="w-4.5 h-4.5" /></div>
+                <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{growthData.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_growth')}</p></div>
+             </button>
              <button onClick={() => setView('REMINDERS')} className="bg-white dark:bg-slate-800 p-5 rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-sm text-left flex flex-col justify-between h-36 group transition-all active:scale-95">
                 <div className="w-9 h-9 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300"><Bell className="w-4.5 h-4.5" /></div>
                 <div><h3 className="font-black text-slate-800 dark:text-white text-base mb-1">{remindersList.length}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('manage_reminders')}</p></div>
@@ -417,6 +434,46 @@ export const Settings: React.FC<SettingsProps> = ({
             ) : (
                 <div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p></div>
             )}
+        </div>
+      ))}
+      
+      {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (
+        <div className="space-y-6 animate-fade-in pb-32 px-1">
+            <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700">
+                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none">
+                    <Activity className="w-6 h-6 text-teal-500" /> 
+                    {editingGrowth.id ? t('update_record') : t('add_record')}
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" />
+                    <IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" />
+                    <IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/>
+                </div>
+                <div className="flex gap-3">
+                  {editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}
+                  <button onClick={handleSaveGrowth} className="w-full py-4.5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button>
+                </div>
+            </section>
+            <div className="space-y-2">
+               {growthData.map(g => (
+                   <div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all">
+                       <div className="text-left flex items-center gap-6">
+                          <div className="text-center w-12 shrink-0">
+                             <p className="font-black text-teal-500 text-xl leading-none">{g.month}</p>
+                             <p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p>
+                            <p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p>
+                          </div>
+                       </div>
+                       <div className="flex gap-1">
+                          <button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                   </div>
+               ))}
+            </div>
         </div>
       ))}
 

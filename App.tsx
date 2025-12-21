@@ -117,6 +117,11 @@ function App() {
       }
   };
 
+  const handleSaveGrowth = async (data: GrowthData) => {
+      await DataService.saveGrowth(data);
+      await refreshData();
+  };
+
   const executeDelete = async () => {
      if (!itemToDelete) return;
      if (itemToDelete.type === 'MEMORY') await DataService.deleteMemory(itemToDelete.id);
@@ -289,7 +294,8 @@ function App() {
                     growthData={growthData} memories={memories} stories={stories} onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }} 
                     onDeleteMemory={(id) => { setItemToDelete({type:'MEMORY', id}); setShowConfirmModal(true); }} 
                     onStoryClick={setSelectedStory} onDeleteStory={(id) => { setItemToDelete({type:'STORY', id}); setShowConfirmModal(true); }}
-                    onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }} 
+                    onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }}
+                    onSaveGrowth={handleSaveGrowth}
                     onDeleteProfile={(id) => { setItemToDelete({type:'PROFILE', id}); setShowConfirmModal(true); }} 
                     isGuestMode={isGuestMode} onLogout={handleLogout} remindersEnabled={remindersEnabled} 
                     toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
