@@ -64,8 +64,8 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
         title: language === 'mm' ? `ပုံပြင်လေး - ${topic || 'အိပ်ရာဝင်'}` : `Story - ${topic || 'Bedtime'}`,
         description: story,
         date: today,
-        imageUrl: "", // User requested no image for ebook style
-        tags: ['Story', 'AI', 'Ebook'],
+        imageUrl: `https://picsum.photos/800/600?random=${Date.now()}`,
+        tags: ['Story', 'AI'],
         synced: 0
       };
       
@@ -91,7 +91,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
               <CheckCircle2 className="w-12 h-12" />
             </div>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{language === 'mm' ? 'Ebook သိမ်းဆည်းပြီး' : 'Ebook Saved'}</h3>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('profile_saved')}</h3>
           </div>
         </div>
       )}
@@ -166,14 +166,14 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
             <button 
               onClick={handleSaveToMemories}
               disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-indigo-100 dark:border-indigo-900/30"
+              className="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-rose-100 dark:border-rose-900/30"
             >
-              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              {language === 'mm' ? 'Ebook အဖြစ်သိမ်းမည်' : 'Save as Ebook'}
+              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Heart className="w-3.5 h-3.5" />}
+              {t('save_changes')}
             </button>
           </div>
-          <div className="prose prose-slate dark:prose-invert prose-lg max-w-none bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-700">
-            <p className="text-slate-600 dark:text-slate-300 leading-loose whitespace-pre-line text-lg font-serif">
+          <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
+            <p className="text-slate-600 dark:text-slate-300 leading-loose whitespace-pre-line text-lg">
               {story}
             </p>
           </div>
