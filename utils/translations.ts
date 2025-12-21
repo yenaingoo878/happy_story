@@ -96,7 +96,7 @@ export const translations = {
   add_record: { en: "Add Record", mm: "မှတ်တမ်းအသစ်ထည့်မည်" },
   update_record: { en: "Update Record", mm: "မှတ်တမ်းပြင်ဆင်မည်" },
   cancel_edit: { en: "Cancel Edit", mm: "မပြင်တော့ပါ" },
-  disclaimer: { en: "* Not based on standard WHO Child Growth Standards, for reference only.", mm: "* Standard WHO Child Growth Standards အပေါ်အခြေခံထားခြင်းမရှိပါ၊ ကိုးကားရန်သာ။" },
+  disclaimer: { en: "* AI analysis is referenced against WHO Child Growth Standards for informational purposes only.", mm: "* AI သုံးသပ်ချက်သည် WHO ကလေးဖွံ့ဖြိုးမှုစံနှုန်းများကို ကိုးကားထားပြီး အချက်အလက်ပေးရန်အတွက်သာ ဖြစ်ပါသည်။" },
 
   // Gallery
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },

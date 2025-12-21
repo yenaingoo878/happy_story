@@ -55,11 +55,15 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
         const prompt = `
-          Act as a friendly pediatrician assistant. Analyze this growth data for a child:
+          Act as a knowledgeable and reassuring pediatrician. Analyze the following child growth data against the World Health Organization (WHO) Child Growth Standards. You can find the standards here: https://www.who.int/tools/child-growth-standards/standards
+          
+          Child's Data:
           ${dataStr}
           
-          Provide a very short, encouraging summary (max 2-3 sentences) in ${langPrompt} for the parent. 
-          Focus on the steady progress. Do not give medical advice, just general encouragement about their growth trend.
+          Based on the WHO standards, provide a brief (2-3 sentences), simple, and encouraging summary for the parent in ${langPrompt}. 
+          Mention if the growth trend appears to be following a consistent percentile curve.
+          IMPORTANT: Do not provide alarming medical advice. Frame the analysis in a positive and supportive tone. This is for general informational purposes only.
+          Example Tone: "Your child's growth is progressing steadily, following along their own percentile curve, which is a wonderful sign."
         `;
 
         const response = await ai.models.generateContent({
