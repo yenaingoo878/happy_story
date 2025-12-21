@@ -277,14 +277,24 @@ export const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </div>
 
-                <button 
-                  onClick={handleSaveProfile} 
-                  disabled={isSavingProfile} 
-                  className="w-full sticky bottom-0 py-4.5 bg-primary text-white font-black rounded-3xl shadow-xl uppercase tracking-[0.25em] active:scale-95 flex items-center justify-center gap-3 mt-4"
-                >
-                  {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  {t('save_changes')}
-                </button>
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50">
+                    <button 
+                      onClick={handleSaveProfile} 
+                      disabled={isSavingProfile} 
+                      className="w-full py-4.5 bg-primary text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-primary/20"
+                    >
+                      {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      {t('save_changes')}
+                    </button>
+                    <button 
+                      onClick={() => { if(editingProfile.id) { onDeleteProfile(editingProfile.id); setShowProfileDetails(false); } }}
+                      disabled={isSavingProfile || profiles.length <= 1}
+                      className="w-full mt-3 py-4 bg-transparent text-rose-500 font-bold rounded-2xl text-xs uppercase tracking-widest active:scale-95 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {t('delete_profile')}
+                    </button>
+                </div>
               </div>
             )}
           </section>
@@ -450,8 +460,8 @@ export const Settings: React.FC<SettingsProps> = ({
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
                          </div>
                          <div className="flex gap-1 pr-1 ml-auto">
-                            <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4.5 h-4.5" /></button>
-                            <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button>
+                            <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button>
                          </div>
                       </div>
                    ))}
@@ -531,7 +541,7 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
           {stories.length > 0 ? stories.map(s => (
             <div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200">
-              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4.5 h-4.5" /></button></div>
+              <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p>
             </div>
           )) : (

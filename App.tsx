@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -97,16 +96,37 @@ function App() {
 
   const refreshData = async () => {
       let fetchedProfiles = await DataService.getProfiles();
+      
+      const defaultNameEN = getTranslation('en', 'default_child_name');
+      const defaultNameMM = getTranslation('mm', 'default_child_name');
+
+      // If more than one profile exists and one is a default placeholder, remove it.
+      if (fetchedProfiles.length > 1) {
+          const defaultProfile = fetchedProfiles.find(p => p.name === defaultNameEN || p.name === defaultNameMM);
+          if (defaultProfile) {
+              await DataService.deleteProfile(defaultProfile.id!);
+              fetchedProfiles = await DataService.getProfiles(); // Re-fetch
+          }
+      }
+      
       if (fetchedProfiles.length === 0) {
-          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: 'My Child', dob: new Date().toISOString().split('T')[0], gender: 'boy', synced: 0 };
+          const defaultProfileName = getTranslation(language, 'default_child_name');
+          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultProfileName, dob: new Date().toISOString().split('T')[0], gender: 'boy', synced: 0 };
           await DataService.saveProfile(defaultProfile);
           fetchedProfiles = [defaultProfile];
       }
       setProfiles(fetchedProfiles);
+
       let targetId = activeProfileId;
-      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) { targetId = fetchedProfiles[0].id || ''; setActiveProfileId(targetId); }
-      if (targetId) await loadChildData(targetId);
+      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) { 
+          targetId = fetchedProfiles[0]?.id || ''; 
+          setActiveProfileId(targetId); 
+      }
+      if (targetId) {
+          await loadChildData(targetId);
+      }
   };
+
 
   const handleLogout = async () => {
       try { if (session && isSupabaseConfigured()) await supabase.auth.signOut(); } catch (e) {} 

@@ -1,4 +1,3 @@
-
 import { Language } from '../types';
 
 export const translations = {
@@ -118,6 +117,7 @@ export const translations = {
   add_new_profile: { en: "Add New", mm: "အသစ်ထည့်မည်" },
   age_years: { en: "yrs", mm: "နှစ်" },
   age_months: { en: "mos", mm: "လ" },
+  default_child_name: { en: "My Child", mm: "ကျွန်ုပ်၏ ကလေး" },
   
   // New Profile Fields
   child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },
