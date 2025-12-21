@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 /* Added Scale and Sun to fix missing import errors */
-import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale } from 'lucide-react';
+import { Lock, Baby, UserPlus, Loader2, Save, ChevronRight, Moon, Sun, Trash2, Pencil, LogOut, ChevronDown, Globe, Bell, Activity, Image as ImageIcon, X, Cloud, HardDrive, Clock, User, ShieldCheck, ChevronLeft, MapPin, Plus, Settings as SettingsIcon, CircleUser, Check, Scale, RotateCcw } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -99,6 +99,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowthId, setEditingGrowthId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const growthFormRef = useRef<HTMLDivElement>(null);
   const currentProfile = profiles.find(p => p.id === activeProfileId);
   const isLocked = passcode && !isDetailsUnlocked;
 
@@ -155,6 +156,17 @@ export const Settings: React.FC<SettingsProps> = ({
       await onRefreshData();
       onProfileChange(newId);
       setShowProfileDetails(true);
+  };
+
+  const handleStartEditGrowth = (record: GrowthData) => {
+    setNewGrowth({ month: record.month, height: record.height, weight: record.weight });
+    setEditingGrowthId(record.id || null);
+    growthFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCancelEditGrowth = () => {
+    setNewGrowth({ month: undefined, height: undefined, weight: undefined });
+    setEditingGrowthId(null);
   };
 
   const handleSaveGrowth = async () => {
@@ -423,8 +435,18 @@ export const Settings: React.FC<SettingsProps> = ({
       {view === 'GROWTH' && (
          isLocked ? <LockedScreen /> : (
            <div className="animate-fade-in pb-32 px-1">
-              <section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 mb-4">
-                <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 text-left tracking-tight"><Activity className="w-6 h-6 text-teal-500" /> {t('manage_growth')}</h2>
+              <section ref={growthFormRef} className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700 mb-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 text-left tracking-tight">
+                    <Activity className="w-6 h-6 text-teal-500" /> 
+                    {editingGrowthId ? t('update_record') : t('manage_growth')}
+                  </h2>
+                  {editingGrowthId && (
+                    <button onClick={handleCancelEditGrowth} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
                 
                 <div className="flex flex-col gap-4 mb-8">
                    <IOSInput label={t('month')} icon={Clock} type="number" value={newGrowth.month ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, month: e.target.value})} placeholder="0" />
@@ -432,22 +454,42 @@ export const Settings: React.FC<SettingsProps> = ({
                    <IOSInput label={t('weight_label')} icon={Scale} type="number" value={newGrowth.weight ?? ''} onChange={(e: any) => setNewGrowth({...newGrowth, weight: e.target.value})} placeholder="kg" />
                 </div>
 
-                <button onClick={handleSaveGrowth} disabled={isSavingGrowth || !newGrowth.month} className="w-full py-4 bg-teal-500 text-white font-black rounded-2xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-3 text-base uppercase tracking-[0.2em] active:scale-[0.96] transition-all">
-                   {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                   {editingGrowthId ? t('update_record') : t('add_record')}
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button onClick={handleSaveGrowth} disabled={isSavingGrowth || newGrowth.month === undefined} className={`w-full py-4.5 text-white font-black rounded-3xl shadow-lg flex items-center justify-center gap-3 text-base uppercase tracking-[0.2em] active:scale-[0.96] transition-all ${editingGrowthId ? 'bg-indigo-500 shadow-indigo-500/30' : 'bg-teal-500 shadow-teal-500/30'}`}>
+                    {isSavingGrowth ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingGrowthId ? <Save className="w-5 h-5" /> : <Plus className="w-5 h-5" />)}
+                    {editingGrowthId ? t('update_record') : t('add_record')}
+                  </button>
+                  {editingGrowthId && (
+                    <button onClick={handleCancelEditGrowth} className="w-full py-3 text-slate-500 font-black text-xs uppercase tracking-widest">{t('cancel_edit')}</button>
+                  )}
+                </div>
               </section>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
+                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 px-2">History</h3>
                  {growthData.map(g => (
-                    <div key={g.id} className="bg-white dark:bg-slate-800 p-3 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm transition-all active:bg-slate-50 dark:active:bg-slate-700/50">
-                       <div className="text-left px-1">
-                          <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{g.month} {t('age_months')}</h4>
-                          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{g.height}cm • {g.weight}kg</p>
+                    <div key={g.id} className={`p-3 rounded-[2rem] flex items-center justify-between border shadow-sm transition-all group ${editingGrowthId === g.id ? 'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800' : 'bg-white dark:bg-slate-800 border-slate-50 dark:border-slate-700 active:bg-slate-50 dark:active:bg-slate-700/50'}`}>
+                       <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${editingGrowthId === g.id ? 'bg-indigo-500 text-white' : 'bg-slate-50 dark:bg-slate-700/50 text-slate-400'}`}>
+                             <span className="text-xs font-black">{g.month}</span>
+                          </div>
+                          <div className="text-left">
+                            <h4 className="font-black text-slate-800 dark:text-white text-sm tracking-tight">{g.month} {t('age_months')}</h4>
+                            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{g.height}cm • {g.weight}kg</p>
+                          </div>
                        </div>
-                       <button onClick={() => onDeleteGrowth(g.id!)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl active:scale-90 transition-all"><Trash2 className="w-5 h-5" /></button>
+                       <div className="flex gap-1 pr-1">
+                          <button onClick={() => handleStartEditGrowth(g)} className={`p-2.5 rounded-xl transition-all active:scale-90 ${editingGrowthId === g.id ? 'text-indigo-600 bg-white dark:bg-slate-800 shadow-sm' : 'text-slate-300 hover:text-indigo-500'}`}><Pencil className="w-4.5 h-4.5" /></button>
+                          <button onClick={() => onDeleteGrowth(g.id!)} className="p-2.5 text-slate-300 hover:text-rose-500 active:scale-90 transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
+                       </div>
                     </div>
                  ))}
+                 {growthData.length === 0 && (
+                   <div className="py-12 text-center text-slate-300 flex flex-col items-center gap-2">
+                     <RotateCcw className="w-8 h-8 opacity-20" />
+                     <p className="text-xs font-bold uppercase tracking-widest">No growth records found</p>
+                   </div>
+                 )}
               </div>
            </div>
          )
