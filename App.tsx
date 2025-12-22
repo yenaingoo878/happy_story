@@ -262,7 +262,7 @@ function App() {
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
-                  {latestMemory && latestMemory.imageUrls.length > 0 ? (
+                  {latestMemory && latestMemory.imageUrls && latestMemory.imageUrls.length > 0 ? (
                       <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
                         <img src={latestMemory.imageUrls[0]} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">

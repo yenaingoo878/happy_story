@@ -27,8 +27,17 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
   
   if (!memory) return null;
 
-  const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? memory.imageUrls.length - 1 : prev - 1));
-  const goToNext = () => setCurrentIndex(prev => (prev === memory.imageUrls.length - 1 ? 0 : prev + 1));
+  const hasImages = Array.isArray(memory.imageUrls) && memory.imageUrls.length > 0;
+  const imageCount = hasImages ? memory.imageUrls.length : 0;
+
+  const goToPrevious = () => {
+    if (!hasImages) return;
+    setCurrentIndex(prev => (prev === 0 ? imageCount - 1 : prev - 1));
+  };
+  const goToNext = () => {
+    if (!hasImages) return;
+    setCurrentIndex(prev => (prev === imageCount - 1 ? 0 : prev + 1));
+  };
 
   const formatDate = (isoDate: string) => {
      if (!isoDate) return '';
@@ -46,12 +55,12 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
         
         <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
-          {isImageLoading && (
+          {isImageLoading && hasImages && (
             <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           )}
-          {memory.imageUrls && memory.imageUrls.length > 0 && (
+          {hasImages && (
              <img 
               src={memory.imageUrls[currentIndex]} 
               alt={`${memory.title} - ${currentIndex + 1}`}
@@ -68,7 +77,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
             <X className="w-5 h-5" />
           </button>
 
-          {memory.imageUrls.length > 1 && (
+          {hasImages && imageCount > 1 && (
             <>
               <button onClick={goToPrevious} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
                 <ChevronLeft className="w-6 h-6"/>
@@ -77,7 +86,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
                 <ChevronRight className="w-6 h-6"/>
               </button>
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
-                {currentIndex + 1} / {memory.imageUrls.length}
+                {currentIndex + 1} / {imageCount}
               </div>
             </>
           )}
