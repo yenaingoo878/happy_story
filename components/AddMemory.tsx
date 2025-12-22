@@ -121,7 +121,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             imageUrls: formState.imageUrls,
             date: formState.date,
             tags: finalTags,
-            synced: 0 
+            synced: 0,
+            is_deleted: 0
           };
           await DataService.addMemory(updated); 
         } else {
@@ -133,7 +134,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             date: formState.date, 
             imageUrls: formState.imageUrls,
             tags: finalTags,
-            synced: 0
+            synced: 0,
+            is_deleted: 0
           };
           await DataService.addMemory(memory);
         }
