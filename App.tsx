@@ -16,6 +16,7 @@ import { initDB, DataService, syncData } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
+import { initializeAntiInspect } from './lib/security';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
@@ -58,6 +59,7 @@ function App() {
   const [syncState, setSyncState] = useState({ status: 'idle', progress: 0, total: 0, completed: 0 });
 
   useEffect(() => {
+    initializeAntiInspect(); // Initialize anti-inspect measures
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
     return () => {
