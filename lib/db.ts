@@ -327,11 +327,9 @@ export const DataService = {
     },
     addMemory: async (memory: Memory) => {
         await db.memories.put({ ...memory, synced: 0, is_deleted: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     deleteMemory: async (id: string) => {
         await db.memories.update(id, { is_deleted: 1, synced: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
 
     getStories: async (childId?: string) => {
@@ -342,11 +340,9 @@ export const DataService = {
     },
     addStory: async (story: Story) => {
         await db.stories.put({ ...story, synced: 0, is_deleted: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     deleteStory: async (id: string) => {
         await db.stories.update(id, { is_deleted: 1, synced: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
 
     getGrowth: async (childId?: string) => {
@@ -355,11 +351,9 @@ export const DataService = {
     },
     saveGrowth: async (data: GrowthData) => {
         await db.growth.put({ ...data, synced: 0, is_deleted: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     deleteGrowth: async (id: string) => {
         await db.growth.update(id, { is_deleted: 1, synced: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     
     getProfiles: async () => {
@@ -367,11 +361,9 @@ export const DataService = {
     },
     saveProfile: async (profile: ChildProfile) => {
         await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     deleteProfile: async (id: string) => {
         await db.profiles.update(id, { is_deleted: 1, synced: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
 
     getReminders: async () => {
@@ -379,10 +371,8 @@ export const DataService = {
     },
     saveReminder: async (reminder: Reminder) => {
         await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 });
-        if (isSupabaseConfigured()) syncData();
     },
     deleteReminder: async (id: string) => {
         await db.reminders.update(id, { is_deleted: 1, synced: 0 });
-        if (isSupabaseConfigured()) syncData();
     }
 };
