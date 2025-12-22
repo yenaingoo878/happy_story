@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GrowthData, Language } from '../types';
@@ -104,7 +105,8 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
                 {error ? t('delete_title') : t('ai_insight')}
              </h4>
              <p className={`text-xs leading-relaxed ${error ? 'text-rose-500' : 'text-indigo-700 dark:text-slate-300'}`}>
-                 {error ? (language === 'mm' ? "AI ဆန်းစစ်မှု အဆင်မပြေပါ။ API Key စစ်ဆေးပါ။" : "Analysis failed. Please check your API Key.") : analysis}
+                 {/* FIX: Updated error message to be more generic as API key is not user-configurable. */}
+                 {error ? (language === 'mm' ? "AI ဆန်းစစ်မှု အဆင်မပြေပါ။ နောက်မှ ပြန်ကြိုးစားကြည့်ပါ။" : "Analysis failed. Please try again later.") : analysis}
              </p>
           </div>
       )}

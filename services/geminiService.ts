@@ -1,20 +1,16 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 import { DataService } from '../lib/db';
 
-const getApiKey = async (): Promise<string | null> => {
-    const setting = await DataService.getSetting('geminiApiKey');
-    return setting?.value || process.env.API_KEY || null;
-}
-
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    const apiKey = await getApiKey();
-    if (!apiKey) {
-      throw new Error("API_KEY_MISSING");
+    // FIX: API key must be sourced from process.env.API_KEY exclusively.
+    if (!process.env.API_KEY) {
+      throw new Error("API key not configured.");
     }
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -37,20 +33,18 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
     return response;
   } catch (error: any) {
     console.error("Error generating story:", error);
-    if (error.message === "API_KEY_MISSING") {
-        throw new Error("API key not configured. Please set it in the app settings.");
-    }
+    // FIX: Removed special handling for missing API key as it should not be user-configurable.
     throw error;
   }
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        const apiKey = await getApiKey();
-        if (!apiKey) {
-            return language === 'mm' ? "သင်၏ API Key ကို ဆက်တင်တွင် ထည့်သွင်းပေးပါ။" : "Please set your API Key in the settings.";
+        // FIX: API key must be sourced from process.env.API_KEY exclusively.
+        if (!process.env.API_KEY) {
+            return language === 'mm' ? "API Key ကို configure မလုပ်ထားပါ။" : "API Key is not configured.";
         }
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -79,8 +73,9 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
         return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
     } catch (error) {
         console.error("Error analyzing growth:", error);
+        // FIX: Updated error message to remove mention of API key.
         return language === 'mm' 
-            ? "ကွန်ဟက်ချိတ်ဆက်မှု သို့မဟုတ် API Key အမှားရှိနေပါသည်။" 
-            : "Connection or API Key error. Please try again.";
+            ? "ကွန်ရက်ချိတ်ဆက်မှု အမှားရှိနေပါသည်။" 
+            : "Connection error. Please try again.";
     }
 }

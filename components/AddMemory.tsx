@@ -4,6 +4,8 @@ import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
 
+type ImageState = string | { file: File, preview: string };
+
 interface AddMemoryProps {
   language: Language;
   activeProfileId: string;
@@ -21,7 +23,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 }) => {
   const t = (key: any) => getTranslation(language, key);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   
@@ -33,14 +34,13 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  const [formState, setFormState] = useState<{title: string; desc: string; date: string; imageUrls: string[]; tags: string[]}>({ 
+  const [formState, setFormState] = useState({ 
     title: '', 
     desc: '', 
     date: getTodayLocal(),
-    imageUrls: [],
-    tags: []
+    tags: [] as string[]
   });
-
+  const [images, setImages] = useState<ImageState[]>([]);
   const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
@@ -49,42 +49,45 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: editMemory.title,
             desc: editMemory.description,
             date: editMemory.date,
-            imageUrls: editMemory.imageUrls || [],
             tags: editMemory.tags || []
         });
+        setImages(editMemory.imageUrls || []);
     } else {
         setFormState({ 
             title: '', 
             desc: '', 
             date: getTodayLocal(),
-            imageUrls: [],
             tags: []
         });
+        setImages([]);
     }
   }, [editMemory]);
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    // Component unmount cleanup for Object URLs
+    return () => {
+        images.forEach(img => {
+            if (typeof img === 'object' && img.preview) {
+                URL.revokeObjectURL(img.preview);
+            }
+        });
+    };
+  }, [images]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       if (!activeProfileId) {
           alert("Please create or select a profile first.");
           return;
       }
-      
-      setIsUploading(true);
-      try {
-        const uploadPromises = Array.from(files).map(file => 
-            DataService.uploadImage(file, activeProfileId, 'memories')
-        );
-        const newImageUrls = await Promise.all(uploadPromises);
-        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
-      } catch (error) {
-        console.error("Image upload failed", error);
-        alert("Image upload failed.");
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
+      // FIX: Explicitly type 'file' as File to prevent type inference issues.
+      const newImages = Array.from(files).map((file: File) => ({
+        file,
+        preview: URL.createObjectURL(file)
+      }));
+      setImages(prev => [...prev, ...newImages]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -104,38 +107,40 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   const handleSave = async () => {
-    if (!formState.title || formState.imageUrls.length === 0) return;
-    if (!activeProfileId) return; 
+    if (!formState.title || images.length === 0 || !activeProfileId) return;
 
     setIsSaving(true);
     try {
-        const finalTags = formState.tags.length > 0 ? formState.tags : [];
+        const filesToUpload = images.filter(img => typeof img !== 'string') as {file: File, preview: string}[];
+        const existingUrls = images.filter(img => typeof img === 'string') as string[];
+
+        const uploadPromises = filesToUpload.map(item => 
+            DataService.uploadImage(item.file, activeProfileId, 'memories')
+        );
+        const newUrls = await Promise.all(uploadPromises);
+        const finalImageUrls = [...existingUrls, ...newUrls];
+
+        const memoryData = {
+          title: formState.title,
+          description: formState.desc,
+          date: formState.date,
+          imageUrls: finalImageUrls,
+          tags: formState.tags.length > 0 ? formState.tags : [],
+          synced: 0
+        };
 
         if (editMemory) {
-          const updated: Memory = { 
-            ...editMemory, 
-            childId: editMemory.childId,
-            title: formState.title, 
-            description: formState.desc, 
-            imageUrls: formState.imageUrls,
-            date: formState.date,
-            tags: finalTags,
-            synced: 0 
-          };
+          const updated: Memory = { ...editMemory, ...memoryData };
           await DataService.addMemory(updated); 
         } else {
-          const memory: Memory = {
+          const newMemory: Memory = {
             id: crypto.randomUUID(),
             childId: activeProfileId,
-            title: formState.title, 
-            description: formState.desc, 
-            date: formState.date, 
-            imageUrls: formState.imageUrls,
-            tags: finalTags,
-            synced: 0
+            ...memoryData
           };
-          await DataService.addMemory(memory);
+          await DataService.addMemory(newMemory);
         }
+
         setShowSuccess(true);
         setTimeout(() => {
             setShowSuccess(false);
@@ -150,11 +155,15 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   const triggerGalleryInput = () => {
-    if (!isUploading && !isSaving) fileInputRef.current?.click();
+    if (!isSaving) fileInputRef.current?.click();
   };
 
   const removeImage = (indexToRemove: number) => {
-      setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
+    const imageToRemove = images[indexToRemove];
+    if (typeof imageToRemove === 'object' && imageToRemove.preview) {
+        URL.revokeObjectURL(imageToRemove.preview);
+    }
+    setImages(prev => prev.filter((_, index) => index !== indexToRemove));
   }
 
   return (
@@ -177,26 +186,29 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
         <div className="bg-white dark:bg-slate-800 p-6 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700">
                 <div className="w-full bg-slate-50 dark:bg-slate-700/50 rounded-[32px] p-4 mb-6">
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {formState.imageUrls.map((url, index) => (
-                            <div key={index} className="relative group aspect-square">
-                                <img src={url} className="w-full h-full object-cover rounded-2xl shadow-sm" alt={`Memory preview ${index + 1}`}/>
-                                <button onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110 active:scale-90">
-                                    <X className="w-3 h-3"/>
-                                </button>
-                            </div>
-                        ))}
+                        {images.map((img, index) => {
+                            const src = typeof img === 'string' ? img : img.preview;
+                            return (
+                                <div key={index} className="relative group aspect-square">
+                                    <img src={src} className="w-full h-full object-cover rounded-2xl shadow-sm" alt={`Memory preview ${index + 1}`}/>
+                                    <button onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110 active:scale-90">
+                                        <X className="w-3 h-3"/>
+                                    </button>
+                                </div>
+                            )
+                        })}
                          <button 
                             onClick={triggerGalleryInput}
-                            disabled={isUploading}
+                            disabled={isSaving}
                             className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600/50 hover:border-primary/50 hover:text-primary transition-colors"
                         >
-                            {isUploading ? <Loader2 className="w-6 h-6 animate-spin"/> : <Plus className="w-6 h-6"/>}
-                            <span className="text-[10px] font-black uppercase tracking-widest">{isUploading ? t('uploading') : 'Add'}</span>
+                            <Plus className="w-6 h-6"/>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Add</span>
                         </button>
                     </div>
                 </div>
                 
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} multiple />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isSaving} multiple />
 
                 <div className="space-y-5">
                   <div className="space-y-1.5">
@@ -240,8 +252,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
                   <button 
                       onClick={handleSave} 
-                      disabled={isUploading || isSaving || !formState.title || formState.imageUrls.length === 0} 
-                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
+                      disabled={isSaving || !formState.title || images.length === 0} 
+                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isSaving || !formState.title || images.length === 0 ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
                   >
                       {isSaving ? (
                           <>

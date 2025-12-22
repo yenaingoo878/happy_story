@@ -108,11 +108,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
-  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
   
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [syncState, setSyncState] = useState({ status: 'idle' });
@@ -120,14 +115,6 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => {
     syncManager.subscribe(setSyncState);
     return () => syncManager.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    DataService.getSetting('geminiApiKey').then(setting => {
-        if (setting && setting.value) {
-            setSavedApiKey(setting.value);
-        }
-    });
   }, []);
 
   const handleManualSync = async () => {
@@ -139,31 +126,6 @@ export const Settings: React.FC<SettingsProps> = ({
         console.error("Manual sync failed", e);
     } finally {
         setIsManualSyncing(false);
-    }
-  };
-
-  const handleSaveApiKey = async () => {
-    if (!apiKeyInput.trim()) return;
-    setIsSavingApiKey(true);
-    try {
-        await DataService.saveSetting('geminiApiKey', apiKeyInput.trim());
-        setSavedApiKey(apiKeyInput.trim());
-        setApiKeyInput('');
-        triggerSuccess();
-    } catch (e) {
-        alert("Failed to save API Key.");
-    } finally {
-        setIsSavingApiKey(false);
-    }
-  };
-
-  const handleRemoveApiKey = async () => {
-    try {
-        await DataService.removeSetting('geminiApiKey');
-        setSavedApiKey(null);
-        setApiKeyInput('');
-    } catch (e) {
-        alert("Failed to remove API Key.");
     }
   };
 
@@ -469,62 +431,6 @@ export const Settings: React.FC<SettingsProps> = ({
               colorClass="text-amber-500" 
               bgClass="bg-amber-50 dark:bg-amber-900/20"
             />
-          </section>
-
-          {/* AI Settings Section */}
-          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700">
-            <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">AI & Services</h3></div>
-            <div className="p-5 space-y-4">
-                <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
-                        <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('api_key_title')}</h3>
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                            {t('api_key_desc_1')}
-                            <a href="https://ai.google.dev/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold underline underline-offset-2">
-                                Google AI Studio
-                            </a>
-                            {t('api_key_desc_2')}
-                        </p>
-                    </div>
-                </div>
-
-                {savedApiKey ? (
-                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-2xl p-4 flex items-center justify-between border border-slate-100 dark:border-slate-600/50 shadow-inner">
-                        <div className="flex items-center gap-3">
-                           <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                           <div>
-                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('api_key_saved')}</p>
-                             <p className="text-sm font-bold text-slate-600 dark:text-slate-300 font-mono tracking-tight">{`••••${savedApiKey.slice(-4)}`}</p>
-                           </div>
-                        </div>
-                        <button onClick={handleRemoveApiKey} className="p-3 text-rose-500 bg-rose-50 dark:bg-rose-900/20 rounded-xl active:scale-90 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                            <IOSInput 
-                                label={t('api_key_label')}
-                                icon={KeyRound}
-                                value={apiKeyInput}
-                                onChange={(e: any) => setApiKeyInput(e.target.value)}
-                                type={showApiKey ? 'text' : 'password'}
-                                onRightIconClick={() => setShowApiKey(!showApiKey)}
-                                placeholder={t('api_key_placeholder')}
-                            />
-                        </div>
-                        <button 
-                            onClick={handleSaveApiKey}
-                            disabled={!apiKeyInput || isSavingApiKey}
-                            className="h-[60px] px-6 bg-primary text-white rounded-2xl active:scale-95 shadow-lg shadow-primary/20 transition-all flex items-center justify-center disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
-                        >
-                            {isSavingApiKey ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                        </button>
-                    </div>
-                )}
-            </div>
           </section>
 
           {/* Data & Content Section */}
