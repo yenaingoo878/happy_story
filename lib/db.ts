@@ -1,6 +1,7 @@
 import Dexie, { Table } from 'dexie';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
+import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
 
 export type LittleMomentsDB = Dexie & {
@@ -52,25 +53,52 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
-const uploadFileToSupabase = async (file: File, childId: string, tag: string): Promise<string> => {
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `${childId}/${tag}/${fileName}`;
+const uploadFileToSupabase = (file: File, childId: string, tag: string): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${childId}/${tag}/${fileName}`;
+        
+        uploadManager.start(file.name);
 
-    const { error } = await supabase.storage
-        .from('images')
-        .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true,
-        });
+        const xhr = new XMLHttpRequest();
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/images/${filePath}`;
+        xhr.open('POST', uploadUrl, true);
 
-    if (error) {
-        console.error('Supabase upload error:', error);
-        throw error;
-    }
-    
-    const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-    return data.publicUrl;
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || SUPABASE_ANON_KEY;
+        
+        xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.setRequestHeader('x-upsert', 'true');
+
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentComplete = (event.loaded / event.total) * 100;
+                uploadManager.progress(percentComplete, file.name);
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                uploadManager.progress(100, file.name);
+                const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+                uploadManager.finish();
+                resolve(data.publicUrl);
+            } else {
+                uploadManager.error();
+                reject(new Error(`Upload failed: ${xhr.statusText}`));
+            }
+        };
+
+        xhr.onerror = () => {
+            uploadManager.error();
+            reject(new Error('Network error during upload.'));
+        };
+
+        xhr.send(file);
+    });
 };
 
 export const syncData = async () => {
@@ -178,7 +206,7 @@ export const syncData = async () => {
     }
 };
 
-const fileToBase64 = (file: File): Promise<string> => {
+export const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -188,7 +216,17 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const DataService = {
-    // FIX: Removed app settings methods as API key is no longer user-configurable.
+    // --- App Settings ---
+    getSetting: async (key: string) => {
+        return await db.app_settings.get(key);
+    },
+    saveSetting: async (key: string, value: any) => {
+        await db.app_settings.put({ key, value });
+    },
+    removeSetting: async (key: string) => {
+        await db.app_settings.delete(key);
+    },
+
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         const isGuest = localStorage.getItem('guest_mode') === 'true';
 

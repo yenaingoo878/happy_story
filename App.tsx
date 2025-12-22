@@ -14,6 +14,7 @@ import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, S
 import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
+import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
 import { initializeAntiInspect } from './lib/security';
 
@@ -54,12 +55,15 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
   const t = (key: any) => getTranslation(language, key);
 
+  const [uploadProgress, setUploadProgress] = useState(-1);
   const [syncState, setSyncState] = useState({ status: 'idle', progress: 0, total: 0, completed: 0 });
 
   useEffect(() => {
     initializeAntiInspect(); // Initialize anti-inspect measures
+    uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
     return () => {
+      uploadManager.unsubscribe();
       syncManager.unsubscribe();
     }
   }, []);
@@ -389,6 +393,33 @@ function App() {
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
       <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[999] pointer-events-none animate-fade-in">
+          {uploadProgress > -1 && (
+            <div className="p-3">
+              <div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">
+                  {uploadProgress < 100 ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-xs font-black text-slate-800 dark:text-white truncate">
+                      {uploadProgress < 100 ? t('uploading') : t('profile_saved')}
+                    </p>
+                    <p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
+                    <div 
+                      className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <SyncProgressBar />
       </div>
 
