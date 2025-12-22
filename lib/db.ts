@@ -16,21 +16,32 @@ export type LittleMomentsDB = Dexie & {
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
 // Store definitions must be in ascending order.
-db.version(5).stores({
-  memories: 'id, childId, date, synced',
-  stories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced',
-  reminders: 'id, date, synced'
-});
-
 db.version(6).stores({
   memories: 'id, childId, date, synced',
   stories: 'id, childId, date, synced',
   growth: 'id, childId, month, synced',
   profiles: 'id, name, synced',
   reminders: 'id, date, synced',
-  app_settings: 'key' // New table for app settings like API keys
+  app_settings: 'key'
+});
+
+db.version(7).stores({
+  memories: 'id, [childId+is_deleted], date, synced',
+  stories: 'id, [childId+is_deleted], date, synced',
+  growth: 'id, [childId+is_deleted], month, synced',
+  profiles: 'id, name, synced, is_deleted',
+  reminders: 'id, date, synced, is_deleted',
+  app_settings: 'key'
+}).upgrade(tx => {
+  // This upgrade function adds the `is_deleted` property to existing objects.
+  const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
+  return Promise.all(tables.map(tableName => 
+    tx.table(tableName).toCollection().modify(item => {
+      if (item.is_deleted === undefined) {
+        item.is_deleted = 0; // 0 for not deleted
+      }
+    })
+  ));
 });
 
 
@@ -49,7 +60,7 @@ export const initDB = async () => {
 };
 
 const cleanForSync = (doc: any) => {
-    const { synced, ...rest } = doc;
+    const { synced, is_deleted, ...rest } = doc;
     return rest;
 };
 
@@ -101,6 +112,29 @@ const uploadFileToSupabase = (file: File, childId: string, tag: string): Promise
     });
 };
 
+const syncDeletions = async () => {
+    const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
+    const supabaseTables: { [key: string]: string } = {
+        memories: 'memories',
+        stories: 'stories',
+        growth: 'growth_data',
+        profiles: 'child_profile',
+        reminders: 'reminders',
+    };
+    
+    for (const tableName of tables) {
+        const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
+        for (const item of itemsToDelete) {
+            const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
+            if (!error) {
+                await db.table(tableName).delete(item.id); // Permanent delete after cloud sync
+            } else {
+                console.error(`Failed to delete ${tableName} item ${item.id} from Supabase:`, error);
+            }
+        }
+    }
+};
+
 export const syncData = async () => {
     if (!navigator.onLine) return { success: false, reason: 'Offline' };
     if (!isSupabaseConfigured()) return { success: false, reason: 'No Supabase Configuration' };
@@ -110,19 +144,22 @@ export const syncData = async () => {
         if (sessionError) throw sessionError;
         if (!session) return { success: false, reason: 'No Active Session' };
 
-        const unsyncedStories = await db.stories.where('synced').equals(0).toArray();
-        const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
-        const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
-        const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
-        const unsyncedReminders = await db.reminders.where('synced').equals(0).toArray();
+        // 1. Sync Deletions First
+        await syncDeletions();
+
+        // 2. Sync Creations and Updates
+        const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         
-        if (totalToSync === 0) {
-            return { success: true, reason: 'No data to sync' };
+        if (totalToSync > 0) {
+            syncManager.start(totalToSync);
         }
         
-        syncManager.start(totalToSync);
         let errors: string[] = [];
 
         for (const s of unsyncedStories) {
@@ -184,19 +221,22 @@ export const syncData = async () => {
             else errors.push(`Reminders Push: ${error.message}`);
         }
 
-        if (errors.length > 0) syncManager.error();
-        else syncManager.finish();
+        if (totalToSync > 0) {
+            if (errors.length > 0) syncManager.error();
+            else syncManager.finish();
+        }
 
+        // 3. Pull remote changes
         const { data: profileData } = await supabase.from('child_profile').select('*');
-        if (profileData) await db.profiles.bulkPut(profileData.map(p => ({ ...p, synced: 1 })));
+        if (profileData) await db.profiles.bulkPut(profileData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
         const { data: storyData } = await supabase.from('stories').select('*');
-        if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1 })));
+        if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
         const { data: growthData } = await supabase.from('growth_data').select('*');
-        if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1 })));
+        if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
         const { data: memoryData } = await supabase.from('memories').select('*');
-        if (memoryData) await db.memories.bulkPut(memoryData.map(m => ({ ...m, synced: 1 })));
+        if (memoryData) await db.memories.bulkPut(memoryData.map(m => ({ ...m, synced: 1, is_deleted: 0 })));
         const { data: reminderData } = await supabase.from('reminders').select('*');
-        if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1 })));
+        if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
         
         return { success: errors.length === 0 };
     } catch (err: any) {
@@ -230,17 +270,14 @@ export const DataService = {
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         const isGuest = localStorage.getItem('guest_mode') === 'true';
 
-        // For guest mode, offline, or if Supabase isn't configured, store as base64 data URI
         if (isGuest || !navigator.onLine || !isSupabaseConfigured()) {
             return fileToBase64(file);
         }
 
-        // If online, logged-in, and Supabase is configured, try to upload
         try {
             return await uploadFileToSupabase(file, childId, tag);
         } catch (error) {
             console.error("Caught an exception during image upload, falling back to local storage:", error);
-            // Fallback to base64 on any other exception
             return fileToBase64(file);
         }
     },
@@ -248,78 +285,81 @@ export const DataService = {
     getMemories: async (childId?: string): Promise<Memory[]> => {
         let memories;
         if (childId) {
-            memories = await db.memories.where('childId').equals(childId).reverse().sortBy('date');
+            // FIX: Correctly sort memories by date descending. The previous implementation with reverse().sortBy() was incorrect.
+            memories = (await db.memories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
         } else {
-            memories = await db.memories.orderBy('date').reverse().toArray();
+            // FIX: Correctly sort memories by date descending. `orderBy` is not a valid method on a Collection. Use `sortBy` and reverse the resulting array.
+            memories = (await db.memories.where('is_deleted').equals(0).sortBy('date')).reverse();
         }
-
-        // Backward compatibility layer for old data structure
         return memories.map((mem: any) => {
             if ((!mem.imageUrls || !Array.isArray(mem.imageUrls)) && typeof mem.imageUrl === 'string') {
-                return {
-                    ...mem,
-                    imageUrls: [mem.imageUrl] // Convert single string to an array
-                };
+                return { ...mem, imageUrls: [mem.imageUrl] };
             }
             return mem as Memory;
         });
     },
     addMemory: async (memory: Memory) => {
-        await db.memories.put({ ...memory, synced: 0 });
-        if (isSupabaseConfigured()) syncData(); // Don't await, let it run in background
+        await db.memories.put({ ...memory, synced: 0, is_deleted: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     deleteMemory: async (id: string) => {
-        await db.memories.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('memories').delete().eq('id', id);
+        await db.memories.update(id, { is_deleted: 1, synced: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
 
     getStories: async (childId?: string) => {
-        if (childId) return await db.stories.where('childId').equals(childId).reverse().sortBy('date');
-        return await db.stories.orderBy('date').reverse().toArray();
+        if (childId) {
+            // FIX: Correctly sort stories by date descending. The previous implementation with reverse().sortBy() was incorrect.
+            return (await db.stories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
+        }
+        // FIX: Correctly sort stories by date descending. `orderBy` is not a valid method on a Collection. Use `sortBy` and reverse the resulting array.
+        return (await db.stories.where('is_deleted').equals(0).sortBy('date')).reverse();
     },
     addStory: async (story: Story) => {
-        await db.stories.put({ ...story, synced: 0 });
-        if (isSupabaseConfigured()) syncData(); // Don't await
+        await db.stories.put({ ...story, synced: 0, is_deleted: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     deleteStory: async (id: string) => {
-        await db.stories.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('stories').delete().eq('id', id);
+        await db.stories.update(id, { is_deleted: 1, synced: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
 
     getGrowth: async (childId?: string) => {
-        if (childId) return await db.growth.where('childId').equals(childId).sortBy('month');
-        return await db.growth.orderBy('month').toArray();
+        if (childId) return await db.growth.where({ childId, is_deleted: 0 }).sortBy('month');
+        // FIX: `orderBy` is not a valid method on a Collection. Use `sortBy` instead to sort ascending by month.
+        return await db.growth.where('is_deleted').equals(0).sortBy('month');
     },
     saveGrowth: async (data: GrowthData) => {
-        await db.growth.put({ ...data, synced: 0 });
-        if (isSupabaseConfigured()) syncData(); // Don't await
+        await db.growth.put({ ...data, synced: 0, is_deleted: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     deleteGrowth: async (id: string) => {
-        await db.growth.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('growth_data').delete().eq('id', id);
+        await db.growth.update(id, { is_deleted: 1, synced: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     
     getProfiles: async () => {
-        return await db.profiles.toArray();
+        return await db.profiles.where('is_deleted').equals(0).toArray();
     },
     saveProfile: async (profile: ChildProfile) => {
-        await db.profiles.put({ ...profile, synced: 0 });
-        if (isSupabaseConfigured()) syncData(); // Don't await
+        await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     deleteProfile: async (id: string) => {
-        await db.profiles.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('child_profile').delete().eq('id', id);
+        await db.profiles.update(id, { is_deleted: 1, synced: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
 
     getReminders: async () => {
-        return await db.reminders.orderBy('date').toArray();
+        // FIX: `orderBy` is not a valid method on a Collection. Use `sortBy` instead to sort ascending by date.
+        return await db.reminders.where('is_deleted').equals(0).sortBy('date');
     },
     saveReminder: async (reminder: Reminder) => {
-        await db.reminders.put({ ...reminder, synced: 0 });
-        if (isSupabaseConfigured()) syncData(); // Don't await
+        await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 });
+        if (isSupabaseConfigured()) syncData();
     },
     deleteReminder: async (id: string) => {
-        await db.reminders.delete(id);
-        if (navigator.onLine && isSupabaseConfigured()) await supabase.from('reminders').delete().eq('id', id);
+        await db.reminders.update(id, { is_deleted: 1, synced: 0 });
+        if (isSupabaseConfigured()) syncData();
     }
 };

@@ -17,6 +17,7 @@ export interface Memory {
   imageUrls: string[];
   tags: string[];
   synced?: number; 
+  is_deleted?: number; // 0 = false, 1 = true
 }
 
 export interface Story {
@@ -26,6 +27,7 @@ export interface Story {
   content: string;
   date: string;
   synced?: number;
+  is_deleted?: number;
 }
 
 export interface GrowthData {
@@ -35,6 +37,7 @@ export interface GrowthData {
   height: number; // cm
   weight: number; // kg
   synced?: number;
+  is_deleted?: number;
 }
 
 export interface ChildProfile {
@@ -57,6 +60,7 @@ export interface ChildProfile {
   hairColor?: string;
   notes?: string;
   synced?: number;
+  is_deleted?: number;
 }
 
 export interface Reminder {
@@ -65,6 +69,7 @@ export interface Reminder {
   date: string;
   type: 'birthday' | 'event' | 'medical';
   synced?: number;
+  is_deleted?: number;
 }
 
 export interface StoryState {
