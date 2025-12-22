@@ -98,6 +98,29 @@ function App() {
     }
   }, [session, isGuestMode]);
 
+  // Effect to handle online/offline status and trigger sync
+  useEffect(() => {
+    const handleOnline = () => {
+        setIsOnline(true);
+        // When connection is restored, try to sync data if logged in
+        if (session && isSupabaseConfigured()) {
+            console.log("Connection restored, attempting to sync...");
+            syncData().then(() => {
+                refreshData();
+            });
+        }
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+  }, [session]); // Rerun this effect if the session changes
+
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
   const loadChildData = async (childId: string) => {
