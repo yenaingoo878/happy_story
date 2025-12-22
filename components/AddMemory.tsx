@@ -12,15 +12,6 @@ interface AddMemoryProps {
   onCancel: () => void;
 }
 
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-};
-
 export const AddMemory: React.FC<AddMemoryProps> = ({ 
   language, 
   activeProfileId, 
@@ -82,12 +73,14 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       
       setIsUploading(true);
       try {
-        const base64Promises = Array.from(files).map(fileToBase64);
-        const newImageUrls = await Promise.all(base64Promises);
+        const uploadPromises = Array.from(files).map(file => 
+            DataService.uploadImage(file, activeProfileId, 'memories')
+        );
+        const newImageUrls = await Promise.all(uploadPromises);
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
       } catch (error) {
-        console.error("Image processing failed", error);
-        alert("Image processing failed.");
+        console.error("Image upload failed", error);
+        alert("Image upload failed.");
       } finally {
         setIsUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
