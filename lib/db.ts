@@ -186,9 +186,28 @@ export const syncData = async () => {
             }
         }
         for (const mem of unsyncedMemories) {
-            const { error } = await supabase.from('memories').upsert(cleanForSync(mem));
-            if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Memories Push: ${error.message}`);
+            const memoryToSync = cleanForSync(mem);
+            
+            // Adapt the object for the Supabase schema which expects a single `imageUrl` text field.
+            const supabasePayload: any = { ...memoryToSync };
+            
+            if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
+                supabasePayload.imageUrl = supabasePayload.imageUrls[0];
+            } else if (supabasePayload.imageUrl === undefined) {
+                // Ensure the field is present, even if null, to avoid schema issues.
+                supabasePayload.imageUrl = null;
+            }
+            // This property doesn't exist in the remote 'memories' table and would cause an error.
+            delete supabasePayload.imageUrls; 
+
+            const { error } = await supabase.from('memories').upsert(supabasePayload);
+            if (!error) { 
+                await db.memories.update(mem.id, { synced: 1 }); 
+                syncManager.itemCompleted(); 
+            } else {
+                console.error(`Supabase memories sync push error for id ${mem.id}:`, error);
+                errors.push(`Memories Push: ${error.message}`);
+            }
         }
 
         for (const g of unsyncedGrowth) {
@@ -233,11 +252,39 @@ export const syncData = async () => {
         if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
         const { data: growthData } = await supabase.from('growth_data').select('*');
         if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        const { data: memoryData } = await supabase.from('memories').select('*');
-        if (memoryData) await db.memories.bulkPut(memoryData.map(m => ({ ...m, synced: 1, is_deleted: 0 })));
         const { data: reminderData } = await supabase.from('reminders').select('*');
         if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
         
+        // Special handling for memories to prevent data loss.
+        // The remote schema only stores one `imageUrl`, while local stores an array `imageUrls`.
+        // A simple overwrite would delete the extra images from the local DB.
+        const { data: memoryData } = await supabase.from('memories').select('*');
+        if (memoryData) {
+            const memoriesToUpsert = [];
+            for (const remoteMemory of memoryData) {
+                const localMemory = await db.memories.get(remoteMemory.id);
+                if (localMemory) {
+                    // If a local version exists, merge smartly.
+                    // Prioritize local `imageUrls` to prevent data loss.
+                    // Overwrite other fields with remote data to get updates.
+                    const mergedMemory = {
+                        ...localMemory,
+                        ...remoteMemory,
+                        synced: 1,
+                        is_deleted: 0,
+                    };
+                    memoriesToUpsert.push(mergedMemory);
+                } else {
+                    // If no local version, it's a new memory from another device.
+                    // Safe to add it directly.
+                    memoriesToUpsert.push({ ...remoteMemory, synced: 1, is_deleted: 0 });
+                }
+            }
+            if (memoriesToUpsert.length > 0) {
+                await db.memories.bulkPut(memoriesToUpsert);
+            }
+        }
+
         return { success: errors.length === 0 };
     } catch (err: any) {
         syncManager.error();
