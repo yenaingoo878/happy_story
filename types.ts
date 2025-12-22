@@ -13,6 +13,7 @@ export interface Memory {
   title: string;
   date: string;
   description: string;
+  imageUrl?: string; // For backward compatibility with old single-image memories
   imageUrls: string[];
   tags: string[];
   synced?: number; 

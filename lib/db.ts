@@ -83,7 +83,7 @@ export const syncData = async () => {
         // Memories - With background image upload
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         for (const mem of unsyncedMemories) {
-            if (mem.imageUrls.some(url => url.startsWith('data:image'))) {
+            if (mem.imageUrls && mem.imageUrls.some(url => url.startsWith('data:image'))) {
                 const newImageUrls = await Promise.all(mem.imageUrls.map(async (url) => {
                     if (url.startsWith('data:image')) {
                         try {
@@ -208,9 +208,24 @@ export const DataService = {
         }
     },
 
-    getMemories: async (childId?: string) => {
-        if (childId) return await db.memories.where('childId').equals(childId).reverse().sortBy('date');
-        return await db.memories.orderBy('date').reverse().toArray();
+    getMemories: async (childId?: string): Promise<Memory[]> => {
+        let memories;
+        if (childId) {
+            memories = await db.memories.where('childId').equals(childId).reverse().sortBy('date');
+        } else {
+            memories = await db.memories.orderBy('date').reverse().toArray();
+        }
+
+        // Backward compatibility layer for old data structure
+        return memories.map((mem: any) => {
+            if ((!mem.imageUrls || !Array.isArray(mem.imageUrls)) && typeof mem.imageUrl === 'string') {
+                return {
+                    ...mem,
+                    imageUrls: [mem.imageUrl] // Convert single string to an array
+                };
+            }
+            return mem as Memory;
+        });
     },
     addMemory: async (memory: Memory) => {
         await db.memories.put({ ...memory, synced: 0 });
