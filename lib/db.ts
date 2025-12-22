@@ -13,7 +13,15 @@ export type LittleMomentsDB = Dexie & {
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
-// Store definitions - Version updated to 6
+// Store definitions must be in ascending order.
+db.version(5).stores({
+  memories: 'id, childId, date, synced',
+  stories: 'id, childId, date, synced',
+  growth: 'id, childId, month, synced',
+  profiles: 'id, name, synced',
+  reminders: 'id, date, synced'
+});
+
 db.version(6).stores({
   memories: 'id, childId, date, synced',
   stories: 'id, childId, date, synced',
@@ -21,14 +29,6 @@ db.version(6).stores({
   profiles: 'id, name, synced',
   reminders: 'id, date, synced',
   app_settings: 'key' // New table for app settings like API keys
-});
-
-db.version(5).stores({
-  memories: 'id, childId, date, synced',
-  stories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced',
-  reminders: 'id, date, synced'
 });
 
 
@@ -116,8 +116,22 @@ export const syncData = async () => {
             else errors.push(`Growth Push: ${error.message}`);
         }
 
-        // Profiles
+        // Profiles - Handle image upload first, then sync data
         const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
+        for (const p of unsyncedProfiles) {
+            if (p.id && p.profileImage && p.profileImage.startsWith('data:image')) {
+                try {
+                    const res = await fetch(p.profileImage);
+                    const blob = await res.blob();
+                    const file = new File([blob], "profile_upload.jpg", { type: blob.type });
+                    const newImageUrl = await uploadFileToSupabase(file, p.id, 'profile');
+                    await db.profiles.update(p.id, { profileImage: newImageUrl });
+                    p.profileImage = newImageUrl; // Update in-memory object for the next loop
+                } catch (e) {
+                    console.error(`Profile image upload failed for profile ${p.id}, keeping local version.`, e);
+                }
+            }
+        }
         for (const p of unsyncedProfiles) {
             const { error } = await supabase.from('child_profile').upsert(cleanForSync(p));
             if (!error) await db.profiles.update(p.id!, { synced: 1 });
