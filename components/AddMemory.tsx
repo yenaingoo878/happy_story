@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService } from '../lib/db';
@@ -11,6 +11,15 @@ interface AddMemoryProps {
   onSaveComplete: () => void;
   onCancel: () => void;
 }
+
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+};
 
 export const AddMemory: React.FC<AddMemoryProps> = ({ 
   language, 
@@ -33,10 +42,11 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  const [formState, setFormState] = useState<{title: string; desc: string; date: string; imageUrl?: string; tags: string[]}>({ 
+  const [formState, setFormState] = useState<{title: string; desc: string; date: string; imageUrls: string[]; tags: string[]}>({ 
     title: '', 
     desc: '', 
     date: getTodayLocal(),
+    imageUrls: [],
     tags: []
   });
 
@@ -48,7 +58,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: editMemory.title,
             desc: editMemory.description,
             date: editMemory.date,
-            imageUrl: editMemory.imageUrl,
+            imageUrls: editMemory.imageUrls || [],
             tags: editMemory.tags || []
         });
     } else {
@@ -56,15 +66,15 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: '', 
             desc: '', 
             date: getTodayLocal(),
-            imageUrl: undefined,
+            imageUrls: [],
             tags: []
         });
     }
   }, [editMemory]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
+    const files = event.target.files;
+    if (files && files.length > 0) {
       if (!activeProfileId) {
           alert("Please create or select a profile first.");
           return;
@@ -72,13 +82,15 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       
       setIsUploading(true);
       try {
-          const url = await DataService.uploadImage(file, activeProfileId, 'memories');
-          setFormState(prev => ({ ...prev, imageUrl: url }));
+        const base64Promises = Array.from(files).map(fileToBase64);
+        const newImageUrls = await Promise.all(base64Promises);
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
       } catch (error) {
-          console.error("Image upload failed", error);
-          alert("Image upload failed. Please try again.");
+        console.error("Image processing failed", error);
+        alert("Image processing failed.");
       } finally {
-          setIsUploading(false);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     }
   };
@@ -99,12 +111,11 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   const handleSave = async () => {
-    if (!formState.title) return;
+    if (!formState.title || formState.imageUrls.length === 0) return;
     if (!activeProfileId) return; 
 
     setIsSaving(true);
     try {
-        const finalImageUrl = formState.imageUrl || `https://picsum.photos/400/300?random=${Date.now()}`;
         const finalTags = formState.tags.length > 0 ? formState.tags : [];
 
         if (editMemory) {
@@ -113,7 +124,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             childId: editMemory.childId,
             title: formState.title, 
             description: formState.desc, 
-            imageUrl: finalImageUrl,
+            imageUrls: formState.imageUrls,
             date: formState.date,
             tags: finalTags,
             synced: 0 
@@ -126,7 +137,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: formState.title, 
             description: formState.desc, 
             date: formState.date, 
-            imageUrl: finalImageUrl,
+            imageUrls: formState.imageUrls,
             tags: finalTags,
             synced: 0
           };
@@ -149,9 +160,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (!isUploading && !isSaving) fileInputRef.current?.click();
   };
 
-  const removeImage = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setFormState(prev => ({...prev, imageUrl: undefined}));
+  const removeImage = (indexToRemove: number) => {
+      setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
   }
 
   return (
@@ -172,37 +182,28 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             {editMemory && <button onClick={onCancel} disabled={isSaving} className="text-sm font-bold text-slate-500 disabled:opacity-50">{t('cancel_btn')}</button>}
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700">
-                <div className={`w-full h-64 bg-slate-50 dark:bg-slate-700/50 rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-600 mb-6 flex items-center justify-center overflow-hidden relative transition-all ${isUploading ? 'opacity-70 cursor-wait' : ''}`}>
-                
-                {isUploading ? (
-                    <div className="flex flex-col items-center justify-center">
-                        <Loader2 className="w-10 h-10 text-primary animate-spin mb-3"/>
-                        <span className="text-sm font-bold text-slate-400">{t('uploading')}</span>
-                    </div>
-                ) : formState.imageUrl ? (
-                    <div className="relative w-full h-full group">
-                        <img src={formState.imageUrl} className="w-full h-full object-cover"/>
-                        <button onClick={removeImage} className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X className="w-5 h-5"/>
+                <div className="w-full bg-slate-50 dark:bg-slate-700/50 rounded-[32px] p-4 mb-6">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {formState.imageUrls.map((url, index) => (
+                            <div key={index} className="relative group aspect-square">
+                                <img src={url} className="w-full h-full object-cover rounded-2xl shadow-sm" alt={`Memory preview ${index + 1}`}/>
+                                <button onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110 active:scale-90">
+                                    <X className="w-3 h-3"/>
+                                </button>
+                            </div>
+                        ))}
+                         <button 
+                            onClick={triggerGalleryInput}
+                            disabled={isUploading}
+                            className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600/50 hover:border-primary/50 hover:text-primary transition-colors"
+                        >
+                            {isUploading ? <Loader2 className="w-6 h-6 animate-spin"/> : <Plus className="w-6 h-6"/>}
+                            <span className="text-[10px] font-black uppercase tracking-widest">{isUploading ? t('uploading') : 'Add'}</span>
                         </button>
                     </div>
-                ) : (
-                    <button 
-                        onClick={triggerGalleryInput}
-                        className="w-full h-full flex flex-col items-center justify-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                        <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center text-primary shadow-lg shadow-primary/10">
-                            <ImageIcon className="w-8 h-8"/>
-                        </div>
-                        <div className="text-center">
-                             <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1">{t('choose_photo')}</p>
-                             <p className="text-xs font-bold text-slate-400">{t('upload_photo')}</p>
-                        </div>
-                    </button>
-                )}
-                
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} />
                 </div>
+                
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading || isSaving} multiple />
 
                 <div className="space-y-5">
                   <div className="space-y-1.5">
@@ -246,8 +247,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
                   <button 
                       onClick={handleSave} 
-                      disabled={isUploading || isSaving || !formState.title} 
-                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
+                      disabled={isUploading || isSaving || !formState.title || formState.imageUrls.length === 0} 
+                      className={`w-full py-5 text-white text-base font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isUploading || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
                   >
                       {isSaving ? (
                           <>

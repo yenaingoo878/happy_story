@@ -13,7 +13,7 @@ export interface Memory {
   title: string;
   date: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[];
   tags: string[];
   synced?: number; 
 }

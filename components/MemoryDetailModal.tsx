@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Memory, Language } from '../types';
-import { X, Calendar, Tag, Loader2 } from 'lucide-react';
+import { X, Calendar, Tag, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 
 interface MemoryDetailModalProps {
@@ -10,17 +10,25 @@ interface MemoryDetailModalProps {
 }
 
 export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose }) => {
-  if (!memory) return null;
-  
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isImageLoading, setIsImageLoading] = useState(true);
   const t = (key: any) => getTranslation(language, key);
 
   useEffect(() => {
-    // Reset loading state when the memory prop changes
-    if (memory?.imageUrl) {
+    if (memory) {
+      setCurrentIndex(0);
       setIsImageLoading(true);
     }
-  }, [memory?.imageUrl]);
+  }, [memory]);
+
+  useEffect(() => {
+    setIsImageLoading(true);
+  }, [currentIndex]);
+  
+  if (!memory) return null;
+
+  const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? memory.imageUrls.length - 1 : prev - 1));
+  const goToNext = () => setCurrentIndex(prev => (prev === memory.imageUrls.length - 1 ? 0 : prev + 1));
 
   const formatDate = (isoDate: string) => {
      if (!isoDate) return '';
@@ -37,29 +45,44 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       />
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
         
-        {/* Image Section with Loading Spinner */}
         <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
           {isImageLoading && (
             <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
           )}
-          <img 
-            src={memory.imageUrl} 
-            alt={memory.title} 
-            className={`w-full h-full object-cover transition-opacity duration-500 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
-            onLoad={() => setIsImageLoading(false)}
-            onError={() => setIsImageLoading(false)} // Stop spinner on error too
-          />
+          {memory.imageUrls && memory.imageUrls.length > 0 && (
+             <img 
+              src={memory.imageUrls[currentIndex]} 
+              alt={`${memory.title} - ${currentIndex + 1}`}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
+              onLoad={() => setIsImageLoading(false)}
+              onError={() => setIsImageLoading(false)}
+            />
+          )}
+          
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
+
+          {memory.imageUrls.length > 1 && (
+            <>
+              <button onClick={goToPrevious} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
+                <ChevronLeft className="w-6 h-6"/>
+              </button>
+              <button onClick={goToNext} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
+                <ChevronRight className="w-6 h-6"/>
+              </button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
+                {currentIndex + 1} / {memory.imageUrls.length}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Content Section (Scrollable) */}
         <div className="p-6 overflow-y-auto grow">
           <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-tight mb-2">{memory.title}</h2>
           

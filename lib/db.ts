@@ -51,6 +51,16 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
+const uploadFileToSupabase = async (file: File, childId: string, tag: string): Promise<string> => {
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${childId}/${tag}/${fileName}`;
+    const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
+    if (uploadError) throw uploadError;
+    const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+    return data.publicUrl;
+};
+
 export const syncData = async () => {
     if (!navigator.onLine) return { success: false, reason: 'Offline' };
     if (!isSupabaseConfigured()) return { success: false, reason: 'No Supabase Configuration' };
@@ -70,8 +80,28 @@ export const syncData = async () => {
             else errors.push(`Stories Push: ${error.message}`);
         }
 
-        // Memories
+        // Memories - With background image upload
         const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
+        for (const mem of unsyncedMemories) {
+            if (mem.imageUrls.some(url => url.startsWith('data:image'))) {
+                const newImageUrls = await Promise.all(mem.imageUrls.map(async (url) => {
+                    if (url.startsWith('data:image')) {
+                        try {
+                            const res = await fetch(url);
+                            const blob = await res.blob();
+                            const file = new File([blob], "upload.jpg", { type: blob.type });
+                            return await uploadFileToSupabase(file, mem.childId, 'memories');
+                        } catch (e) {
+                            console.error(`Image upload failed for memory ${mem.id}, keeping local version.`, e);
+                            return url; 
+                        }
+                    }
+                    return url;
+                }));
+                await db.memories.update(mem.id, { imageUrls: newImageUrls });
+                mem.imageUrls = newImageUrls;
+            }
+        }
         for (const mem of unsyncedMemories) {
             const { error } = await supabase.from('memories').upsert(cleanForSync(mem));
             if (!error) await db.memories.update(mem.id, { synced: 1 });
@@ -156,20 +186,7 @@ export const DataService = {
 
         // If online, logged-in, and Supabase is configured, try to upload
         try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `${childId}/${tag}/${fileName}`;
-            
-            const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
-            
-            if (uploadError) {
-                console.error("Supabase upload error, falling back to local storage:", uploadError);
-                // Fallback to base64 if Supabase fails for any reason (e.g., policy error)
-                return fileToBase64(file);
-            }
-            
-            const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-            return data.publicUrl;
+            return await uploadFileToSupabase(file, childId, tag);
         } catch (error) {
             console.error("Caught an exception during image upload, falling back to local storage:", error);
             // Fallback to base64 on any other exception
@@ -183,7 +200,7 @@ export const DataService = {
     },
     addMemory: async (memory: Memory) => {
         await db.memories.put({ ...memory, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
+        if (isSupabaseConfigured()) syncData(); // Don't await, let it run in background
     },
     deleteMemory: async (id: string) => {
         await db.memories.delete(id);
@@ -196,7 +213,7 @@ export const DataService = {
     },
     addStory: async (story: Story) => {
         await db.stories.put({ ...story, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
+        if (isSupabaseConfigured()) syncData(); // Don't await
     },
     deleteStory: async (id: string) => {
         await db.stories.delete(id);
@@ -209,7 +226,7 @@ export const DataService = {
     },
     saveGrowth: async (data: GrowthData) => {
         await db.growth.put({ ...data, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
+        if (isSupabaseConfigured()) syncData(); // Don't await
     },
     deleteGrowth: async (id: string) => {
         await db.growth.delete(id);
@@ -221,7 +238,7 @@ export const DataService = {
     },
     saveProfile: async (profile: ChildProfile) => {
         await db.profiles.put({ ...profile, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
+        if (isSupabaseConfigured()) syncData(); // Don't await
     },
     deleteProfile: async (id: string) => {
         await db.profiles.delete(id);
@@ -233,7 +250,7 @@ export const DataService = {
     },
     saveReminder: async (reminder: Reminder) => {
         await db.reminders.put({ ...reminder, synced: 0 });
-        if (isSupabaseConfigured()) await syncData();
+        if (isSupabaseConfigured()) syncData(); // Don't await
     },
     deleteReminder: async (id: string) => {
         await db.reminders.delete(id);

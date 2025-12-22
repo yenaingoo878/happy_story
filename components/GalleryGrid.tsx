@@ -57,11 +57,17 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
               onClick={() => onMemoryClick(memory)}
               className="group relative rounded-2xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md border border-transparent dark:border-slate-700 cursor-pointer aspect-square btn-active-scale"
             >
-               <img 
-                src={memory.imageUrl} 
-                alt={memory.title} 
-                className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" 
-               />
+              {memory.imageUrls && memory.imageUrls.length > 0 ? (
+                 <img 
+                  src={memory.imageUrls[0]} 
+                  alt={memory.title} 
+                  className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" 
+                 />
+              ) : (
+                <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <ImageIcon className="w-10 h-10 text-slate-300 dark:text-slate-600"/>
+                </div>
+              )}
                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 pointer-events-none">
                  <div className="w-full flex justify-between items-end">
                     <span className="text-white text-sm font-medium truncate">{memory.title}</span>

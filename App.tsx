@@ -233,6 +233,7 @@ function App() {
 
     switch (activeTab) {
       case TabView.HOME:
+        const latestMemory = memories[0];
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
             {remindersEnabled && (
@@ -261,12 +262,12 @@ function App() {
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
-                  {memories[0] ? (
-                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(memories[0])}>
-                        <img src={memories[0].imageUrl} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
+                  {latestMemory && latestMemory.imageUrls.length > 0 ? (
+                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
+                        <img src={latestMemory.imageUrls[0]} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
                           <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
-                          <h3 className="text-white text-2xl font-black leading-tight">{memories[0].title}</h3>
+                          <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
                         </div>
                       </div>
                   ) : (
@@ -287,7 +288,13 @@ function App() {
               <div className="space-y-3">
                  {memories.slice(0, 4).map(m => (
                     <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
-                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700">
+                        {m.imageUrls && m.imageUrls.length > 0 ? (
+                           <img src={m.imageUrls[0]} className="w-full h-full object-cover" />
+                        ) : (
+                           <ImageIcon className="w-8 h-8 text-slate-300"/>
+                        )}
+                       </div>
                        <div className="flex-1 min-w-0"><h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p></div>
                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all"><ChevronRight className="w-4.5 h-4.5" /></div>
                     </div>
