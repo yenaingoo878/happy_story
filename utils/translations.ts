@@ -42,11 +42,11 @@ export const translations = {
   // Cloud Sync
   cloud_sync: { en: "Cloud Backup", mm: "Cloud တွင် သိမ်းဆည်းခြင်း" },
   sync_status: { en: "Status", mm: "အခြေအနေ" },
-  sync_active: { en: "Connected", mm: "ချက်ဆက်ထားသည်" },
+  sync_active: { en: "Connected", mm: "ချိတ်ဆက်ထားသည်" },
   sync_disconnected: { en: "Offline", mm: "အော့ဖ်လိုင်း" },
   sync_guest_msg: { en: "In guest mode, data is only saved on this device.", mm: "ဧည့်သည်အဖြစ် သုံးနေ၍ ဖုန်းထဲမှာပဲ သိမ်းထားပါမည်။" },
   enable_cloud: { en: "Enable Cloud Sync", mm: "Cloud Backup ဖွင့်မည်" },
-  sync_now: { en: "Sync Now", mm: "ယခု သိမ်းဆည်းမည်" },
+  sync_now: { en: "Sync Data", mm: "Data Sync လုပ်မည်" },
   missing_config: { en: "Server not configured", mm: "Cloud ချိတ်ဆက်မှု မသေချာပါ" },
   troubleshoot: { en: "Troubleshoot", mm: "ပြဿနာဖြေရှင်းမည်" },
   sync_error: { en: "Sync failed", mm: "သိမ်းဆည်းမှု မအောင်မြင်ပါ" },

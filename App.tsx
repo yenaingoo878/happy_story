@@ -15,13 +15,13 @@ import { getTranslation } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
+import { syncManager } from './lib/syncManager';
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
   
   const [session, setSession] = useState<any>(null);
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
@@ -55,14 +55,15 @@ function App() {
   const t = (key: any) => getTranslation(language, key);
 
   const [uploadProgress, setUploadProgress] = useState(-1);
-  const [uploadFileName, setUploadFileName] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState({ status: 'idle', progress: 0, total: 0, completed: 0 });
 
   useEffect(() => {
-    uploadManager.subscribe((progress, fileName) => {
-      setUploadProgress(progress);
-      setUploadFileName(fileName);
-    });
-    return () => uploadManager.unsubscribe();
+    uploadManager.subscribe((progress) => setUploadProgress(progress));
+    syncManager.subscribe(setSyncState);
+    return () => {
+      uploadManager.unsubscribe();
+      syncManager.unsubscribe();
+    }
   }, []);
 
   useEffect(() => { if (!passcode) setIsAppUnlocked(true); }, [passcode]);
@@ -88,8 +89,7 @@ function App() {
           await refreshData();
           setIsLoading(false);
           if (navigator.onLine && session && isSupabaseConfigured()) {
-            setIsSyncing(true);
-            syncData().then(() => { refreshData(); setIsSyncing(false); }).catch(() => setIsSyncing(false));
+            syncData().then(() => { refreshData(); }).catch(() => {});
           }
         };
         loadData();
@@ -349,35 +349,77 @@ function App() {
     }
   };
 
+  const SyncProgressBar = () => {
+    if (syncState.status === 'idle' || syncState.total === 0) return null;
+    
+    const isFinished = syncState.status === 'success' || syncState.status === 'error';
+    const bgColor = syncState.status === 'error' ? 'bg-rose-500' : 'bg-sky-500';
+    const text = syncState.status === 'syncing' ? `${t('sync_now')}... (${syncState.completed}/${syncState.total})` 
+               : syncState.status === 'success' ? `${t('sync_now')} Complete!` 
+               : `${t('sync_now')} Failed!`;
+
+    return (
+        <div className="p-3">
+             <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
+                 <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-500 shadow-inner shrink-0">
+                     {isFinished ? (
+                         syncState.status === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5 text-rose-500" />
+                     ) : (
+                         <Loader2 className="w-5 h-5 animate-spin" />
+                     )}
+                 </div>
+                 <div className="flex-1 min-w-0">
+                     <div className="flex justify-between items-center mb-1">
+                         <p className="text-xs font-black text-slate-800 dark:text-white truncate">
+                             {text}
+                         </p>
+                         {!isFinished && <p className="text-xs font-black text-sky-500">{Math.round(syncState.progress)}%</p>}
+                     </div>
+                     <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
+                         <div
+                             className={`${bgColor} h-1.5 rounded-full transition-all duration-300`}
+                             style={{ width: `${isFinished ? 100 : syncState.progress}%` }}
+                         ></div>
+                     </div>
+                 </div>
+             </div>
+        </div>
+    );
+  };
+
+
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
-      {uploadProgress > -1 && (
-        <div className="fixed top-0 left-0 w-full z-[999] p-4 animate-fade-in pointer-events-none">
-          <div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">
-              {uploadProgress < 100 ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                  <CheckCircle2 className="w-5 h-5" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center mb-1">
-                <p className="text-xs font-black text-slate-800 dark:text-white truncate">
-                  {uploadProgress < 100 ? t('uploading') : t('profile_saved')}
-                </p>
-                <p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p>
+      <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[999] pointer-events-none animate-fade-in">
+          {uploadProgress > -1 && (
+            <div className="p-3">
+              <div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">
+                  {uploadProgress < 100 ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-xs font-black text-slate-800 dark:text-white truncate">
+                      {uploadProgress < 100 ? t('uploading') : t('profile_saved')}
+                    </p>
+                    <p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
+                    <div 
+                      className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
-                <div 
-                  className="bg-primary h-1.5 rounded-full transition-all duration-300" 
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+          <SyncProgressBar />
+      </div>
 
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"><img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1></div>

@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
-import { DataService } from '../lib/db';
+import { DataService, syncData } from '../lib/db';
+import { syncManager } from '../lib/syncManager';
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -112,6 +113,14 @@ export const Settings: React.FC<SettingsProps> = ({
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
   const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [syncState, setSyncState] = useState({ status: 'idle' });
+
+  useEffect(() => {
+    syncManager.subscribe(setSyncState);
+    return () => syncManager.unsubscribe();
+  }, []);
 
   useEffect(() => {
     DataService.getSetting('geminiApiKey').then(setting => {
@@ -120,6 +129,18 @@ export const Settings: React.FC<SettingsProps> = ({
         }
     });
   }, []);
+
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    try {
+        await syncData();
+        await onRefreshData();
+    } catch(e) {
+        console.error("Manual sync failed", e);
+    } finally {
+        setIsManualSyncing(false);
+    }
+  };
 
   const handleSaveApiKey = async () => {
     if (!apiKeyInput.trim()) return;
@@ -375,7 +396,7 @@ export const Settings: React.FC<SettingsProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <button 
                       onClick={handleSaveProfile} 
                       disabled={isSavingProfile} 
@@ -509,6 +530,30 @@ export const Settings: React.FC<SettingsProps> = ({
           {/* Data & Content Section */}
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('data_management')}</h3></div>
+            
+            <section className="p-5 space-y-4">
+                <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-sky-500 shadow-sm shrink-0">
+                        <Cloud className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('cloud_sync')}</h3>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {isGuestMode ? t('sync_guest_msg') : session ? t('sync_active') : t('sync_disconnected')}
+                        </p>
+                    </div>
+                </div>
+                {!isGuestMode && session && (
+                    <button
+                        onClick={handleManualSync}
+                        disabled={isManualSyncing || syncState.status === 'syncing'}
+                        className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-sky-500/20 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
+                    >
+                        {isManualSyncing || syncState.status === 'syncing' ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}
+                        {t('sync_now')}
+                    </button>
+                )}
+            </section>
             
              <button onClick={() => setView('GROWTH')} className="w-full text-left p-5 flex items-center group transition-colors active:bg-slate-50 dark:active:bg-slate-700/20">
                 <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300 mr-4">

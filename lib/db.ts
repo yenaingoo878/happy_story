@@ -2,6 +2,7 @@ import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
+import { syncManager } from './syncManager';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
@@ -109,18 +110,27 @@ export const syncData = async () => {
         if (sessionError) throw sessionError;
         if (!session) return { success: false, reason: 'No Active Session' };
 
+        const unsyncedStories = await db.stories.where('synced').equals(0).toArray();
+        const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
+        const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
+        const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
+        const unsyncedReminders = await db.reminders.where('synced').equals(0).toArray();
+
+        const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
+        
+        if (totalToSync === 0) {
+            return { success: true, reason: 'No data to sync' };
+        }
+        
+        syncManager.start(totalToSync);
         let errors: string[] = [];
 
-        // Push Stories
-        const unsyncedStories = await db.stories.where('synced').equals(0).toArray();
         for (const s of unsyncedStories) {
             const { error } = await supabase.from('stories').upsert(cleanForSync(s));
-            if (!error) await db.stories.update(s.id, { synced: 1 });
+            if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(`Stories Push: ${error.message}`);
         }
 
-        // Memories - With background image upload
-        const unsyncedMemories = await db.memories.where('synced').equals(0).toArray();
         for (const mem of unsyncedMemories) {
             if (mem.imageUrls && mem.imageUrls.some(url => url.startsWith('data:image'))) {
                 const newImageUrls = await Promise.all(mem.imageUrls.map(async (url) => {
@@ -130,10 +140,7 @@ export const syncData = async () => {
                             const blob = await res.blob();
                             const file = new File([blob], "upload.jpg", { type: blob.type });
                             return await uploadFileToSupabase(file, mem.childId, 'memories');
-                        } catch (e) {
-                            console.error(`Image upload failed for memory ${mem.id}, keeping local version.`, e);
-                            return url; 
-                        }
+                        } catch (e) { console.error(`Image upload failed for memory ${mem.id}, keeping local version.`, e); return url; }
                     }
                     return url;
                 }));
@@ -143,20 +150,16 @@ export const syncData = async () => {
         }
         for (const mem of unsyncedMemories) {
             const { error } = await supabase.from('memories').upsert(cleanForSync(mem));
-            if (!error) await db.memories.update(mem.id, { synced: 1 });
+            if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(`Memories Push: ${error.message}`);
         }
 
-        // Growth
-        const unsyncedGrowth = await db.growth.where('synced').equals(0).toArray();
         for (const g of unsyncedGrowth) {
             const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
-            if (!error) await db.growth.update(g.id!, { synced: 1 });
+            if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(`Growth Push: ${error.message}`);
         }
 
-        // Profiles - Handle image upload first, then sync data
-        const unsyncedProfiles = await db.profiles.where('synced').equals(0).toArray();
         for (const p of unsyncedProfiles) {
             if (p.id && p.profileImage && p.profileImage.startsWith('data:image')) {
                 try {
@@ -165,44 +168,39 @@ export const syncData = async () => {
                     const file = new File([blob], "profile_upload.jpg", { type: blob.type });
                     const newImageUrl = await uploadFileToSupabase(file, p.id, 'profile');
                     await db.profiles.update(p.id, { profileImage: newImageUrl });
-                    p.profileImage = newImageUrl; // Update in-memory object for the next loop
-                } catch (e) {
-                    console.error(`Profile image upload failed for profile ${p.id}, keeping local version.`, e);
-                }
+                    p.profileImage = newImageUrl;
+                } catch (e) { console.error(`Profile image upload failed for profile ${p.id}, keeping local version.`, e); }
             }
         }
         for (const p of unsyncedProfiles) {
             const { error } = await supabase.from('child_profile').upsert(cleanForSync(p));
-            if (!error) await db.profiles.update(p.id!, { synced: 1 });
+            if (!error) { await db.profiles.update(p.id!, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(`Profiles Push: ${error.message}`);
         }
 
-        // Reminders
-        const unsyncedReminders = await db.reminders.where('synced').equals(0).toArray();
         for (const r of unsyncedReminders) {
             const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
-            if (!error) await db.reminders.update(r.id, { synced: 1 });
+            if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(`Reminders Push: ${error.message}`);
         }
 
-        // Pulling Logic
+        if (errors.length > 0) syncManager.error();
+        else syncManager.finish();
+
         const { data: profileData } = await supabase.from('child_profile').select('*');
         if (profileData) await db.profiles.bulkPut(profileData.map(p => ({ ...p, synced: 1 })));
-
         const { data: storyData } = await supabase.from('stories').select('*');
         if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1 })));
-
         const { data: growthData } = await supabase.from('growth_data').select('*');
         if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1 })));
-
         const { data: memoryData } = await supabase.from('memories').select('*');
         if (memoryData) await db.memories.bulkPut(memoryData.map(m => ({ ...m, synced: 1 })));
-
         const { data: reminderData } = await supabase.from('reminders').select('*');
         if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1 })));
         
         return { success: errors.length === 0 };
     } catch (err: any) {
+        syncManager.error();
         console.error("Sync process failed:", err);
         return { success: false, error: err.message };
     }
