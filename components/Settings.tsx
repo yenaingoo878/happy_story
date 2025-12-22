@@ -608,7 +608,13 @@ export const Settings: React.FC<SettingsProps> = ({
                 <div className="grid gap-3">
                    {memories.map(m => (
                       <div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all">
-                         <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm"><img src={m.imageUrl} className="w-full h-full object-cover" /></div>
+                         <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center">
+                            {m.imageUrls && m.imageUrls.length > 0 ? (
+                                <img src={m.imageUrls[0]} className="w-full h-full object-cover" />
+                            ) : (
+                                <ImageIcon className="w-8 h-8 text-slate-300" />
+                            )}
+                         </div>
                          <div className="min-w-0 text-left">
                             <h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p>
