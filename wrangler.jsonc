@@ -1,7 +1,8 @@
 {
-  "name": "little-kids",
+  "name": "little-kids-v2",
   "compatibility_date": "2025-12-21",
   "assets": {
     "directory": "./dist"
   }
 }
+
