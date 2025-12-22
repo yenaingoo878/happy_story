@@ -314,6 +314,17 @@ export const DataService = {
         await db.app_settings.delete(key);
     },
 
+    clearAllUserData: async () => {
+        // A transaction ensures all operations succeed or fail together.
+        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
+            await db.memories.clear();
+            await db.stories.clear();
+            await db.growth.clear();
+            await db.profiles.clear();
+            await db.reminders.clear();
+        });
+    },
+
     uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
         const isGuest = localStorage.getItem('guest_mode') === 'true';
 

@@ -142,12 +142,43 @@ function App() {
   };
 
 
+  const handleGuestLogin = async () => {
+    // Clear any previous user's data before starting a fresh guest session
+    await DataService.clearAllUserData();
+    
+    // Reset state to ensure a clean slate, then set guest mode
+    setProfiles([]); 
+    setMemories([]); 
+    setStories([]); 
+    setGrowthData([]); 
+    setReminders([]);
+    setActiveTab(TabView.HOME);
+    
+    setIsGuestMode(true);
+    localStorage.setItem('guest_mode', 'true');
+  };
+
   const handleLogout = async () => {
-      try { if (session && isSupabaseConfigured()) await supabase.auth.signOut(); } catch (e) {} 
-      finally {
-          localStorage.removeItem('guest_mode'); setIsGuestMode(false); setSession(null);
-          setProfiles([]); setMemories([]); setStories([]); setGrowthData([]); setReminders([]);
-          setActiveTab(TabView.HOME); setIsAppUnlocked(false); setShowPasscodeModal(false);
+      try { 
+        if (session && isSupabaseConfigured()) await supabase.auth.signOut(); 
+      } catch (e) {
+        console.error("Error signing out:", e);
+      } finally {
+        // Clear all local data upon any form of logout (guest or user)
+        await DataService.clearAllUserData(); 
+        
+        // Reset all application state to a clean slate
+        localStorage.removeItem('guest_mode');
+        setIsGuestMode(false); 
+        setSession(null);
+        setProfiles([]); 
+        setMemories([]); 
+        setStories([]); 
+        setGrowthData([]); 
+        setReminders([]);
+        setActiveTab(TabView.HOME); 
+        setIsAppUnlocked(false); 
+        setShowPasscodeModal(false);
       }
   };
 
@@ -237,7 +268,7 @@ function App() {
   ];
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
-  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => { setIsGuestMode(true); localStorage.setItem('guest_mode', 'true'); }} />;
+  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
 
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
