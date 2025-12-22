@@ -64,52 +64,38 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
-const uploadFileToSupabase = (file: File, childId: string, tag: string): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${childId}/${tag}/${fileName}`;
-        
-        uploadManager.start(file.name);
+const uploadFileToSupabase = async (file: File, childId: string, tag: string): Promise<string> => {
+    uploadManager.start(file.name);
+    
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${childId}/${tag}/${fileName}`;
 
-        const xhr = new XMLHttpRequest();
-        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/images/${filePath}`;
-        xhr.open('POST', uploadUrl, true);
+    // Using supabase-js client for upload is more reliable than manual XHR.
+    const { error } = await supabase.storage
+        .from('images') // The bucket must be named 'images' as per original logic.
+        .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+        });
 
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token || SUPABASE_ANON_KEY;
-        
-        xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.setRequestHeader('x-upsert', 'true');
+    if (error) {
+        uploadManager.error();
+        console.error("Supabase upload failed:", error);
+        throw error; // Re-throw to be caught by the calling function.
+    }
 
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-                const percentComplete = (event.loaded / event.total) * 100;
-                uploadManager.progress(percentComplete, file.name);
-            }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                uploadManager.progress(100, file.name);
-                const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-                uploadManager.finish();
-                resolve(data.publicUrl);
-            } else {
-                uploadManager.error();
-                reject(new Error(`Upload failed: ${xhr.statusText}`));
-            }
-        };
-
-        xhr.onerror = () => {
-            uploadManager.error();
-            reject(new Error('Network error during upload.'));
-        };
-
-        xhr.send(file);
-    });
+    const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+    
+    if (!data.publicUrl) {
+        uploadManager.error();
+        throw new Error("File uploaded but failed to get public URL.");
+    }
+    
+    uploadManager.progress(100, file.name); // No intermediate progress, just 0 and 100.
+    uploadManager.finish();
+    
+    return data.publicUrl;
 };
 
 const syncDeletions = async () => {
@@ -168,45 +154,43 @@ export const syncData = async () => {
             else errors.push(`Stories Push: ${error.message}`);
         }
 
+        // Reworked Memory Sync: Process each memory atomically to prevent one failure from stopping all.
         for (const mem of unsyncedMemories) {
-            if (mem.imageUrls && mem.imageUrls.some(url => url.startsWith('data:image'))) {
-                const newImageUrls = await Promise.all(mem.imageUrls.map(async (url) => {
-                    if (url.startsWith('data:image')) {
-                        try {
+            try {
+                let memoryToSync = { ...mem };
+
+                if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('data:image'))) {
+                    const newImageUrls = await Promise.all(memoryToSync.imageUrls.map(async (url) => {
+                        if (url.startsWith('data:image')) {
                             const res = await fetch(url);
                             const blob = await res.blob();
                             const file = new File([blob], "upload.jpg", { type: blob.type });
-                            return await uploadFileToSupabase(file, mem.childId, 'memories');
-                        } catch (e) { console.error(`Image upload failed for memory ${mem.id}, keeping local version.`, e); return url; }
-                    }
-                    return url;
-                }));
-                await db.memories.update(mem.id, { imageUrls: newImageUrls });
-                mem.imageUrls = newImageUrls;
-            }
-        }
-        for (const mem of unsyncedMemories) {
-            const memoryToSync = cleanForSync(mem);
-            
-            // Adapt the object for the Supabase schema which expects a single `imageUrl` text field.
-            const supabasePayload: any = { ...memoryToSync };
-            
-            if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
-                supabasePayload.imageUrl = supabasePayload.imageUrls[0];
-            } else if (supabasePayload.imageUrl === undefined) {
-                // Ensure the field is present, even if null, to avoid schema issues.
-                supabasePayload.imageUrl = null;
-            }
-            // This property doesn't exist in the remote 'memories' table and would cause an error.
-            delete supabasePayload.imageUrls; 
+                            return await uploadFileToSupabase(file, memoryToSync.childId, 'memories');
+                        }
+                        return url;
+                    }));
+                    await db.memories.update(mem.id, { imageUrls: newImageUrls });
+                    memoryToSync.imageUrls = newImageUrls;
+                }
+                
+                const cleanedMemory = cleanForSync(memoryToSync);
+                const supabasePayload: any = { ...cleanedMemory };
+                if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
+                    supabasePayload.imageUrl = supabasePayload.imageUrls[0];
+                } else if (supabasePayload.imageUrl === undefined) {
+                    supabasePayload.imageUrl = null;
+                }
+                delete supabasePayload.imageUrls;
 
-            const { error } = await supabase.from('memories').upsert(supabasePayload);
-            if (!error) { 
-                await db.memories.update(mem.id, { synced: 1 }); 
-                syncManager.itemCompleted(); 
-            } else {
-                console.error(`Supabase memories sync push error for id ${mem.id}:`, error);
-                errors.push(`Memories Push: ${error.message}`);
+                const { error } = await supabase.from('memories').upsert(supabasePayload);
+                if (error) throw error;
+
+                await db.memories.update(mem.id, { synced: 1 });
+                syncManager.itemCompleted();
+            } catch (error) {
+                console.error(`Failed to sync memory ${mem.id}:`, error);
+                errors.push(`Memory Sync for ${mem.id}: ${(error as Error).message}`);
+                // Continue to the next memory
             }
         }
 
@@ -255,18 +239,12 @@ export const syncData = async () => {
         const { data: reminderData } = await supabase.from('reminders').select('*');
         if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
         
-        // Special handling for memories to prevent data loss.
-        // The remote schema only stores one `imageUrl`, while local stores an array `imageUrls`.
-        // A simple overwrite would delete the extra images from the local DB.
         const { data: memoryData } = await supabase.from('memories').select('*');
         if (memoryData) {
             const memoriesToUpsert = [];
             for (const remoteMemory of memoryData) {
                 const localMemory = await db.memories.get(remoteMemory.id);
                 if (localMemory) {
-                    // If a local version exists, merge smartly.
-                    // Prioritize local `imageUrls` to prevent data loss.
-                    // Overwrite other fields with remote data to get updates.
                     const mergedMemory = {
                         ...localMemory,
                         ...remoteMemory,
@@ -275,8 +253,6 @@ export const syncData = async () => {
                     };
                     memoriesToUpsert.push(mergedMemory);
                 } else {
-                    // If no local version, it's a new memory from another device.
-                    // Safe to add it directly.
                     memoriesToUpsert.push({ ...remoteMemory, synced: 1, is_deleted: 0 });
                 }
             }
@@ -315,7 +291,6 @@ export const DataService = {
     },
 
     clearAllUserData: async () => {
-        // A transaction ensures all operations succeed or fail together.
         await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
             await db.memories.clear();
             await db.stories.clear();
@@ -332,21 +307,15 @@ export const DataService = {
             return fileToBase64(file);
         }
 
-        try {
-            return await uploadFileToSupabase(file, childId, tag);
-        } catch (error) {
-            console.error("Caught an exception during image upload, falling back to local storage:", error);
-            return fileToBase64(file);
-        }
+        // Let errors propagate to be handled by the UI component.
+        return await uploadFileToSupabase(file, childId, tag);
     },
 
     getMemories: async (childId?: string): Promise<Memory[]> => {
         let memories;
         if (childId) {
-            // FIX: Correctly sort memories by date descending. The previous implementation with reverse().sortBy() was incorrect.
             memories = (await db.memories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
         } else {
-            // FIX: Correctly sort memories by date descending. `orderBy` is not a valid method on a Collection. Use `sortBy` and reverse the resulting array.
             memories = (await db.memories.where('is_deleted').equals(0).sortBy('date')).reverse();
         }
         return memories.map((mem: any) => {
@@ -367,10 +336,8 @@ export const DataService = {
 
     getStories: async (childId?: string) => {
         if (childId) {
-            // FIX: Correctly sort stories by date descending. The previous implementation with reverse().sortBy() was incorrect.
             return (await db.stories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
         }
-        // FIX: Correctly sort stories by date descending. `orderBy` is not a valid method on a Collection. Use `sortBy` and reverse the resulting array.
         return (await db.stories.where('is_deleted').equals(0).sortBy('date')).reverse();
     },
     addStory: async (story: Story) => {
@@ -384,7 +351,6 @@ export const DataService = {
 
     getGrowth: async (childId?: string) => {
         if (childId) return await db.growth.where({ childId, is_deleted: 0 }).sortBy('month');
-        // FIX: `orderBy` is not a valid method on a Collection. Use `sortBy` instead to sort ascending by month.
         return await db.growth.where('is_deleted').equals(0).sortBy('month');
     },
     saveGrowth: async (data: GrowthData) => {
@@ -409,7 +375,6 @@ export const DataService = {
     },
 
     getReminders: async () => {
-        // FIX: `orderBy` is not a valid method on a Collection. Use `sortBy` instead to sort ascending by date.
         return await db.reminders.where('is_deleted').equals(0).sortBy('date');
     },
     saveReminder: async (reminder: Reminder) => {
