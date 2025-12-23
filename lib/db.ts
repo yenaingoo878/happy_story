@@ -247,6 +247,11 @@ export const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
+export interface CloudPhoto {
+    url: string;
+    path: string;
+}
+
 export const DataService = {
     getSetting: async (key: string) => await db.app_settings.get(key),
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
@@ -293,38 +298,47 @@ export const DataService = {
     saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
     deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
 
-    // New function to fetch cloud photos directly from Supabase Storage
-    getCloudPhotos: async (childId: string): Promise<string[]> => {
+    // Fetches cloud photos from Supabase Storage and returns path/url objects
+    getCloudPhotos: async (childId: string): Promise<CloudPhoto[]> => {
         if (!navigator.onLine || !isSupabaseConfigured()) return [];
         
         try {
-            const { data: memoriesList } = await supabase.storage.from('images').list(`${childId}/memories`);
-            const { data: profileList } = await supabase.storage.from('images').list(`${childId}/profile`);
+            const tags = ['memories', 'profile'];
+            const allPhotos: CloudPhoto[] = [];
             
-            const urls: string[] = [];
-            
-            if (memoriesList) {
-                memoriesList.forEach(file => {
-                    if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/memories/${file.name}`);
-                        if (data.publicUrl) urls.push(data.publicUrl);
-                    }
-                });
+            for (const tag of tags) {
+                const { data: fileList } = await supabase.storage.from('images').list(`${childId}/${tag}`);
+                if (fileList) {
+                    fileList.forEach(file => {
+                        if (file.name !== '.emptyFolderPlaceholder') {
+                            const filePath = `${childId}/${tag}/${file.name}`;
+                            const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+                            if (data.publicUrl) {
+                                allPhotos.push({ url: data.publicUrl, path: filePath });
+                            }
+                        }
+                    });
+                }
             }
             
-            if (profileList) {
-                profileList.forEach(file => {
-                    if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/profile/${file.name}`);
-                        if (data.publicUrl) urls.push(data.publicUrl);
-                    }
-                });
-            }
-            
-            return urls;
+            return allPhotos;
         } catch (error) {
             console.error("Failed to fetch cloud photos:", error);
             return [];
+        }
+    },
+
+    // Deletes specified photos from Supabase Storage
+    deleteCloudPhotos: async (paths: string[]): Promise<{ success: boolean; error?: any }> => {
+        if (!navigator.onLine || !isSupabaseConfigured() || paths.length === 0) return { success: false };
+        
+        try {
+            const { error } = await supabase.storage.from('images').remove(paths);
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error("Failed to delete cloud photos:", error);
+            return { success: false, error };
         }
     }
 };
