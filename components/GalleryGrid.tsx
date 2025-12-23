@@ -382,7 +382,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewIndex(null)}>
              <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
              
-             <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl animate-zoom-in flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+             <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                     <div className="min-w-0">
@@ -395,23 +395,28 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 </div>
 
                 {/* Image */}
-                <div className="flex-1 relative flex items-center justify-center bg-slate-50 dark:bg-black/20 overflow-hidden">
+                <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
                    {isPreviewLoading && <div className="absolute inset-0 flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>}
                    <img 
                       key={previewIndex} // Re-trigger load on image change
                       src={cloudPhotos[previewIndex].previewUrl} 
-                      className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
+                      className={`w-full h-full object-cover transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
                       alt="Full Preview"
                       onLoad={() => setIsPreviewLoading(false)}
                    />
+                   {cloudPhotos.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
+                        {previewIndex + 1} / {cloudPhotos.length}
+                      </div>
+                   )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
-                   <p className="text-xs font-bold text-slate-400">{previewIndex + 1} / {cloudPhotos.length}</p>
+                <div className="flex items-center justify-end p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
                    <div className="flex gap-2">
                         <button 
-                           onClick={async () => {
+                           onClick={async (e) => {
+                                e.stopPropagation();
                                 if (previewIndex === null) return;
                                 const photo = cloudPhotos[previewIndex];
                                 const response = await fetch(photo.url);
@@ -426,7 +431,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                            <Download className="w-3.5 h-3.5" /> Download
                         </button>
                         <button 
-                           onClick={async () => {
+                           onClick={async (e) => {
+                              e.stopPropagation();
                               if (previewIndex === null) return;
                               if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
                               const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);

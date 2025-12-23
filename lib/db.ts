@@ -373,8 +373,7 @@ export const DataService = {
                                   url: data.publicUrl, 
                                   path: filePath,
                                   thumbnailUrl: getSupabaseOptimizedUrl(filePath, { width: 450, quality: 75, resize: 'cover' }),
-                                  // Fix: Use 'contain' for preview to avoid cropping
-                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85, resize: 'contain' })
+                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85, resize: 'cover' })
                                 });
                             }
                         }
