@@ -382,9 +382,9 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewIndex(null)}>
              <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
              
-             <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl animate-zoom-in overflow-auto no-scrollbar" onClick={(e) => e.stopPropagation()}>
+             <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                     <div className="min-w-0">
                         <h3 className="font-black text-slate-700 dark:text-white truncate pr-4">{ (cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14) }</h3>
                         <p className="text-xs text-slate-400 font-bold">{getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -395,20 +395,24 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 </div>
 
                 {/* Image */}
-                <div className="relative flex items-center justify-center bg-slate-50 dark:bg-black/20 p-2 sm:p-4">
+                <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
                    {isPreviewLoading && <div className="absolute inset-0 flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>}
                    <img 
                       key={previewIndex} // Re-trigger load on image change
                       src={cloudPhotos[previewIndex].previewUrl} 
-                      className={`w-full h-auto object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
+                      className={`w-full h-full object-cover transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
                       alt="Full Preview"
                       onLoad={() => setIsPreviewLoading(false)}
                    />
+                   {cloudPhotos.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
+                        {previewIndex + 1} / {cloudPhotos.length}
+                      </div>
+                   )}
                 </div>
 
                 {/* Footer */}
-                <div className="sticky bottom-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800">
-                   <p className="text-xs font-bold text-slate-400">{previewIndex + 1} / {cloudPhotos.length}</p>
+                <div className="flex items-center justify-end p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
                    <div className="flex gap-2">
                         <button 
                            onClick={async (e) => {
