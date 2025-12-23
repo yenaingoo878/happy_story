@@ -377,45 +377,63 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
          </div>
        )}
 
-       {/* Modern Lightbox Photo Viewer */}
-       {previewIndex !== null && (
+      {previewIndex !== null && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewIndex(null)}>
              <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
              
-             <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                    <div className="min-w-0">
-                        <h3 className="font-black text-slate-700 dark:text-white truncate pr-4">{ (cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14) }</h3>
-                        <p className="text-xs text-slate-400 font-bold">{getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    </div>
-                    <button onClick={() => setPreviewIndex(null)} className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+             <div 
+                className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" 
+                onClick={(e) => e.stopPropagation()}
+             >
+                <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+                    {isPreviewLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
+                        <Loader2 className="w-8 h-8 animate-spin" />
+                        </div>
+                    )}
+                    <img 
+                        key={previewIndex}
+                        src={cloudPhotos[previewIndex].previewUrl} 
+                        className={`w-full h-full object-cover transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
+                        alt="Full Preview"
+                        onLoad={() => setIsPreviewLoading(false)}
+                    />
+                    
+                    <button 
+                        onClick={() => setPreviewIndex(null)}
+                        className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
+                    >
                         <X className="w-5 h-5" />
                     </button>
+
+                    {cloudPhotos.length > 1 && (
+                        <>
+                        <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
+                            <ChevronLeft className="w-6 h-6"/>
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
+                            <ChevronRight className="w-6 h-6"/>
+                        </button>
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
+                            {previewIndex + 1} / {cloudPhotos.length}
+                        </div>
+                        </>
+                    )}
                 </div>
 
-                {/* Image */}
-                <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
-                   {isPreviewLoading && <div className="absolute inset-0 flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>}
-                   <img 
-                      key={previewIndex} // Re-trigger load on image change
-                      src={cloudPhotos[previewIndex].previewUrl} 
-                      className={`w-full h-full object-cover transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
-                      alt="Full Preview"
-                      onLoad={() => setIsPreviewLoading(false)}
-                   />
-                   {cloudPhotos.length > 1 && (
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
-                        {previewIndex + 1} / {cloudPhotos.length}
-                      </div>
-                   )}
-                </div>
+                <div className="p-6 overflow-y-auto grow">
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-white leading-tight mb-1 truncate">
+                        {(cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14)}
+                    </h2>
+                    
+                    <div className="flex items-center text-slate-400 dark:text-slate-500 text-sm font-bold mb-6">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-end p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
-                   <div className="flex gap-2">
+                    <div className="flex gap-3">
                         <button 
-                           onClick={async (e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
                                 if (previewIndex === null) return;
                                 const photo = cloudPhotos[previewIndex];
@@ -426,36 +444,29 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                                 link.href = url;
                                 link.download = photo.path.split('/').pop() || 'photo.jpg';
                                 link.click(); window.URL.revokeObjectURL(url);
-                           }}
-                           className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-300 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
-                           <Download className="w-3.5 h-3.5" /> Download
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-300 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                            <Download className="w-4 h-4" /> Download
                         </button>
                         <button 
-                           onClick={async (e) => {
-                              e.stopPropagation();
-                              if (previewIndex === null) return;
-                              if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
-                              const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
-                              if (result.success) {
-                                  const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
-                                  setCloudPhotos(nextPhotos);
-                                  if (nextPhotos.length === 0) setPreviewIndex(null);
-                                  else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
-                              }
-                           }}
-                           className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
-                           <Trash2 className="w-3.5 h-3.5" /> Delete
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (previewIndex === null) return;
+                                if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
+                                const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
+                                if (result.success) {
+                                    const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
+                                    setCloudPhotos(nextPhotos);
+                                    if (nextPhotos.length === 0) setPreviewIndex(null);
+                                    else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
+                                }
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                            <Trash2 className="w-4 h-4" /> Delete
                         </button>
-                   </div>
+                    </div>
                 </div>
              </div>
-
-             {cloudPhotos.length > 1 && (
-               <>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}} className="absolute left-4 p-3 bg-black/30 text-white rounded-full active:scale-90 transition-all hover:bg-black/50 backdrop-blur-sm hidden sm:block"><ChevronLeft className="w-6 h-6" /></button>
-                  <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}} className="absolute right-4 p-3 bg-black/30 text-white rounded-full active:scale-90 transition-all hover:bg-black/50 backdrop-blur-sm hidden sm:block"><ChevronRight className="w-6 h-6" /></button>
-               </>
-             )}
           </div>
        )}
     </div>

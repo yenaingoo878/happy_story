@@ -304,7 +304,7 @@ export interface CloudPhoto {
 
 // Supabase Image Transformation helper
 const getSupabaseOptimizedUrl = (path: string, options: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' } = {}) => {
-  const { width = 300, quality = 75, resize = 'cover' } = options;
+  const { width = 300, quality = 75, resize = 'contain' } = options;
   return `${SUPABASE_URL}/storage/v1/render/image/public/images/${path}?width=${width}&quality=${quality}&resize=${resize}`;
 };
 
