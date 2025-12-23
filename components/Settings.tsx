@@ -5,12 +5,13 @@ import {
   HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, 
   Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
   BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, FileText, UserPlus, ChevronRight, KeyRound, Sparkles, Eye, EyeOff
+  Calendar, Heart, FileText, UserPlus, ChevronRight, KeyRound, Sparkles, Eye, EyeOff, Camera
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService, syncData } from '../lib/db';
 import { syncManager } from '../lib/syncManager';
+import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -106,7 +107,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [newReminder, setNewReminder] = useState({ title: '', date: '' });
   const [showSuccess, setShowSuccess] = useState(false);
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isProcessingProfileImage, setIsProcessingProfileImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -182,18 +183,49 @@ export const Settings: React.FC<SettingsProps> = ({
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && editingProfile.id) {
-        setIsUploadingImage(true);
+        setIsProcessingProfileImage(true);
         try {
-            // Fix for Error in file components/Settings.tsx on line 187: Expected 1 arguments, but got 3.
             const url = await DataService.uploadImage(file);
             setEditingProfile(prev => ({ ...prev, profileImage: url }));
         } catch (error) {
             console.error("Profile image upload failed:", error);
             alert("Profile image upload failed.");
         } finally {
-            setIsUploadingImage(false);
+            setIsProcessingProfileImage(false);
             if(imageInputRef.current) imageInputRef.current.value = "";
         }
+    }
+  };
+  
+  const handleTakeProfilePhoto = async () => {
+    setIsProcessingProfileImage(true);
+    try {
+      const permissions = await CapacitorCamera.checkPermissions();
+      if (permissions.camera !== 'granted') {
+        const newPermissions = await CapacitorCamera.requestPermissions();
+        if (newPermissions.camera !== 'granted') {
+          alert(language === 'mm' ? "Camera သုံးဖို့ Permission ပေးရန် လိုအပ်ပါတယ်" : "Camera permission is required to take photos.");
+          setIsProcessingProfileImage(false);
+          return;
+        }
+      }
+      
+      const image = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: true, // Allow editing for profile pictures
+        resultType: CameraResultType.DataUrl
+      });
+
+      if (image.dataUrl) {
+        setEditingProfile(prev => ({ ...prev, profileImage: image.dataUrl }));
+      }
+    } catch (error) {
+      console.error("Failed to take photo", error);
+      if (!(error instanceof Error && error.message.toLowerCase().includes('cancelled'))) {
+         alert(language === 'mm' ? "ဓာတ်ပုံရိုက်မရပါ။" : "Failed to take photo.");
+      }
+    } finally {
+        setIsProcessingProfileImage(false);
     }
   };
 
@@ -286,45 +318,35 @@ export const Settings: React.FC<SettingsProps> = ({
 
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-4 pt-4 pb-4 overflow-y-auto max-h-[70vh] no-scrollbar">
-                 <div className="flex justify-center mb-2">
-                    <div className="relative group">
-                        <button 
-                            type="button"
-                            onClick={() => !isUploadingImage && imageInputRef.current?.click()}
-                            disabled={isUploadingImage}
-                            className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:ring-4 hover:ring-primary/20"
-                        >
-                            {isUploadingImage ? (
-                                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                            ) : editingProfile.profileImage ? (
-                                <img src={editingProfile.profileImage} className="w-full h-full object-cover" alt="Profile"/>
-                            ) : (
-                                <Baby className="w-10 h-10 text-slate-400" />
-                            )}
-                            
-                            {!isUploadingImage && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Pencil className="w-6 h-6" />
-                                </div>
-                            )}
-                        </button>
-                        <input 
-                            type="file" 
-                            ref={imageInputRef} 
-                            className="hidden" 
-                            accept="image/*"
-                            onChange={handleProfileImageUpload}
-                        />
-                        {editingProfile.profileImage && !isUploadingImage && (
-                            <button 
-                                type="button" 
-                                onClick={handleRemoveImage}
-                                className="absolute -top-1 -right-1 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"
-                            >
-                                <X className="w-3 h-3"/>
-                            </button>
-                        )}
+                 <div className="flex flex-col items-center mb-4">
+                    <div className="relative group w-24 h-24">
+                       <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center">
+                          {isProcessingProfileImage ? (
+                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                          ) : editingProfile.profileImage ? (
+                            <img src={editingProfile.profileImage} className="w-full h-full object-cover" alt="Profile" />
+                          ) : (
+                            <Baby className="w-10 h-10 text-slate-400" />
+                          )}
+                       </div>
+                       {editingProfile.profileImage && !isProcessingProfileImage && (
+                          <button type="button" onClick={handleRemoveImage} className="absolute top-0 right-0 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110">
+                             <X className="w-3 h-3" />
+                          </button>
+                       )}
                     </div>
+
+                    <div className="flex gap-3 mt-4">
+                       <button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          {t('upload_photo')}
+                       </button>
+                       <button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
+                          <Camera className="w-3.5 h-3.5" />
+                          {t('take_photo')}
+                       </button>
+                    </div>
+                    <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
                 </div>
                 
                 <div className="space-y-3">

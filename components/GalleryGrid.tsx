@@ -47,8 +47,14 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
             setPreviewState({ url, data: cached.base64data, isLoading: false });
         } else {
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Image fetch failed');
+            if (!response.ok) throw new Error(`Image fetch failed: ${response.statusText}`);
             const blob = await response.blob();
+
+            // Validate the fetched blob to prevent caching invalid data (e.g., from opaque responses)
+            if (blob.size === 0 || !blob.type.startsWith('image/')) {
+                throw new Error(`Invalid image data received. Size: ${blob.size}, Type: ${blob.type}`);
+            }
+
             const base64data = await blobToBase64(blob);
             await DataService.cachePhoto(url, userId, base64data);
             setPreviewState({ url, data: base64data, isLoading: false });
