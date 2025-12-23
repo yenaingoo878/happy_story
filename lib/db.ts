@@ -261,7 +261,6 @@ export const DataService = {
         });
     },
 
-    // profile upload now always returns base64 immediately for local-first feel
     uploadImage: async (file: File) => await fileToBase64(file),
 
     getMemories: async (childId?: string) => {
@@ -292,5 +291,40 @@ export const DataService = {
 
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
-    deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 })
+    deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
+
+    // New function to fetch cloud photos directly from Supabase Storage
+    getCloudPhotos: async (childId: string): Promise<string[]> => {
+        if (!navigator.onLine || !isSupabaseConfigured()) return [];
+        
+        try {
+            const { data: memoriesList } = await supabase.storage.from('images').list(`${childId}/memories`);
+            const { data: profileList } = await supabase.storage.from('images').list(`${childId}/profile`);
+            
+            const urls: string[] = [];
+            
+            if (memoriesList) {
+                memoriesList.forEach(file => {
+                    if (file.name !== '.emptyFolderPlaceholder') {
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/memories/${file.name}`);
+                        if (data.publicUrl) urls.push(data.publicUrl);
+                    }
+                });
+            }
+            
+            if (profileList) {
+                profileList.forEach(file => {
+                    if (file.name !== '.emptyFolderPlaceholder') {
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/profile/${file.name}`);
+                        if (data.publicUrl) urls.push(data.publicUrl);
+                    }
+                });
+            }
+            
+            return urls;
+        } catch (error) {
+            console.error("Failed to fetch cloud photos:", error);
+            return [];
+        }
+    }
 };
