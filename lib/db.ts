@@ -118,20 +118,23 @@ const uploadFileToSupabase = async (file: File, childId: string, tag: string): P
 };
 
 const saveImageToFile = async (base64String: string): Promise<string> => {
+    const base64Data = base64String.startsWith('data:') ? base64String.split(',')[1] : base64String;
     const fileName = `images/${crypto.randomUUID()}.jpeg`;
-    const result = await Filesystem.writeFile({ path: fileName, data: base64String, directory: Directory.Data });
+    const result = await Filesystem.writeFile({ path: fileName, data: base64Data, directory: Directory.Data });
     return result.uri;
 };
 
 const deleteFileByUri = async (uri: string) => {
     if (uri && !uri.startsWith('http')) {
-        try { await Filesystem.deleteFile({ path: uri }); } catch(e) { console.error(`Failed to delete file at ${uri}`, e); }
+        try { 
+            const path = Capacitor.isNativePlatform() ? uri : uri.split('/Data/')[1];
+            if (path) {
+                await Filesystem.deleteFile({ path: path, directory: Directory.Data }); 
+            }
+        } catch(e) { 
+            console.error(`Failed to delete file at ${uri}`, e); 
+        }
     }
-};
-
-const convertUriToDisplaySrc = (uri: string | undefined): string | undefined => {
-    if (!uri) return undefined;
-    return Capacitor.isNativePlatform() ? Capacitor.convertFileSrc(uri) : uri;
 };
 
 const syncDeletions = async () => {
@@ -186,8 +189,12 @@ export const syncData = async () => {
                     const localUrls = JSON.parse(payload.imageUrls);
                     const remoteUrls = await Promise.all(localUrls.map(async (uri: string) => {
                         if (uri && !uri.startsWith('http')) {
-                            const fileData = await Filesystem.readFile({ path: uri });
-                            const blob = b64toBlob(fileData.data, 'image/jpeg');
+                            const path = Capacitor.isNativePlatform() ? uri : uri.split('/Data/')[1];
+                            const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
+                            // Fix: Filesystem.readFile can return a Blob, handle it to avoid type error
+                            const blob = typeof fileData.data === 'string'
+                                ? b64toBlob(fileData.data, 'image/jpeg')
+                                : fileData.data;
                             const file = new File([blob], "upload.jpeg", { type: 'image/jpeg' });
                             const remoteUrl = await uploadFileToSupabase(file, payload.childId, 'memories');
                             await deleteFileByUri(uri); // Clean up local file after successful upload
@@ -200,16 +207,25 @@ export const syncData = async () => {
                 }
                 
                 if (_table === 'profiles' && payload.profileImage && !payload.profileImage.startsWith('http')) {
-                    const fileData = await Filesystem.readFile({ path: payload.profileImage });
-                    const blob = b64toBlob(fileData.data, 'image/jpeg');
+                    const path = Capacitor.isNativePlatform() ? payload.profileImage : payload.profileImage.split('/Data/')[1];
+                    const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
+                    // Fix: Filesystem.readFile can return a Blob, handle it to avoid type error
+                    const blob = typeof fileData.data === 'string'
+                        ? b64toBlob(fileData.data, 'image/jpeg')
+                        : fileData.data;
                     const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
                     const remoteUrl = await uploadFileToSupabase(file, payload.id, 'profile');
                     await deleteFileByUri(payload.profileImage);
                     uploadPayload.profileImage = remoteUrl;
                     await getDb().run('UPDATE profiles SET profileImage = ? WHERE id = ?;', [remoteUrl, payload.id]);
                 }
-
-                const { error } = await supabase.from(remoteTable).upsert(uploadPayload);
+                
+                // Cleanup payload for Supabase
+                const cleanPayload = {...uploadPayload};
+                delete cleanPayload.is_deleted;
+                delete cleanPayload.synced;
+                
+                const { error } = await supabase.from(remoteTable).upsert(cleanPayload);
                 if (error) throw error;
                 await getDb().run(`UPDATE ${_table} SET synced = 1 WHERE id = ?;`, [payload.id]);
                 syncManager.itemCompleted();
@@ -225,11 +241,12 @@ export const syncData = async () => {
             const { data } = await supabase.from(remoteTables[i]).select('*');
             if (data) {
                 for (const item of data) {
-                    const { keys, values, placeholders } = Object.entries(item).reduce(
+                    const mappedItem = {...item, synced: 1, is_deleted: 0};
+                    const { keys, values, placeholders } = Object.entries(mappedItem).reduce(
                       (acc, [k, v]) => ({ keys: [...acc.keys, k], values: [...acc.values, typeof v === 'object' ? JSON.stringify(v) : v], placeholders: [...acc.placeholders, '?'] }),
                       { keys: [] as string[], values: [] as any[], placeholders: [] as string[] }
                     );
-                    const query = `INSERT OR REPLACE INTO ${tables[i]} (${keys.join(',')}, synced) VALUES (${placeholders.join(',')}, 1);`;
+                    const query = `INSERT OR REPLACE INTO ${tables[i]} (${keys.join(',')}) VALUES (${placeholders.join(',')});`;
                     await getDb().run(query, values);
                 }
             }
@@ -268,11 +285,29 @@ export const DataService = {
         } catch (e) { console.log("Could not clear images directory."); }
     },
     uploadImage: async (file: File) => fileToBase64(file),
-    getMemories: async (childId?: string) => {
+    getMemories: async (childId?: string): Promise<Memory[]> => {
         const q = childId ? `SELECT * FROM memories WHERE childId = ? AND is_deleted = 0 ORDER BY date DESC;` : `SELECT * FROM memories WHERE is_deleted = 0 ORDER BY date DESC;`;
         const p = childId ? [childId] : [];
         const res = await getDb().query(q, p);
-        return res.values?.map(m => ({ ...m, imageUrls: JSON.parse(m.imageUrls || '[]').map(convertUriToDisplaySrc), tags: JSON.parse(m.tags || '[]') })) || [];
+        const memories = res.values || [];
+
+        return Promise.all(memories.map(async m => {
+            const imageUrls = JSON.parse(m.imageUrls || '[]');
+            const displayUrls = await Promise.all(imageUrls.map(async (uri: string) => {
+                if (!uri || uri.startsWith('http')) return uri;
+                if (Capacitor.isNativePlatform()) return Capacitor.convertFileSrc(uri);
+                try {
+                    const path = uri.split('/Data/')[1];
+                    if (!path) return '';
+                    const file = await Filesystem.readFile({ path, directory: Directory.Data });
+                    return `data:image/jpeg;base64,${file.data}`;
+                } catch (e) {
+                    console.error(`Failed to read web file: ${uri}`, e);
+                    return '';
+                }
+            }));
+            return { ...m, imageUrls: displayUrls.filter(Boolean), tags: JSON.parse(m.tags || '[]') };
+        }));
     },
     addMemory: async (memory: Memory) => {
         const newImageUrls = await Promise.all(memory.imageUrls.map(url => url.startsWith('data:image') ? saveImageToFile(url) : Promise.resolve(url)));
@@ -298,7 +333,30 @@ export const DataService = {
     deleteGrowth: async (id: string) => await getDb().run('UPDATE growth SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
     getProfiles: async (): Promise<ChildProfile[]> => {
         const res = await getDb().query('SELECT * FROM profiles WHERE is_deleted = 0;');
-        return res.values?.map(p => ({ ...p, profileImage: convertUriToDisplaySrc(p.profileImage) })) || [];
+        const profiles = res.values || [];
+
+        return Promise.all(profiles.map(async p => {
+            let displayUrl = p.profileImage;
+            if (p.profileImage && !p.profileImage.startsWith('http')) {
+                if (Capacitor.isNativePlatform()) {
+                    displayUrl = Capacitor.convertFileSrc(p.profileImage);
+                } else {
+                    try {
+                        const path = p.profileImage.split('/Data/')[1];
+                        if (!path) {
+                            displayUrl = undefined;
+                        } else {
+                            const file = await Filesystem.readFile({ path, directory: Directory.Data });
+                            displayUrl = `data:image/jpeg;base64,${file.data}`;
+                        }
+                    } catch (e) {
+                        console.error(`Failed to read web profile image: ${p.profileImage}`, e);
+                        displayUrl = undefined;
+                    }
+                }
+            }
+            return { ...p, profileImage: displayUrl };
+        }));
     },
     saveProfile: async (profile: ChildProfile) => {
         let newProfileImage = profile.profileImage;
