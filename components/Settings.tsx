@@ -184,7 +184,8 @@ export const Settings: React.FC<SettingsProps> = ({
     if (file && editingProfile.id) {
         setIsUploadingImage(true);
         try {
-            const url = await DataService.uploadImage(file, editingProfile.id, 'profile');
+            // Fix for Error in file components/Settings.tsx on line 187: Expected 1 arguments, but got 3.
+            const url = await DataService.uploadImage(file);
             setEditingProfile(prev => ({ ...prev, profileImage: url }));
         } catch (error) {
             console.error("Profile image upload failed:", error);

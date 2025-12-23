@@ -15,7 +15,6 @@ export type LittleMomentsDB = Dexie & {
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
-// Store definitions must be in ascending order.
 db.version(6).stores({
   memories: 'id, childId, date, synced',
   stories: 'id, childId, date, synced',
@@ -33,17 +32,15 @@ db.version(7).stores({
   reminders: 'id, date, synced, is_deleted',
   app_settings: 'key'
 }).upgrade(tx => {
-  // This upgrade function adds the `is_deleted` property to existing objects.
   const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
   return Promise.all(tables.map(tableName => 
     tx.table(tableName).toCollection().modify(item => {
       if (item.is_deleted === undefined) {
-        item.is_deleted = 0; // 0 for not deleted
+        item.is_deleted = 0;
       }
     })
   ));
 });
-
 
 export { db };
 
@@ -71,9 +68,8 @@ const uploadFileToSupabase = async (file: File, childId: string, tag: string): P
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `${childId}/${tag}/${fileName}`;
 
-    // Using supabase-js client for upload is more reliable than manual XHR.
     const { error } = await supabase.storage
-        .from('images') // The bucket must be named 'images' as per original logic.
+        .from('images')
         .upload(filePath, file, {
             cacheControl: '3600',
             upsert: true
@@ -81,18 +77,17 @@ const uploadFileToSupabase = async (file: File, childId: string, tag: string): P
 
     if (error) {
         uploadManager.error();
-        console.error("Supabase upload failed:", error);
-        throw error; // Re-throw to be caught by the calling function.
+        throw error;
     }
 
     const { data } = supabase.storage.from('images').getPublicUrl(filePath);
     
     if (!data.publicUrl) {
         uploadManager.error();
-        throw new Error("File uploaded but failed to get public URL.");
+        throw new Error("Failed to get public URL.");
     }
     
-    uploadManager.progress(100, file.name); // No intermediate progress, just 0 and 100.
+    uploadManager.progress(100, file.name);
     uploadManager.finish();
     
     return data.publicUrl;
@@ -113,27 +108,21 @@ const syncDeletions = async () => {
         for (const item of itemsToDelete) {
             const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
             if (!error) {
-                await db.table(tableName).delete(item.id); // Permanent delete after cloud sync
-            } else {
-                console.error(`Failed to delete ${tableName} item ${item.id} from Supabase:`, error);
+                await db.table(tableName).delete(item.id);
             }
         }
     }
 };
 
 export const syncData = async () => {
-    if (!navigator.onLine) return { success: false, reason: 'Offline' };
-    if (!isSupabaseConfigured()) return { success: false, reason: 'No Supabase Configuration' };
+    if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
     try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
 
-        // 1. Sync Deletions First
         await syncDeletions();
 
-        // 2. Sync Creations and Updates
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
@@ -141,26 +130,23 @@ export const syncData = async () => {
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
-        
-        if (totalToSync > 0) {
-            syncManager.start(totalToSync);
-        }
+        if (totalToSync > 0) syncManager.start(totalToSync);
         
         let errors: string[] = [];
 
+        // Sync Stories
         for (const s of unsyncedStories) {
             const { error } = await supabase.from('stories').upsert(cleanForSync(s));
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Stories Push: ${error.message}`);
+            else errors.push(error.message);
         }
 
-        // Reworked Memory Sync: Process each memory atomically to prevent one failure from stopping all.
+        // Sync Memories (Upload images if needed)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
-
                 if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('data:image'))) {
-                    const newImageUrls = await Promise.all(memoryToSync.imageUrls.map(async (url) => {
+                    const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url) => {
                         if (url.startsWith('data:image')) {
                             const res = await fetch(url);
                             const blob = await res.blob();
@@ -169,59 +155,58 @@ export const syncData = async () => {
                         }
                         return url;
                     }));
-                    await db.memories.update(mem.id, { imageUrls: newImageUrls });
-                    memoryToSync.imageUrls = newImageUrls;
+                    await db.memories.update(mem.id, { imageUrls: newUrls });
+                    memoryToSync.imageUrls = newUrls;
                 }
                 
-                const cleanedMemory = cleanForSync(memoryToSync);
-                const supabasePayload: any = { ...cleanedMemory };
+                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
                 if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
                     supabasePayload.imageUrl = supabasePayload.imageUrls[0];
-                } else if (supabasePayload.imageUrl === undefined) {
-                    supabasePayload.imageUrl = null;
                 }
                 delete supabasePayload.imageUrls;
 
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
                 if (error) throw error;
-
                 await db.memories.update(mem.id, { synced: 1 });
                 syncManager.itemCompleted();
-            } catch (error) {
-                console.error(`Failed to sync memory ${mem.id}:`, error);
-                errors.push(`Memory Sync for ${mem.id}: ${(error as Error).message}`);
-                // Continue to the next memory
+            } catch (error: any) {
+                errors.push(error.message);
             }
         }
 
+        // Sync Growth
         for (const g of unsyncedGrowth) {
             const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Growth Push: ${error.message}`);
+            else errors.push(error.message);
         }
 
+        // Sync Profiles (Upload image if needed)
         for (const p of unsyncedProfiles) {
-            if (p.id && p.profileImage && p.profileImage.startsWith('data:image')) {
-                try {
-                    const res = await fetch(p.profileImage);
+            try {
+                let profileToSync = { ...p };
+                if (profileToSync.profileImage && profileToSync.profileImage.startsWith('data:image')) {
+                    const res = await fetch(profileToSync.profileImage);
                     const blob = await res.blob();
-                    const file = new File([blob], "profile_upload.jpg", { type: blob.type });
-                    const newImageUrl = await uploadFileToSupabase(file, p.id, 'profile');
-                    await db.profiles.update(p.id, { profileImage: newImageUrl });
-                    p.profileImage = newImageUrl;
-                } catch (e) { console.error(`Profile image upload failed for profile ${p.id}, keeping local version.`, e); }
+                    const file = new File([blob], "profile.jpg", { type: blob.type });
+                    const newUrl = await uploadFileToSupabase(file, p.id!, 'profile');
+                    await db.profiles.update(p.id!, { profileImage: newUrl });
+                    profileToSync.profileImage = newUrl;
+                }
+                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
+                if (error) throw error;
+                await db.profiles.update(p.id!, { synced: 1 });
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                errors.push(error.message);
             }
         }
-        for (const p of unsyncedProfiles) {
-            const { error } = await supabase.from('child_profile').upsert(cleanForSync(p));
-            if (!error) { await db.profiles.update(p.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Profiles Push: ${error.message}`);
-        }
 
+        // Sync Reminders
         for (const r of unsyncedReminders) {
             const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Reminders Push: ${error.message}`);
+            else errors.push(error.message);
         }
 
         if (totalToSync > 0) {
@@ -229,42 +214,26 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // 3. Pull remote changes
-        const { data: profileData } = await supabase.from('child_profile').select('*');
-        if (profileData) await db.profiles.bulkPut(profileData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
-        const { data: storyData } = await supabase.from('stories').select('*');
-        if (storyData) await db.stories.bulkPut(storyData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
-        const { data: growthData } = await supabase.from('growth_data').select('*');
-        if (growthData) await db.growth.bulkPut(growthData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        const { data: reminderData } = await supabase.from('reminders').select('*');
-        if (reminderData) await db.reminders.bulkPut(reminderData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        
-        const { data: memoryData } = await supabase.from('memories').select('*');
-        if (memoryData) {
-            const memoriesToUpsert = [];
-            for (const remoteMemory of memoryData) {
-                const localMemory = await db.memories.get(remoteMemory.id);
-                if (localMemory) {
-                    const mergedMemory = {
-                        ...localMemory,
-                        ...remoteMemory,
-                        synced: 1,
-                        is_deleted: 0,
-                    };
-                    memoriesToUpsert.push(mergedMemory);
-                } else {
-                    memoriesToUpsert.push({ ...remoteMemory, synced: 1, is_deleted: 0 });
-                }
-            }
-            if (memoriesToUpsert.length > 0) {
-                await db.memories.bulkPut(memoriesToUpsert);
-            }
+        // Pull remote changes
+        const { data: pData } = await supabase.from('child_profile').select('*');
+        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
+        const { data: sData } = await supabase.from('stories').select('*');
+        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
+        const { data: gData } = await supabase.from('growth_data').select('*');
+        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
+        const { data: rData } = await supabase.from('reminders').select('*');
+        if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
+        const { data: mData } = await supabase.from('memories').select('*');
+        if (mData) {
+            await db.memories.bulkPut(mData.map(m => {
+                const imageUrls = m.imageUrl ? [m.imageUrl] : [];
+                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
+            }));
         }
 
         return { success: errors.length === 0 };
     } catch (err: any) {
         syncManager.error();
-        console.error("Sync process failed:", err);
         return { success: false, error: err.message };
     }
 };
@@ -279,17 +248,9 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const DataService = {
-    // --- App Settings ---
-    getSetting: async (key: string) => {
-        return await db.app_settings.get(key);
-    },
-    saveSetting: async (key: string, value: any) => {
-        await db.app_settings.put({ key, value });
-    },
-    removeSetting: async (key: string) => {
-        await db.app_settings.delete(key);
-    },
-
+    getSetting: async (key: string) => await db.app_settings.get(key),
+    saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
+    removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
         await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
             await db.memories.clear();
@@ -300,79 +261,36 @@ export const DataService = {
         });
     },
 
-    uploadImage: async (file: File, childId: string, tag: string = 'general'): Promise<string> => {
-        const isGuest = localStorage.getItem('guest_mode') === 'true';
+    // profile upload now always returns base64 immediately for local-first feel
+    uploadImage: async (file: File) => await fileToBase64(file),
 
-        if (isGuest || !navigator.onLine || !isSupabaseConfigured()) {
-            return fileToBase64(file);
-        }
-
-        // Let errors propagate to be handled by the UI component.
-        return await uploadFileToSupabase(file, childId, tag);
+    getMemories: async (childId?: string) => {
+        const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
+        const mems = await query.sortBy('date');
+        return mems.reverse();
     },
-
-    getMemories: async (childId?: string): Promise<Memory[]> => {
-        let memories;
-        if (childId) {
-            memories = (await db.memories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
-        } else {
-            memories = (await db.memories.where('is_deleted').equals(0).sortBy('date')).reverse();
-        }
-        return memories.map((mem: any) => {
-            if ((!mem.imageUrls || !Array.isArray(mem.imageUrls)) && typeof mem.imageUrl === 'string') {
-                return { ...mem, imageUrls: [mem.imageUrl] };
-            }
-            return mem as Memory;
-        });
-    },
-    addMemory: async (memory: Memory) => {
-        await db.memories.put({ ...memory, synced: 0, is_deleted: 0 });
-    },
-    deleteMemory: async (id: string) => {
-        await db.memories.update(id, { is_deleted: 1, synced: 0 });
-    },
+    addMemory: async (memory: Memory) => await db.memories.put({ ...memory, synced: 0, is_deleted: 0 }),
+    deleteMemory: async (id: string) => await db.memories.update(id, { is_deleted: 1, synced: 0 }),
 
     getStories: async (childId?: string) => {
-        if (childId) {
-            return (await db.stories.where({ childId, is_deleted: 0 }).sortBy('date')).reverse();
-        }
-        return (await db.stories.where('is_deleted').equals(0).sortBy('date')).reverse();
+        const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);
+        return (await query.sortBy('date')).reverse();
     },
-    addStory: async (story: Story) => {
-        await db.stories.put({ ...story, synced: 0, is_deleted: 0 });
-    },
-    deleteStory: async (id: string) => {
-        await db.stories.update(id, { is_deleted: 1, synced: 0 });
-    },
+    addStory: async (story: Story) => await db.stories.put({ ...story, synced: 0, is_deleted: 0 }),
+    deleteStory: async (id: string) => await db.stories.update(id, { is_deleted: 1, synced: 0 }),
 
     getGrowth: async (childId?: string) => {
-        if (childId) return await db.growth.where({ childId, is_deleted: 0 }).sortBy('month');
-        return await db.growth.where('is_deleted').equals(0).sortBy('month');
+        const query = childId ? db.growth.where({ childId, is_deleted: 0 }) : db.growth.where('is_deleted').equals(0);
+        return await query.sortBy('month');
     },
-    saveGrowth: async (data: GrowthData) => {
-        await db.growth.put({ ...data, synced: 0, is_deleted: 0 });
-    },
-    deleteGrowth: async (id: string) => {
-        await db.growth.update(id, { is_deleted: 1, synced: 0 });
-    },
+    saveGrowth: async (data: GrowthData) => await db.growth.put({ ...data, synced: 0, is_deleted: 0 }),
+    deleteGrowth: async (id: string) => await db.growth.update(id, { is_deleted: 1, synced: 0 }),
     
-    getProfiles: async () => {
-        return await db.profiles.where('is_deleted').equals(0).toArray();
-    },
-    saveProfile: async (profile: ChildProfile) => {
-        await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 });
-    },
-    deleteProfile: async (id: string) => {
-        await db.profiles.update(id, { is_deleted: 1, synced: 0 });
-    },
+    getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
+    saveProfile: async (profile: ChildProfile) => await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 }),
+    deleteProfile: async (id: string) => await db.profiles.update(id, { is_deleted: 1, synced: 0 }),
 
-    getReminders: async () => {
-        return await db.reminders.where('is_deleted').equals(0).sortBy('date');
-    },
-    saveReminder: async (reminder: Reminder) => {
-        await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 });
-    },
-    deleteReminder: async (id: string) => {
-        await db.reminders.update(id, { is_deleted: 1, synced: 0 });
-    }
+    getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
+    saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
+    deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 })
 };
