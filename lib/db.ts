@@ -42,6 +42,16 @@ db.version(7).stores({
   ));
 });
 
+// Version 8: Add compound indexes for sync performance
+db.version(8).stores({
+  memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
+  stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
+  growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
+  profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+  reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+});
+
+
 export { db };
 
 export const initDB = async () => {
