@@ -106,9 +106,57 @@ const syncDeletions = async () => {
     for (const tableName of tables) {
         const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
         for (const item of itemsToDelete) {
+            
+            // Handle storage file deletion for memories
+            if (tableName === 'memories' && item.imageUrls && item.imageUrls.length > 0) {
+                const storagePaths = item.imageUrls.map((url: string) => {
+                    try {
+                        const urlObject = new URL(url);
+                        const pathName = urlObject.pathname;
+                        const parts = pathName.split('/images/');
+                        if (parts.length > 1) return parts[1];
+                    } catch (e) {
+                        console.error("Invalid URL for memory image:", url);
+                    }
+                    return null;
+                }).filter((p: string | null): p is string => p !== null);
+
+                if (storagePaths.length > 0) {
+                    const { error: storageError } = await supabase.storage.from('images').remove(storagePaths);
+                    if (storageError) {
+                        console.error("Failed to delete memory images from storage:", storageError.message);
+                        continue; // Skip DB deletion to retry later
+                    }
+                }
+            }
+
+            // Handle storage file deletion for profiles
+            if (tableName === 'profiles' && item.profileImage) {
+                let storagePath: string | null = null;
+                try {
+                    const urlObject = new URL(item.profileImage);
+                    const pathName = urlObject.pathname;
+                    const parts = pathName.split('/images/');
+                    if (parts.length > 1) storagePath = parts[1];
+                } catch (e) {
+                     console.error("Invalid URL for profile image:", item.profileImage);
+                }
+
+                if (storagePath) {
+                    const { error: storageError } = await supabase.storage.from('images').remove([storagePath]);
+                    if (storageError) {
+                        console.error("Failed to delete profile image from storage:", storageError.message);
+                        continue; // Skip DB deletion to retry later
+                    }
+                }
+            }
+
+            // Delete the database record
             const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
             if (!error) {
                 await db.table(tableName).delete(item.id);
+            } else {
+                console.error(`Failed to delete record from ${tableName}:`, error.message);
             }
         }
     }
