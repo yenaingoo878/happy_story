@@ -312,18 +312,35 @@ export const DataService = {
     deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
 
     getCloudPhotos: async (userId: string, childId: string): Promise<string[]> => {
-        if (!navigator.onLine || !isSupabaseConfigured() || !userId) return [];
+        if (!navigator.onLine || !isSupabaseConfigured() || !userId || !childId) {
+            console.warn("getCloudPhotos prerequisites not met:", {
+                isOnline: navigator.onLine,
+                isConfigured: isSupabaseConfigured(),
+                userIdProvided: !!userId,
+                childIdProvided: !!childId,
+            });
+            return [];
+        }
         
         try {
-            const { data: memoriesList } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`);
-            const { data: profileList } = await supabase.storage.from('images').list(`${userId}/${childId}/profile`);
-            
+            const memoriesPath = `${userId}/${childId}/memories`;
+            const profilePath = `${userId}/${childId}/profile`;
             const urls: string[] = [];
+
+            const { data: memoriesList, error: memoriesError } = await supabase.storage.from('images').list(memoriesPath);
+            if (memoriesError) {
+                console.error(`Supabase storage error listing memories at path ${memoriesPath}:`, memoriesError);
+            }
+
+            const { data: profileList, error: profileError } = await supabase.storage.from('images').list(profilePath);
+            if (profileError) {
+                console.error(`Supabase storage error listing profile photos at path ${profilePath}:`, profileError);
+            }
             
             if (memoriesList) {
                 for (const file of memoriesList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${memoriesPath}/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
                 }
@@ -332,7 +349,7 @@ export const DataService = {
             if (profileList) {
                 for (const file of profileList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/profile/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${profilePath}/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
                 }
@@ -340,7 +357,7 @@ export const DataService = {
             
             return urls;
         } catch (error) {
-            console.error("Failed to fetch cloud photos:", error);
+            console.error("Failed to fetch cloud photos due to an unexpected error:", error);
             return [];
         }
     },
