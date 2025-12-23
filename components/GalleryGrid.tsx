@@ -23,7 +23,7 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
   return (
     <div 
       onClick={onClick}
-      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
+      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 rounded-4xl ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
     >
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -40,9 +40,9 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
       />
       
       {isSelectionMode ? (
-        <div className="absolute top-1.5 right-1.5 z-10">
-          <div className={`w-5 h-5 rounded-full flex items-center justify-center shadow-lg border transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white' : 'bg-black/20 border-white/50 text-transparent'}`}>
-            <Check className="w-3 h-3 stroke-[3px]" />
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white' : 'bg-black/20 border-white/50 text-transparent'}`}>
+            <Check className="w-4 h-4 stroke-[3px]" />
           </div>
         </div>
       ) : (
@@ -209,70 +209,47 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
 
   return (
     <div className="pb-32 animate-fade-in relative">
-       <div className="mb-6 space-y-5 px-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center tracking-tight">
-                  <ImageIcon className="w-6 h-6 mr-2.5 text-rose-400" />
-                  {t('gallery_title')}
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('gallery_subtitle')}</p>
-            </div>
-            
-            <div className="flex gap-2">
-                {activeTab === 'CLOUD' && (
-                    <button 
-                        onClick={fetchCloudPhotos}
-                        disabled={isLoadingCloud}
-                        className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl active:scale-90 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isLoadingCloud ? 'animate-spin' : ''}`} />
-                    </button>
-                )}
-                {activeTab === 'CLOUD' && cloudPhotos.length > 0 && (
-                    <button 
-                    onClick={() => {
-                        setIsSelectionMode(!isSelectionMode);
-                        setSelectedPaths(new Set());
-                    }}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${isSelectionMode ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
-                    >
-                    {isSelectionMode ? t('cancel_btn') : (language === 'mm' ? 'ရွေးမည်' : 'Select')}
-                    </button>
-                )}
-            </div>
+       <div className="mb-8 space-y-8">
+          <div className="text-center">
+              <div className="flex items-center justify-center gap-3">
+                  <ImageIcon className="w-7 h-7 text-slate-400" />
+                  <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">
+                      {t('gallery_title')}
+                  </h1>
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-1.5">{t('gallery_subtitle')}</p>
           </div>
 
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[24px] max-w-sm mx-auto shadow-inner border border-slate-200 dark:border-slate-700/50">
+          <div className="flex bg-slate-800 p-1.5 rounded-full max-w-sm mx-auto border border-slate-700">
              <button 
                 onClick={() => setActiveTab('LOCAL')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === 'LOCAL' ? 'bg-white dark:bg-slate-700 text-primary shadow-md' : 'text-slate-400'}`}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'LOCAL' ? 'bg-slate-600 text-white shadow-md' : 'text-slate-400'}`}
              >
-                <HardDrive className="w-3.5 h-3.5" />
-                {language === 'mm' ? 'မှတ်တမ်းများ' : 'Memories'}
+                <HardDrive className="w-4 h-4" />
+                {t('memories')}
              </button>
              <button 
                 onClick={() => setActiveTab('CLOUD')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === 'CLOUD' ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-md' : 'text-slate-400'}`}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'CLOUD' ? 'bg-slate-600 text-white shadow-md' : 'text-slate-400'}`}
              >
-                <Cloud className="w-3.5 h-3.5" />
+                <Cloud className="w-4 h-4" />
                 {language === 'mm' ? 'Cloud ပုံများ' : 'Cloud Photos'}
              </button>
           </div>
        </div>
        
        {activeTab === 'LOCAL' ? (
-          <div className="px-2">
-             <div className="relative max-w-md mx-auto group mb-6">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <div>
+             <div className="relative max-w-sm mx-auto group mb-8">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-slate-500" />
                 </div>
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder={t('search_placeholder')}
-                    className="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all text-slate-800 dark:text-slate-200 shadow-sm"
+                    className="w-full pl-14 pr-5 py-4 bg-slate-800 border border-slate-700 rounded-full text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500 transition-all text-white placeholder:text-slate-500"
                 />
              </div>
 
@@ -281,7 +258,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 <div 
                     key={memory.id} 
                     onClick={() => onMemoryClick(memory)}
-                    className="group relative rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800"
+                    className="group relative rounded-4xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800"
                 >
                     {memory.imageUrls && memory.imageUrls.length > 0 ? (
                         <img 
@@ -295,8 +272,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                         <ImageIcon className="w-10 h-10 text-slate-200 dark:text-slate-700"/>
                     </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5 pointer-events-none">
-                        <span className="text-white text-xs font-black truncate uppercase tracking-widest">{memory.title}</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-5 pointer-events-none">
+                        <h3 className="text-white text-base font-bold truncate">{memory.title}</h3>
                     </div>
                 </div>
                 ))}
@@ -312,11 +289,31 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
              ) : cloudPhotos.length > 0 ? (
                 (Object.entries(groupedCloudPhotos) as [string, CloudPhoto[]][]).map(([date, photos]) => (
                    <div key={date} className="space-y-2">
-                      <div className="flex items-center gap-2 px-3 py-1">
-                         <Calendar className="w-3.5 h-3.5 text-sky-400" />
-                         <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">{date}</h3>
+                      <div className="flex items-center justify-between px-3 py-1">
+                         <div className="flex items-center gap-2">
+                           <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                           <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">{date}</h3>
+                         </div>
+                          {isSelectionMode && (
+                              <button 
+                                onClick={() => {
+                                    const photoPathsInGroup = new Set(photos.map(p => p.path));
+                                    const selectedInGroup = [...selectedPaths].filter(p => photoPathsInGroup.has(p));
+                                    const newSelected = new Set(selectedPaths);
+                                    if (selectedInGroup.length === photos.length) { // all selected, so deselect all in group
+                                        photoPathsInGroup.forEach(p => newSelected.delete(p));
+                                    } else { // not all selected, so select all in group
+                                        photoPathsInGroup.forEach(p => newSelected.add(p));
+                                    }
+                                    setSelectedPaths(newSelected);
+                                }}
+                                className="text-[10px] font-black uppercase tracking-widest text-primary/70"
+                              >
+                                {language === 'mm' ? 'အားလုံးရွေးမည်' : 'Select All'}
+                              </button>
+                          )}
                       </div>
-                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[2px]">
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                          {photos.map((photo) => {
                             const isSelected = selectedPaths.has(photo.path);
                             const photoIndex = cloudPhotos.findIndex(p => p.path === photo.path);
@@ -344,15 +341,29 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           </div>
        )}
        
+       {activeTab === 'CLOUD' && cloudPhotos.length > 0 && (
+        <div className="fixed top-6 right-6 z-50">
+           <button 
+            onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                setSelectedPaths(new Set());
+            }}
+            className={`px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${isSelectionMode ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}
+            >
+            {isSelectionMode ? t('cancel_btn') : (language === 'mm' ? 'ရွေးမည်' : 'Select')}
+            </button>
+        </div>
+       )}
+       
        {isSelectionMode && activeTab === 'CLOUD' && (
          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[100] animate-slide-up">
-            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white/20 flex items-center justify-between">
+            <div className="bg-slate-800/80 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-4 pl-2">
                     <button onClick={toggleSelectAll} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 tracking-widest active:scale-90">
                         {selectedPaths.size === cloudPhotos.length ? <CheckSquare className="w-5 h-5 text-primary" /> : <Square className="w-5 h-5" />}
                         {language === 'mm' ? 'အားလုံး' : 'All'}
                     </button>
-                    <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-4 w-px bg-slate-700" />
                     <span className="text-[11px] font-black text-primary">
                         {selectedPaths.size} {language === 'mm' ? 'ပုံ ရွေးထားသည်' : 'Selected'}
                     </span>
@@ -382,10 +393,10 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
              <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
              
              <div 
-                className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" 
+                className="relative bg-slate-900 w-full max-w-md md:max-w-lg rounded-4xl overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" 
                 onClick={(e) => e.stopPropagation()}
              >
-                <div className="relative h-64 sm:h-80 bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center">
+                <div className="relative h-64 sm:h-80 bg-slate-800 shrink-0 flex items-center justify-center">
                     {isPreviewLoading && (
                         <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
                         <Loader2 className="w-8 h-8 animate-spin" />
@@ -422,11 +433,11 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 </div>
 
                 <div className="p-6 overflow-y-auto grow">
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white leading-tight mb-1 truncate">
+                    <h2 className="text-2xl font-black text-white leading-tight mb-1 truncate">
                         {(cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14)}
                     </h2>
                     
-                    <div className="flex items-center text-slate-400 dark:text-slate-500 text-sm font-bold mb-6">
+                    <div className="flex items-center text-slate-500 text-sm font-bold mb-6">
                         <Calendar className="w-4 h-4 mr-2" />
                         {getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
@@ -445,7 +456,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                                 link.download = photo.path.split('/').pop() || 'photo.jpg';
                                 link.click(); window.URL.revokeObjectURL(url);
                             }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-300 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-sky-900/20 text-sky-300 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
                             <Download className="w-4 h-4" /> Download
                         </button>
                         <button 
@@ -461,7 +472,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                                     else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
                                 }
                             }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-900/20 text-rose-500 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
                             <Trash2 className="w-4 h-4" /> Delete
                         </button>
                     </div>

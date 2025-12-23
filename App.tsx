@@ -52,7 +52,7 @@ function App() {
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
 
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'mm');
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
   const t = (key: any) => getTranslation(language, key);
 
   const [uploadProgress, setUploadProgress] = useState(-1);
@@ -331,7 +331,7 @@ function App() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
                   {latestMemory && latestMemory.imageUrls && latestMemory.imageUrls.length > 0 ? (
-                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
+                      <div className="relative h-72 md:h-96 rounded-4xl overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
                         <img src={latestMemory.imageUrls[0]} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
                           <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
@@ -339,12 +339,12 @@ function App() {
                         </div>
                       </div>
                   ) : (
-                    <div className="h-72 md:h-96 rounded-[40px] bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-20" /><p className="font-bold text-sm">{t('no_photos')}</p></div>
+                    <div className="h-72 md:h-96 rounded-4xl bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-20" /><p className="font-bold text-sm">{t('no_photos')}</p></div>
                   )}
               </div>
               <div className="col-span-2 md:col-span-1 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
-                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-4xl p-6 text-white flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-4xl p-6 flex flex-col justify-between h-44 md:h-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
             </div>
 
@@ -543,7 +543,7 @@ function App() {
         </div>
       )}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
-        {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 active:scale-95 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-black animate-fade-in">{t(tab.label)}</span>}</button>); })}
+        {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 active:scale-95 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-slate-700 text-white shadow-lg' : 'flex-1 text-slate-400'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-black animate-fade-in">{t(tab.label)}</span>}</button>); })}
       </nav>
     </div>
   );
