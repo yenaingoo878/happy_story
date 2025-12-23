@@ -217,19 +217,22 @@ export const syncData = async () => {
     if (!session) return { success: false, reason: 'No Active Session' };
     const userId = session.user.id;
 
+    const errors: string[] = [];
+    let unsyncedItems: any[] = [];
+
     try {
+        // PUSH PHASE 1: Local Deletions to Remote
         await syncDeletions();
 
+        // PUSH PHASE 2: Local Creates/Updates to Remote
         const tables = ['stories', 'memories', 'growth', 'profiles', 'reminders'];
         const remoteTables = ['stories', 'memories', 'growth_data', 'child_profile', 'reminders'];
-        let unsyncedItems: any[] = [];
         for (const table of tables) {
             const res = await getDb().query(`SELECT * FROM ${table} WHERE synced = 0 AND is_deleted = 0 AND userId = ?;`, [userId]);
             unsyncedItems = unsyncedItems.concat(res.values?.map(v => ({...v, _table: table})) || []);
         }
 
         if (unsyncedItems.length > 0) syncManager.start(unsyncedItems.length);
-        let errors: string[] = [];
 
         for (const item of unsyncedItems) {
             try {
@@ -242,10 +245,8 @@ export const syncData = async () => {
                     const remoteUrls = await Promise.all(localUrls.map(async (uri: string) => {
                         if (uri && !uri.startsWith('http')) {
                             const path = Capacitor.isNativePlatform() ? uri : uri.split('/Data/')[1];
-                            const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
-                            const blob = typeof fileData.data === 'string'
-                                ? b64toBlob(fileData.data, 'image/jpeg')
-                                : fileData.data;
+                            const fileData = await Filesystem.readFile({ path, directory: Directory.Data });
+                            const blob = typeof fileData.data === 'string' ? b64toBlob(fileData.data, 'image/jpeg') : fileData.data;
                             const file = new File([blob], "upload.jpeg", { type: 'image/jpeg' });
                             const remoteUrl = await uploadFileToSupabase(file, userId, payload.childId, 'memories');
                             await deleteFileByUri(uri);
@@ -259,10 +260,8 @@ export const syncData = async () => {
                 
                 if (_table === 'profiles' && payload.profileImage && !payload.profileImage.startsWith('http')) {
                     const path = Capacitor.isNativePlatform() ? payload.profileImage : payload.profileImage.split('/Data/')[1];
-                    const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
-                    const blob = typeof fileData.data === 'string'
-                        ? b64toBlob(fileData.data, 'image/jpeg')
-                        : fileData.data;
+                    const fileData = await Filesystem.readFile({ path, directory: Directory.Data });
+                    const blob = typeof fileData.data === 'string' ? b64toBlob(fileData.data, 'image/jpeg') : fileData.data;
                     const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
                     const remoteUrl = await uploadFileToSupabase(file, userId, payload.id, 'profile');
                     await deleteFileByUri(payload.profileImage);
@@ -284,24 +283,57 @@ export const syncData = async () => {
         if (unsyncedItems.length > 0) {
             if (errors.length > 0) syncManager.error(); else syncManager.finish();
         }
-
+        
+        // PULL PHASE: Non-destructive merge from Remote to Local
         for (let i = 0; i < tables.length; i++) {
-            const { data } = await supabase.from(remoteTables[i]).select('*').eq('userId', userId);
-            if (data) {
-                for (const item of data) {
-                    const mappedItem = {...item, synced: 1, is_deleted: 0};
+            const localTable = tables[i];
+            const remoteTable = remoteTables[i];
+            const { data: remoteItems, error: fetchError } = await supabase.from(remoteTable).select('*').eq('userId', userId);
+
+            if (fetchError) {
+                console.error(`Error fetching from ${remoteTable}:`, fetchError);
+                errors.push(`Failed to fetch ${remoteTable}`);
+                continue;
+            }
+
+            if (remoteItems) {
+                const remoteIds = new Set(remoteItems.map(item => item.id));
+
+                // 1. Merge remote items down to local
+                for (const remoteItem of remoteItems) {
+                    const res = await getDb().query(`SELECT synced FROM ${localTable} WHERE id = ?;`, [remoteItem.id]);
+                    const localItem = res.values?.[0];
+
+                    if (localItem && localItem.synced === 0) {
+                        continue; // Prioritize local unsynced changes
+                    }
+
+                    const mappedItem = {...remoteItem, synced: 1, is_deleted: 0};
                     const { keys, values, placeholders } = Object.entries(mappedItem).reduce(
                       (acc, [k, v]) => ({ keys: [...acc.keys, k], values: [...acc.values, typeof v === 'object' ? JSON.stringify(v) : v], placeholders: [...acc.placeholders, '?'] }),
                       { keys: [] as string[], values: [] as any[], placeholders: [] as string[] }
                     );
-                    const query = `INSERT OR REPLACE INTO ${tables[i]} (${keys.join(',')}) VALUES (${placeholders.join(',')});`;
+                    const query = `INSERT OR REPLACE INTO ${localTable} (${keys.join(',')}) VALUES (${placeholders.join(',')});`;
                     await getDb().run(query, values);
+                }
+
+                // 2. Handle deletions that happened on remote
+                const { values: localItemsForDeletionCheck } = await getDb().query(`SELECT id, synced FROM ${localTable} WHERE userId = ?;`, [userId]);
+                if (localItemsForDeletionCheck) {
+                    for (const localItem of localItemsForDeletionCheck) {
+                        if (!remoteIds.has(localItem.id) && localItem.synced === 1) {
+                            await getDb().run(`DELETE FROM ${localTable} WHERE id = ?;`, [localItem.id]);
+                        }
+                    }
                 }
             }
         }
+
         return { success: errors.length === 0 };
+
     } catch (err: any) {
-        syncManager.error();
+        if (unsyncedItems.length > 0) syncManager.error();
+        console.error("Data sync failed:", err);
         return { success: false, error: err.message };
     }
 };
@@ -341,7 +373,8 @@ export const DataService = {
         const memories = res.values || [];
 
         return Promise.all(memories.map(async m => {
-            const imageUrls = JSON.parse(m.imageUrls || '[]');
+            const imageUrls = m.imageUrls ? JSON.parse(m.imageUrls) : [];
+            const tags = m.tags ? JSON.parse(m.tags) : [];
             const displayUrls = await Promise.all(imageUrls.map(async (uri: string) => {
                 if (!uri || uri.startsWith('http')) return uri;
                 if (Capacitor.isNativePlatform()) return Capacitor.convertFileSrc(uri);
@@ -355,7 +388,7 @@ export const DataService = {
                     return '';
                 }
             }));
-            return { ...m, imageUrls: displayUrls.filter(Boolean), tags: JSON.parse(m.tags || '[]') };
+            return { ...m, imageUrls: displayUrls.filter(Boolean), tags: tags };
         }));
     },
     addMemory: async (memory: Memory) => {
