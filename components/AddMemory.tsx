@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Plus } from 'lucide-react';
+import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService, fileToBase64 } from '../lib/db';
+import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 
 interface AddMemoryProps {
   language: Language;
@@ -73,6 +74,34 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       } finally {
         setIsProcessing(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const permissions = await CapacitorCamera.checkPermissions();
+      if (permissions.camera !== 'granted') {
+        const newPermissions = await CapacitorCamera.requestPermissions();
+        if (newPermissions.camera !== 'granted') {
+          alert(language === 'mm' ? "Camera သုံးဖို့ Permission ပေးရန် လိုအပ်ပါတယ်" : "Camera permission is required to take photos.");
+          return;
+        }
+      }
+      
+      const image = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl
+      });
+
+      if (image.dataUrl) {
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, image.dataUrl!] }));
+      }
+    } catch (error) {
+      console.error("Failed to take photo", error);
+      if (!(error instanceof Error && error.message.toLowerCase().includes('cancelled'))) {
+        alert(language === 'mm' ? "ဓာတ်ပုံရိုက်မရပါ။" : "Failed to take photo.");
       }
     }
   };
@@ -163,7 +192,15 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                             className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
                         >
                             {isProcessing ? <Loader2 className="w-6 h-6 animate-spin"/> : <ImageIcon className="w-6 h-6"/>}
-                            <span className="text-[10px] font-black uppercase tracking-widest">{isProcessing ? t('uploading') : 'Add'}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{isProcessing ? t('uploading') : t('upload_photo')}</span>
+                        </button>
+                        <button 
+                            onClick={handleTakePhoto}
+                            disabled={isProcessing || isSaving}
+                            className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
+                        >
+                            <Camera className="w-6 h-6"/>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{t('take_photo')}</span>
                         </button>
                     </div>
                 </div>
