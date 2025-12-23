@@ -23,7 +23,7 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
   return (
     <div 
       onClick={onClick}
-      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-200 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
+      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
     >
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -31,18 +31,11 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
         </div>
       )}
       
-      {/* Background blur to fill squares for non-square photos in grid */}
-      <img 
-        src={photo.thumbnailUrl} 
-        className={`absolute inset-0 w-full h-full object-cover blur-md opacity-40 scale-110 transition-opacity duration-700 ${isLoaded ? 'opacity-40' : 'opacity-0'}`} 
-        alt="Ambient"
-      />
-
       <img 
         src={photo.thumbnailUrl} 
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        className={`relative w-full h-full object-contain transition-all duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 rounded-lg' : 'scale-100'}`} 
+        className={`w-full h-full object-contain transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
         alt="Cloud Item" 
       />
       
@@ -66,6 +59,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   const [cloudPhotos, setCloudPhotos] = useState<CloudPhoto[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(true);
 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -80,6 +74,28 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
     setIsSelectionMode(false);
     setSelectedPaths(new Set());
   }, [activeTab, activeProfileId]);
+
+  useEffect(() => {
+    if (previewIndex !== null) {
+        setIsPreviewLoading(true);
+    }
+  }, [previewIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (previewIndex === null) return;
+        if (e.key === 'ArrowRight') {
+            setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0);
+        } else if (e.key === 'ArrowLeft') {
+            setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1);
+        } else if (e.key === 'Escape') {
+            setPreviewIndex(null);
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewIndex, cloudPhotos.length]);
+
 
   const fetchCloudPhotos = async () => {
     setIsLoadingCloud(true);
@@ -361,93 +377,79 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
          </div>
        )}
 
+       {/* Modern Lightbox Photo Viewer */}
        {previewIndex !== null && (
-          <div className="fixed inset-0 z-[200] bg-black flex flex-col animate-fade-in overflow-hidden">
-             {/* Background Immersive Glow */}
-             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <img 
-                  src={cloudPhotos[previewIndex].previewUrl} 
-                  className="absolute inset-0 w-full h-full object-cover blur-[80px] opacity-40 scale-125"
-                  alt="Ambient"
-                />
-             </div>
-
-             <div className="flex items-center justify-between p-6 z-20">
-                <div className="text-white/60 text-[10px] font-black uppercase tracking-widest bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full">
-                   {previewIndex + 1} / {cloudPhotos.length}
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewIndex(null)}>
+             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+             
+             <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl animate-zoom-in flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                    <div className="min-w-0">
+                        <h3 className="font-black text-slate-700 dark:text-white truncate pr-4">{ (cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14) }</h3>
+                        <p className="text-xs text-slate-400 font-bold">{getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    <button onClick={() => setPreviewIndex(null)} className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
-                <button 
-                   onClick={() => setPreviewIndex(null)}
-                   className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors active:scale-90 backdrop-blur-md"
-                >
-                   <X className="w-6 h-6" />
-                </button>
-             </div>
 
-             <div className="flex-1 relative flex items-center justify-center z-10 px-4">
-                {cloudPhotos[previewIndex] && (
-                    <img 
+                {/* Image */}
+                <div className="flex-1 relative flex items-center justify-center bg-slate-50 dark:bg-black/20 overflow-hidden">
+                   {isPreviewLoading && <div className="absolute inset-0 flex items-center justify-center text-primary"><Loader2 className="w-8 h-8 animate-spin" /></div>}
+                   <img 
+                      key={previewIndex} // Re-trigger load on image change
                       src={cloudPhotos[previewIndex].previewUrl} 
-                      className="max-w-full max-h-[85vh] object-contain animate-zoom-in shadow-2xl rounded-sm" 
-                      alt="Full Preview" 
-                    />
-                )}
-                
-                {cloudPhotos.length > 1 && (
-                   <>
-                      <button 
-                         onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}}
-                         className="absolute left-4 p-5 bg-black/10 text-white/50 hover:text-white rounded-full active:scale-90 transition-all backdrop-blur-sm"
-                      >
-                         <ChevronLeft className="w-7 h-7" />
-                      </button>
-                      <button 
-                         onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}}
-                         className="absolute right-4 p-5 bg-black/10 text-white/50 hover:text-white rounded-full active:scale-90 transition-all backdrop-blur-sm"
-                      >
-                         <ChevronRight className="w-7 h-7" />
-                      </button>
-                   </>
-                )}
+                      className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`} 
+                      alt="Full Preview"
+                      onLoad={() => setIsPreviewLoading(false)}
+                   />
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                   <p className="text-xs font-bold text-slate-400">{previewIndex + 1} / {cloudPhotos.length}</p>
+                   <div className="flex gap-2">
+                        <button 
+                           onClick={async () => {
+                                if (previewIndex === null) return;
+                                const photo = cloudPhotos[previewIndex];
+                                const response = await fetch(photo.url);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = photo.path.split('/').pop() || 'photo.jpg';
+                                link.click(); window.URL.revokeObjectURL(url);
+                           }}
+                           className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-300 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                           <Download className="w-3.5 h-3.5" /> Download
+                        </button>
+                        <button 
+                           onClick={async () => {
+                              if (previewIndex === null) return;
+                              if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
+                              const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
+                              if (result.success) {
+                                  const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
+                                  setCloudPhotos(nextPhotos);
+                                  if (nextPhotos.length === 0) setPreviewIndex(null);
+                                  else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
+                              }
+                           }}
+                           className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+                           <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                   </div>
+                </div>
              </div>
 
-             <div className="p-8 flex justify-center gap-6 z-20 pb-12">
-                <button 
-                   onClick={async () => {
-                      if (previewIndex === null) return;
-                      const photo = cloudPhotos[previewIndex];
-                      const response = await fetch(photo.url);
-                      const blob = await response.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = photo.path.split('/').pop() || 'photo.jpg';
-                      link.click();
-                      window.URL.revokeObjectURL(url);
-                   }}
-                   className="flex items-center gap-3 px-6 py-4 bg-white/10 text-white rounded-[24px] backdrop-blur-xl border border-white/10 active:scale-95 transition-all shadow-xl"
-                >
-                   <Download className="w-5 h-5"/>
-                   <span className="text-[11px] font-black uppercase tracking-widest">Download</span>
-                </button>
-                <button 
-                   onClick={async () => {
-                      if (previewIndex === null) return;
-                      if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
-                      const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
-                      if (result.success) {
-                         const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
-                         setCloudPhotos(nextPhotos);
-                         if (nextPhotos.length === 0) setPreviewIndex(null);
-                         else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
-                      }
-                   }}
-                   className="flex items-center gap-3 px-6 py-4 bg-rose-500/20 text-rose-400 rounded-[24px] backdrop-blur-xl border border-rose-500/10 active:scale-95 transition-all shadow-xl"
-                >
-                   <Trash2 className="w-5 h-5"/>
-                   <span className="text-[11px] font-black uppercase tracking-widest">Delete</span>
-                </button>
-             </div>
+             {cloudPhotos.length > 1 && (
+               <>
+                  <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}} className="absolute left-4 p-3 bg-black/30 text-white rounded-full active:scale-90 transition-all hover:bg-black/50 backdrop-blur-sm hidden sm:block"><ChevronLeft className="w-6 h-6" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}} className="absolute right-4 p-3 bg-black/30 text-white rounded-full active:scale-90 transition-all hover:bg-black/50 backdrop-blur-sm hidden sm:block"><ChevronRight className="w-6 h-6" /></button>
+               </>
+             )}
           </div>
        )}
     </div>
