@@ -170,6 +170,7 @@ export const translations = {
   reminder_date: { en: "Date", mm: "နေ့စွဲ" },
   save_reminder: { en: "Save Reminder", mm: "သိမ်းဆည်းမည်" },
   delete: { en: "Delete", mm: "ဖျက်မည်" },
+  deleting: { en: "Deleting...", mm: "ဖျက်နေသည်..." },
   delete_profile: { en: "Delete Profile", mm: "ပရိုဖိုင်ဖျက်မည်" },
   delete_title: { en: "Delete Item", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },

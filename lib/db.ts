@@ -11,6 +11,7 @@ export type LittleMomentsDB = Dexie & {
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
   app_settings: Table<AppSetting>;
+  cloud_photo_cache: Table<{ url: string; userId: string; base64data: string; timestamp: number }>;
 };
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
@@ -51,6 +52,11 @@ db.version(8).stores({
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
 });
 
+// Version 9: Add table for cloud photo caching
+db.version(9).stores({
+  cloud_photo_cache: 'url, userId, timestamp'
+});
+
 
 export { db };
 
@@ -71,12 +77,12 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
-const uploadFileToSupabase = async (file: File, childId: string, tag: string): Promise<string> => {
+const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string): Promise<string> => {
     uploadManager.start(file.name);
     
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `${childId}/${tag}/${fileName}`;
+    const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
     const { error } = await supabase.storage
         .from('images')
@@ -130,6 +136,7 @@ export const syncData = async () => {
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
+        const userId = session.user.id;
 
         await syncDeletions();
 
@@ -161,7 +168,7 @@ export const syncData = async () => {
                             const res = await fetch(url);
                             const blob = await res.blob();
                             const file = new File([blob], "upload.jpg", { type: blob.type });
-                            return await uploadFileToSupabase(file, memoryToSync.childId, 'memories');
+                            return await uploadFileToSupabase(file, userId, memoryToSync.childId, 'memories');
                         }
                         return url;
                     }));
@@ -199,7 +206,7 @@ export const syncData = async () => {
                     const res = await fetch(profileToSync.profileImage);
                     const blob = await res.blob();
                     const file = new File([blob], "profile.jpg", { type: blob.type });
-                    const newUrl = await uploadFileToSupabase(file, p.id!, 'profile');
+                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile');
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
@@ -248,10 +255,10 @@ export const syncData = async () => {
     }
 };
 
-export const fileToBase64 = (file: File): Promise<string> => {
+export const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(blob);
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = error => reject(error);
     });
@@ -262,16 +269,17 @@ export const DataService = {
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
     removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
-        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
+        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache], async () => {
             await db.memories.clear();
             await db.stories.clear();
             await db.growth.clear();
             await db.profiles.clear();
             await db.reminders.clear();
+            await db.cloud_photo_cache.clear();
         });
     },
 
-    uploadImage: async (file: File) => await fileToBase64(file),
+    uploadImage: async (file: File) => await blobToBase64(file),
 
     getMemories: async (childId?: string) => {
         const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
@@ -303,32 +311,31 @@ export const DataService = {
     saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
     deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
 
-    // New function to fetch cloud photos directly from Supabase Storage
-    getCloudPhotos: async (childId: string): Promise<string[]> => {
-        if (!navigator.onLine || !isSupabaseConfigured()) return [];
+    getCloudPhotos: async (userId: string, childId: string): Promise<string[]> => {
+        if (!navigator.onLine || !isSupabaseConfigured() || !userId) return [];
         
         try {
-            const { data: memoriesList } = await supabase.storage.from('images').list(`${childId}/memories`);
-            const { data: profileList } = await supabase.storage.from('images').list(`${childId}/profile`);
+            const { data: memoriesList } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`);
+            const { data: profileList } = await supabase.storage.from('images').list(`${userId}/${childId}/profile`);
             
             const urls: string[] = [];
             
             if (memoriesList) {
-                memoriesList.forEach(file => {
+                for (const file of memoriesList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/memories/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
-                });
+                }
             }
             
             if (profileList) {
-                profileList.forEach(file => {
+                for (const file of profileList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/profile/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/profile/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
-                });
+                }
             }
             
             return urls;
@@ -336,5 +343,38 @@ export const DataService = {
             console.error("Failed to fetch cloud photos:", error);
             return [];
         }
+    },
+    
+    deleteCloudPhoto: async (photoUrl: string): Promise<{ success: boolean; error?: Error }> => {
+        if (!isSupabaseConfigured()) return { success: false, error: new Error("Supabase not configured.") };
+        try {
+            const url = new URL(photoUrl);
+            const pathParts = url.pathname.split('/images/');
+            if (pathParts.length < 2) {
+                throw new Error("Invalid photo URL format.");
+            }
+            const filePath = pathParts[1];
+            
+            const { error } = await supabase.storage.from('images').remove([filePath]);
+            if (error) throw error;
+
+            await DataService.deleteCachedPhoto(photoUrl);
+            
+            return { success: true };
+        } catch (error: any) {
+            console.error("Failed to delete cloud photo:", error);
+            return { success: false, error };
+        }
+    },
+
+    // New Caching Methods
+    getCachedPhoto: async (url: string) => {
+        return await db.cloud_photo_cache.get(url);
+    },
+    cachePhoto: async (url: string, userId: string, base64data: string) => {
+        await db.cloud_photo_cache.put({ url, userId, base64data, timestamp: Date.now() });
+    },
+    deleteCachedPhoto: async (url: string) => {
+        await db.cloud_photo_cache.delete(url);
     }
 };

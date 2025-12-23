@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
-import { DataService, fileToBase64 } from '../lib/db';
+import { DataService, blobToBase64 } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 
 interface AddMemoryProps {
@@ -65,7 +65,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (files && files.length > 0) {
       setIsProcessing(true); 
       try {
-        const base64Promises = Array.from(files).map(file => fileToBase64(file as File));
+        const base64Promises = Array.from(files).map(file => blobToBase64(file as File));
         const newImageUrls = await Promise.all(base64Promises);
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
       } catch (error) {
