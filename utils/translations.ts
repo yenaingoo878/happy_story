@@ -101,6 +101,7 @@ export const translations = {
   // Gallery
   gallery_title: { en: "Photo Gallery", mm: "ဓာတ်ပုံပြခန်း" },
   gallery_subtitle: { en: "Precious Moments", mm: "အမှတ်တရ ပုံရိပ်လွှာများ" },
+  photos: { en: "Photos", mm: "ဓာတ်ပုံများ" },
   no_photos: { en: "No photos yet", mm: "ဓာတ်ပုံများ မရှိသေးပါ" },
   search_placeholder: { en: "Search memories...", mm: "အမှတ်တရများ ရှာဖွေရန်..." },
 
