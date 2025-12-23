@@ -129,8 +129,8 @@ export const initDB = async () => {
             : await sqlite.createConnection(DB_NAME, false, 'no-encryption', 1, false); // Always create with version 1 to check migrations
 
         await db.open();
-        // Run schema creation first for new users
-        await db.execute(SCHEMA); 
+        // Run schema creation first for new users, ensuring it doesn't start its own transaction
+        await db.execute(SCHEMA, false); 
         // Run migrations for existing users
         await runMigrations(db);
         
@@ -197,8 +197,10 @@ const syncDeletions = async () => {
         const res = await getDb().query(`SELECT * FROM ${localTable} WHERE is_deleted = 1 AND synced = 0;`);
         for (const item of res.values || []) {
             if (localTable === 'memories' && item.imageUrls) {
-                const urls = JSON.parse(item.imageUrls);
-                for (const url of urls) await deleteFileByUri(url);
+                try {
+                    const urls = JSON.parse(item.imageUrls);
+                    for (const url of urls) await deleteFileByUri(url);
+                } catch (e) { console.error("Could not parse image URLs for deletion: ", item.imageUrls); }
             }
             if (localTable === 'profiles' && item.profileImage) {
                 await deleteFileByUri(item.profileImage);
