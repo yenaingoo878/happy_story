@@ -75,39 +75,32 @@ const getDb = (): SQLiteDBConnection => {
     return db;
 };
 
+// This function now EXPECTS to be run inside an existing transaction
 const runMigrations = async (db: SQLiteDBConnection) => {
-    try {
-        const { user_version } = (await db.query('PRAGMA user_version;')).values![0];
-        
-        if (user_version >= DB_VERSION) {
-            console.log("Database is up to date.");
-            return;
-        }
-
-        console.log(`Current DB version: ${user_version}. Migrating to version: ${DB_VERSION}...`);
-        await db.beginTransaction();
-
-        // Migration from v1 to v2: Add userId columns
-        if (user_version < 2) {
-            console.log("Applying migration for v2: Adding userId columns...");
-            await db.run(`ALTER TABLE memories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
-            await db.run(`ALTER TABLE stories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
-            await db.run(`ALTER TABLE growth ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
-            await db.run(`ALTER TABLE profiles ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
-            await db.run(`ALTER TABLE reminders ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
-            console.log("userId columns added successfully.");
-        }
-        
-        // --- Add future migrations below using `if (user_version < 3) { ... }` ---
-        
-        await db.run(`PRAGMA user_version = ${DB_VERSION};`);
-        await db.commitTransaction();
-        console.log("Database migration completed.");
-    } catch (err) {
-        await db.rollbackTransaction();
-        console.error("Database migration failed:", err);
-        throw err;
+    const { user_version } = (await db.query('PRAGMA user_version;')).values![0];
+    
+    if (user_version >= DB_VERSION) {
+        console.log("Database is up to date.");
+        return;
     }
+
+    console.log(`Current DB version: ${user_version}. Migrating to version: ${DB_VERSION}...`);
+
+    // Migration from v1 to v2: Add userId columns
+    if (user_version < 2) {
+        console.log("Applying migration for v2: Adding userId columns...");
+        await db.run(`ALTER TABLE memories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+        await db.run(`ALTER TABLE stories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+        await db.run(`ALTER TABLE growth ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+        await db.run(`ALTER TABLE profiles ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+        await db.run(`ALTER TABLE reminders ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+        console.log("userId columns added successfully.");
+    }
+    
+    // --- Add future migrations below using `if (user_version < 3) { ... }` ---
+    
+    await db.run(`PRAGMA user_version = ${DB_VERSION};`);
+    console.log("Database migration completed.");
 };
 
 export const initDB = async () => {
@@ -126,14 +119,34 @@ export const initDB = async () => {
         const ret = await sqlite.checkConnectionsConsistency();
         db = ret.result
             ? await sqlite.retrieveConnection(DB_NAME, false)
-            : await sqlite.createConnection(DB_NAME, false, 'no-encryption', 1, false); // Always create with version 1 to check migrations
+            : await sqlite.createConnection(DB_NAME, false, 'no-encryption', 1, false);
 
         await db.open();
-        // Run schema creation first for new users, ensuring it doesn't start its own transaction
-        await db.execute(SCHEMA, false); 
-        // Run migrations for existing users
-        await runMigrations(db);
         
+        // Wrap schema creation and migration in a single transaction for atomicity
+        try {
+            await db.beginTransaction();
+
+            // 1. Create tables if they don't exist, one by one.
+            const schemaStatements = SCHEMA.trim().split(';').filter(s => s.trim().length > 0);
+            for (const statement of schemaStatements) {
+                await db.run(statement + ';');
+            }
+
+            // 2. Run migrations within the same transaction
+            await runMigrations(db);
+
+            await db.commitTransaction();
+        } catch (transactionError) {
+            console.error("DB Init Transaction failed, rolling back.", transactionError);
+            try {
+                await db.rollbackTransaction();
+            } catch (rollbackError) {
+                console.error("Failed to rollback transaction", rollbackError);
+            }
+            throw transactionError; // Propagate the original error
+        }
+
         try {
             await Filesystem.mkdir({ path: 'images', directory: Directory.Data, recursive: true });
         } catch (e) { console.log("Images directory already exists."); }
