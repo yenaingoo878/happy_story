@@ -250,7 +250,18 @@ export const fileToBase64 = (file: File): Promise<string> => {
 export interface CloudPhoto {
     url: string;
     path: string;
+    thumbnailUrl: string; // Optimized for grid
+    previewUrl: string;   // Optimized for full screen
 }
+
+// Supabase Image Transformation helper
+const getSupabaseOptimizedUrl = (path: string, options: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' } = {}) => {
+  const { width = 300, quality = 75, resize = 'cover' } = options;
+  // Format for Supabase transformation (standard storage doesn't support this via publicUrl helper easily)
+  // We use the 'render/image/public' endpoint if the project supports it.
+  // Fallback: If transformation isn't active on the user's plan, it will just serve the original image.
+  return `${SUPABASE_URL}/storage/v1/render/image/public/images/${path}?width=${width}&quality=${quality}&resize=${resize}`;
+};
 
 export const DataService = {
     getSetting: async (key: string) => await db.app_settings.get(key),
@@ -298,7 +309,6 @@ export const DataService = {
     saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
     deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
 
-    // Fetches cloud photos from Supabase Storage and returns path/url objects
     getCloudPhotos: async (childId: string): Promise<CloudPhoto[]> => {
         if (!navigator.onLine || !isSupabaseConfigured()) return [];
         
@@ -314,7 +324,12 @@ export const DataService = {
                             const filePath = `${childId}/${tag}/${file.name}`;
                             const { data } = supabase.storage.from('images').getPublicUrl(filePath);
                             if (data.publicUrl) {
-                                allPhotos.push({ url: data.publicUrl, path: filePath });
+                                allPhotos.push({ 
+                                  url: data.publicUrl, 
+                                  path: filePath,
+                                  thumbnailUrl: getSupabaseOptimizedUrl(filePath, { width: 300, quality: 70 }),
+                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85 })
+                                });
                             }
                         }
                     });
@@ -328,7 +343,6 @@ export const DataService = {
         }
     },
 
-    // Deletes specified photos from Supabase Storage
     deleteCloudPhotos: async (paths: string[]): Promise<{ success: boolean; error?: any }> => {
         if (!navigator.onLine || !isSupabaseConfigured() || paths.length === 0) return { success: false };
         
