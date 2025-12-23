@@ -10,6 +10,7 @@ interface GalleryGridProps {
   onMemoryClick: (memory: Memory) => void;
 }
 
+// Fix: Extract PhotoItem to top level and use React.FC to handle 'key' prop correctly
 interface PhotoItemProps {
   photo: CloudPhoto;
   isSelected: boolean;
@@ -23,30 +24,25 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
   return (
     <div 
       onClick={onClick}
-      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 rounded-4xl ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
+      className={`relative rounded-2xl overflow-hidden shadow-sm border cursor-pointer aspect-square active:scale-95 bg-slate-100 dark:bg-slate-800 group transition-all duration-500 ${isSelected ? 'ring-4 ring-primary ring-offset-2 dark:ring-offset-slate-900 border-primary' : 'border-slate-100 dark:border-slate-700'}`}
     >
-      {!isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-        </div>
-      )}
-      
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}>
+        <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+      </div>
       <img 
         src={photo.thumbnailUrl} 
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
+        className={`w-full h-full object-cover transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 opacity-60 rounded-[20px]' : 'opacity-100'}`} 
         alt="Cloud Item" 
       />
       
       {isSelectionMode ? (
-        <div className="absolute top-2.5 right-2.5 z-10">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white' : 'bg-black/20 border-white/50 text-transparent'}`}>
-            <Check className="w-4 h-4 stroke-[3px]" />
-          </div>
+        <div className={`absolute top-2.5 right-2.5 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white scale-110' : 'bg-white/40 border-white text-transparent'}`}>
+          <Check className="w-3.5 h-3.5" />
         </div>
       ) : (
-        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors" />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
       )}
     </div>
   );
@@ -59,8 +55,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   const [cloudPhotos, setCloudPhotos] = useState<CloudPhoto[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(true);
 
+  // Selection Mode States
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -74,28 +70,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
     setIsSelectionMode(false);
     setSelectedPaths(new Set());
   }, [activeTab, activeProfileId]);
-
-  useEffect(() => {
-    if (previewIndex !== null) {
-        setIsPreviewLoading(true);
-    }
-  }, [previewIndex]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (previewIndex === null) return;
-        if (e.key === 'ArrowRight') {
-            setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0);
-        } else if (e.key === 'ArrowLeft') {
-            setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1);
-        } else if (e.key === 'Escape') {
-            setPreviewIndex(null);
-        }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewIndex, cloudPhotos.length]);
-
 
   const fetchCloudPhotos = async () => {
     setIsLoadingCloud(true);
@@ -209,56 +183,80 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
 
   return (
     <div className="pb-32 animate-fade-in relative">
-       <div className="mb-8 space-y-8">
-          <div className="text-center">
-              <div className="flex items-center justify-center gap-3">
-                  <ImageIcon className="w-7 h-7 text-slate-400" />
-                  <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">
-                      {t('gallery_title')}
-                  </h1>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-1.5">{t('gallery_subtitle')}</p>
+       <div className="mb-6 space-y-5">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center transition-colors tracking-tight">
+                  <ImageIcon className="w-6 h-6 mr-2.5 text-rose-400" />
+                  {t('gallery_title')}
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5 transition-colors">{t('gallery_subtitle')}</p>
+            </div>
+            
+            <div className="flex gap-2">
+                {activeTab === 'CLOUD' && (
+                    <button 
+                        onClick={fetchCloudPhotos}
+                        disabled={isLoadingCloud}
+                        className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl active:scale-90 transition-all hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isLoadingCloud ? 'animate-spin' : ''}`} />
+                    </button>
+                )}
+                {activeTab === 'CLOUD' && cloudPhotos.length > 0 && (
+                    <button 
+                    onClick={() => {
+                        setIsSelectionMode(!isSelectionMode);
+                        setSelectedPaths(new Set());
+                    }}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${isSelectionMode ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
+                    >
+                    {isSelectionMode ? t('cancel_btn') : (language === 'mm' ? 'ရွေးမည်' : 'Select')}
+                    </button>
+                )}
+            </div>
           </div>
 
-          <div className="flex bg-slate-800 p-1.5 rounded-full max-w-sm mx-auto border border-slate-700">
+          {/* Tab Selector */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[24px] max-w-sm mx-auto shadow-inner border border-slate-200 dark:border-slate-700/50">
              <button 
                 onClick={() => setActiveTab('LOCAL')}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'LOCAL' ? 'bg-slate-600 text-white shadow-md' : 'text-slate-400'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === 'LOCAL' ? 'bg-white dark:bg-slate-700 text-primary shadow-md' : 'text-slate-400'}`}
              >
-                <HardDrive className="w-4 h-4" />
-                {t('memories')}
+                <HardDrive className="w-3.5 h-3.5" />
+                {language === 'mm' ? 'မှတ်တမ်းများ' : 'Memories'}
              </button>
              <button 
                 onClick={() => setActiveTab('CLOUD')}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'CLOUD' ? 'bg-slate-600 text-white shadow-md' : 'text-slate-400'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === 'CLOUD' ? 'bg-white dark:bg-slate-700 text-sky-500 shadow-md' : 'text-slate-400'}`}
              >
-                <Cloud className="w-4 h-4" />
+                <Cloud className="w-3.5 h-3.5" />
                 {language === 'mm' ? 'Cloud ပုံများ' : 'Cloud Photos'}
              </button>
           </div>
        </div>
        
        {activeTab === 'LOCAL' ? (
-          <div>
-             <div className="relative max-w-sm mx-auto group mb-8">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-slate-500" />
+          <>
+             <div className="relative max-w-md mx-auto group mb-8">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                 </div>
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder={t('search_placeholder')}
-                    className="w-full pl-14 pr-5 py-4 bg-slate-800 border border-slate-700 rounded-full text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500 transition-all text-white placeholder:text-slate-500"
+                    className="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all text-slate-800 dark:text-slate-200 shadow-sm"
                 />
              </div>
 
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1">
                 {filteredMemories.map((memory) => (
                 <div 
                     key={memory.id} 
                     onClick={() => onMemoryClick(memory)}
-                    className="group relative rounded-4xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800"
+                    className="group relative rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800"
                 >
                     {memory.imageUrls && memory.imageUrls.length > 0 ? (
                         <img 
@@ -272,48 +270,28 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                         <ImageIcon className="w-10 h-10 text-slate-200 dark:text-slate-700"/>
                     </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-5 pointer-events-none">
-                        <h3 className="text-white text-base font-bold truncate">{memory.title}</h3>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5 pointer-events-none">
+                        <span className="text-white text-xs font-black truncate uppercase tracking-widest">{memory.title}</span>
                     </div>
                 </div>
                 ))}
              </div>
-          </div>
+          </>
        ) : (
-          <div className="space-y-8 pb-20">
+          <div className="px-1 space-y-10 pb-20">
              {isLoadingCloud ? (
                 <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4">
                    <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Optimizing cloud view...</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest">Optimizing gallery view...</p>
                 </div>
              ) : cloudPhotos.length > 0 ? (
                 (Object.entries(groupedCloudPhotos) as [string, CloudPhoto[]][]).map(([date, photos]) => (
-                   <div key={date} className="space-y-2">
-                      <div className="flex items-center justify-between px-3 py-1">
-                         <div className="flex items-center gap-2">
-                           <Calendar className="w-3.5 h-3.5 text-sky-400" />
-                           <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">{date}</h3>
-                         </div>
-                          {isSelectionMode && (
-                              <button 
-                                onClick={() => {
-                                    const photoPathsInGroup = new Set(photos.map(p => p.path));
-                                    const selectedInGroup = [...selectedPaths].filter(p => photoPathsInGroup.has(p));
-                                    const newSelected = new Set(selectedPaths);
-                                    if (selectedInGroup.length === photos.length) { // all selected, so deselect all in group
-                                        photoPathsInGroup.forEach(p => newSelected.delete(p));
-                                    } else { // not all selected, so select all in group
-                                        photoPathsInGroup.forEach(p => newSelected.add(p));
-                                    }
-                                    setSelectedPaths(newSelected);
-                                }}
-                                className="text-[10px] font-black uppercase tracking-widest text-primary/70"
-                              >
-                                {language === 'mm' ? 'အားလုံးရွေးမည်' : 'Select All'}
-                              </button>
-                          )}
+                   <div key={date} className="space-y-4">
+                      <div className="flex items-center gap-3">
+                         <Calendar className="w-4 h-4 text-sky-400" />
+                         <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">{date}</h3>
                       </div>
-                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                          {photos.map((photo) => {
                             const isSelected = selectedPaths.has(photo.path);
                             const photoIndex = cloudPhotos.findIndex(p => p.path === photo.path);
@@ -341,29 +319,16 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           </div>
        )}
        
-       {activeTab === 'CLOUD' && cloudPhotos.length > 0 && (
-        <div className="fixed top-6 right-6 z-50">
-           <button 
-            onClick={() => {
-                setIsSelectionMode(!isSelectionMode);
-                setSelectedPaths(new Set());
-            }}
-            className={`px-5 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${isSelectionMode ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}
-            >
-            {isSelectionMode ? t('cancel_btn') : (language === 'mm' ? 'ရွေးမည်' : 'Select')}
-            </button>
-        </div>
-       )}
-       
+       {/* Floating Selection Bar */}
        {isSelectionMode && activeTab === 'CLOUD' && (
          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[100] animate-slide-up">
-            <div className="bg-slate-800/80 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-slate-700 flex items-center justify-between">
+            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white/20 flex items-center justify-between">
                 <div className="flex items-center gap-4 pl-2">
                     <button onClick={toggleSelectAll} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 tracking-widest active:scale-90">
                         {selectedPaths.size === cloudPhotos.length ? <CheckSquare className="w-5 h-5 text-primary" /> : <Square className="w-5 h-5" />}
                         {language === 'mm' ? 'အားလုံး' : 'All'}
                     </button>
-                    <div className="h-4 w-px bg-slate-700" />
+                    <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
                     <span className="text-[11px] font-black text-primary">
                         {selectedPaths.size} {language === 'mm' ? 'ပုံ ရွေးထားသည်' : 'Selected'}
                     </span>
@@ -388,95 +353,84 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
          </div>
        )}
 
-      {previewIndex !== null && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewIndex(null)}>
-             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-             
-             <div 
-                className="relative bg-slate-900 w-full max-w-md md:max-w-lg rounded-4xl overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh]" 
-                onClick={(e) => e.stopPropagation()}
-             >
-                <div className="relative h-64 sm:h-80 bg-slate-800 shrink-0 flex items-center justify-center">
-                    {isPreviewLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center text-primary z-10">
-                        <Loader2 className="w-8 h-8 animate-spin" />
-                        </div>
-                    )}
-                    <img 
-                        key={previewIndex}
-                        src={cloudPhotos[previewIndex].previewUrl} 
-                        className={`w-full h-full object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
-                        alt="Full Preview"
-                        onLoad={() => setIsPreviewLoading(false)}
-                    />
-                    
-                    <button 
-                        onClick={() => setPreviewIndex(null)}
-                        className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-
-                    {cloudPhotos.length > 1 && (
-                        <>
-                        <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
-                            <ChevronLeft className="w-6 h-6"/>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
-                            <ChevronRight className="w-6 h-6"/>
-                        </button>
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/30 text-white text-xs font-bold rounded-full backdrop-blur-md">
-                            {previewIndex + 1} / {cloudPhotos.length}
-                        </div>
-                        </>
-                    )}
+       {/* Full Screen Preview */}
+       {previewIndex !== null && (
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex flex-col animate-fade-in overflow-hidden">
+             <div className="flex items-center justify-between p-6 z-20">
+                <div className="text-white/40 text-[10px] font-black uppercase tracking-widest">
+                   {previewIndex + 1} / {cloudPhotos.length}
                 </div>
+                <button 
+                   onClick={() => setPreviewIndex(null)}
+                   className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors active:scale-90"
+                >
+                   <X className="w-6 h-6" />
+                </button>
+             </div>
 
-                <div className="p-6 overflow-y-auto grow">
-                    <h2 className="text-2xl font-black text-white leading-tight mb-1 truncate">
-                        {(cloudPhotos[previewIndex]?.path.split('/').pop() || 'Photo').substring(14)}
-                    </h2>
-                    
-                    <div className="flex items-center text-slate-500 text-sm font-bold mb-6">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {getPhotoDate(cloudPhotos[previewIndex]?.path)?.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </div>
+             <div className="flex-1 relative flex items-center justify-center">
+                {cloudPhotos[previewIndex] && (
+                  <img 
+                     src={cloudPhotos[previewIndex].previewUrl} 
+                     className="max-w-full max-h-full object-contain animate-zoom-in" 
+                     alt="Full Preview" 
+                  />
+                )}
+                
+                {cloudPhotos.length > 1 && (
+                   <>
+                      <button 
+                         onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}}
+                         className="absolute left-4 p-4 bg-white/5 text-white rounded-full active:scale-90 transition-all hover:bg-white/10"
+                      >
+                         <ChevronLeft className="w-6 h-6" />
+                      </button>
+                      <button 
+                         onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}}
+                         className="absolute right-4 p-4 bg-white/5 text-white rounded-full active:scale-90 transition-all hover:bg-white/10"
+                      >
+                         <ChevronRight className="w-6 h-6" />
+                      </button>
+                   </>
+                )}
+             </div>
 
-                    <div className="flex gap-3">
-                        <button 
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                if (previewIndex === null) return;
-                                const photo = cloudPhotos[previewIndex];
-                                const response = await fetch(photo.url);
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = photo.path.split('/').pop() || 'photo.jpg';
-                                link.click(); window.URL.revokeObjectURL(url);
-                            }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-sky-900/20 text-sky-300 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
-                            <Download className="w-4 h-4" /> Download
-                        </button>
-                        <button 
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                if (previewIndex === null) return;
-                                if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
-                                const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
-                                if (result.success) {
-                                    const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
-                                    setCloudPhotos(nextPhotos);
-                                    if (nextPhotos.length === 0) setPreviewIndex(null);
-                                    else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
-                                }
-                            }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-900/20 text-rose-500 rounded-2xl text-sm font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
-                            <Trash2 className="w-4 h-4" /> Delete
-                        </button>
-                    </div>
-                </div>
+             <div className="p-10 flex justify-center gap-8 z-20">
+                <button 
+                   onClick={async () => {
+                      if (previewIndex === null) return;
+                      const photo = cloudPhotos[previewIndex];
+                      const response = await fetch(photo.url);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = photo.path.split('/').pop() || 'photo.jpg';
+                      link.click();
+                      window.URL.revokeObjectURL(url);
+                   }}
+                   className="flex flex-col items-center gap-2 text-white/60 hover:text-white active:scale-95 transition-all"
+                >
+                   <div className="w-14 h-14 bg-white/10 rounded-[22px] flex items-center justify-center shadow-lg"><Download className="w-6 h-6"/></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest">Download</span>
+                </button>
+                <button 
+                   onClick={async () => {
+                      if (previewIndex === null) return;
+                      if (!window.confirm(language === 'mm' ? 'ဤဓာတ်ပုံအား ဖျက်ရန် သေချာပါသလား?' : 'Delete this photo?')) return;
+                      const result = await DataService.deleteCloudPhotos([cloudPhotos[previewIndex].path]);
+                      if (result.success) {
+                         const nextPhotos = cloudPhotos.filter((_, i) => i !== previewIndex);
+                         setCloudPhotos(nextPhotos);
+                         if (nextPhotos.length === 0) setPreviewIndex(null);
+                         else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
+                      }
+                   }}
+                   className="flex flex-col items-center gap-2 text-rose-400 hover:text-rose-500 active:scale-95 transition-all"
+                >
+                   <div className="w-14 h-14 bg-rose-500/20 rounded-[22px] flex items-center justify-center shadow-lg"><Trash2 className="w-6 h-6"/></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest">Delete</span>
+                </button>
              </div>
           </div>
        )}

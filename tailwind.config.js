@@ -10,10 +10,6 @@ export default {
   ],
   theme: {
     extend: {
-      borderRadius: {
-        '4xl': '2rem', // 32px
-        '5xl': '2.5rem', // 40px
-      },
       fontFamily: {
         sans: ['Padauk', 'sans-serif'],
       },
