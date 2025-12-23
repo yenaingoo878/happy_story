@@ -27,29 +27,42 @@ const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
   return new Blob(byteArrays, { type: contentType });
 };
 
+const getActiveUserId = async (): Promise<string> => {
+    const isGuest = localStorage.getItem('guest_mode') === 'true';
+    if (isGuest) return 'GUEST_USER';
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+        return session.user.id;
+    }
+    
+    console.warn("No active session found, falling back to guest user ID.");
+    return 'GUEST_USER';
+};
+
 
 // --- Schema Definition ---
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS memories (
-  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, title TEXT NOT NULL, date TEXT NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, userId TEXT NOT NULL, title TEXT NOT NULL, date TEXT NOT NULL,
   description TEXT, imageUrls TEXT, tags TEXT, synced INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS stories (
-  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, userId TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL,
   date TEXT NOT NULL, synced INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS growth (
-  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, month INTEGER NOT NULL, height REAL NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL, childId TEXT NOT NULL, userId TEXT NOT NULL, month INTEGER NOT NULL, height REAL NOT NULL,
   weight REAL NOT NULL, synced INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS profiles (
-  id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, profileImage TEXT, dob TEXT NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL, userId TEXT NOT NULL, name TEXT NOT NULL, profileImage TEXT, dob TEXT NOT NULL,
   birthTime TEXT, hospitalName TEXT, birthLocation TEXT, country TEXT, nationality TEXT,
   fatherName TEXT, motherName TEXT, bloodType TEXT, gender TEXT NOT NULL, birthWeight REAL,
   birthHeight REAL, eyeColor TEXT, hairColor TEXT, notes TEXT, synced INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS reminders (
-  id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, date TEXT NOT NULL,
+  id TEXT PRIMARY KEY NOT NULL, userId TEXT NOT NULL, title TEXT NOT NULL, date TEXT NOT NULL,
   type TEXT NOT NULL, synced INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -103,11 +116,11 @@ export const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
-const uploadFileToSupabase = async (file: File, childId: string, tag: string): Promise<string> => {
+const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string): Promise<string> => {
     uploadManager.start(file.name);
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `${childId}/${tag}/${fileName}`;
+    const filePath = `${userId}/${childId}/${tag}/${fileName}`;
     const { error } = await supabase.storage.from('images').upload(filePath, file, { cacheControl: '3600', upsert: true });
     if (error) { uploadManager.error(); throw error; }
     const { data } = supabase.storage.from('images').getPublicUrl(filePath);
@@ -164,6 +177,7 @@ export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, reason: 'No Active Session' };
+    const userId = session.user.id;
 
     try {
         await syncDeletions();
@@ -172,7 +186,7 @@ export const syncData = async () => {
         const remoteTables = ['stories', 'memories', 'growth_data', 'child_profile', 'reminders'];
         let unsyncedItems: any[] = [];
         for (const table of tables) {
-            const res = await getDb().query(`SELECT * FROM ${table} WHERE synced = 0 AND is_deleted = 0;`);
+            const res = await getDb().query(`SELECT * FROM ${table} WHERE synced = 0 AND is_deleted = 0 AND userId = ?;`, [userId]);
             unsyncedItems = unsyncedItems.concat(res.values?.map(v => ({...v, _table: table})) || []);
         }
 
@@ -191,13 +205,12 @@ export const syncData = async () => {
                         if (uri && !uri.startsWith('http')) {
                             const path = Capacitor.isNativePlatform() ? uri : uri.split('/Data/')[1];
                             const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
-                            // Fix: Filesystem.readFile can return a Blob, handle it to avoid type error
                             const blob = typeof fileData.data === 'string'
                                 ? b64toBlob(fileData.data, 'image/jpeg')
                                 : fileData.data;
                             const file = new File([blob], "upload.jpeg", { type: 'image/jpeg' });
-                            const remoteUrl = await uploadFileToSupabase(file, payload.childId, 'memories');
-                            await deleteFileByUri(uri); // Clean up local file after successful upload
+                            const remoteUrl = await uploadFileToSupabase(file, userId, payload.childId, 'memories');
+                            await deleteFileByUri(uri);
                             return remoteUrl;
                         }
                         return uri;
@@ -209,19 +222,17 @@ export const syncData = async () => {
                 if (_table === 'profiles' && payload.profileImage && !payload.profileImage.startsWith('http')) {
                     const path = Capacitor.isNativePlatform() ? payload.profileImage : payload.profileImage.split('/Data/')[1];
                     const fileData = await Filesystem.readFile({ path: path, directory: Directory.Data });
-                    // Fix: Filesystem.readFile can return a Blob, handle it to avoid type error
                     const blob = typeof fileData.data === 'string'
                         ? b64toBlob(fileData.data, 'image/jpeg')
                         : fileData.data;
                     const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-                    const remoteUrl = await uploadFileToSupabase(file, payload.id, 'profile');
+                    const remoteUrl = await uploadFileToSupabase(file, userId, payload.id, 'profile');
                     await deleteFileByUri(payload.profileImage);
                     uploadPayload.profileImage = remoteUrl;
                     await getDb().run('UPDATE profiles SET profileImage = ? WHERE id = ?;', [remoteUrl, payload.id]);
                 }
                 
-                // Cleanup payload for Supabase
-                const cleanPayload = {...uploadPayload};
+                const cleanPayload = {...uploadPayload, userId };
                 delete cleanPayload.is_deleted;
                 delete cleanPayload.synced;
                 
@@ -236,9 +247,8 @@ export const syncData = async () => {
             if (errors.length > 0) syncManager.error(); else syncManager.finish();
         }
 
-        // Pull remote changes
         for (let i = 0; i < tables.length; i++) {
-            const { data } = await supabase.from(remoteTables[i]).select('*');
+            const { data } = await supabase.from(remoteTables[i]).select('*').eq('userId', userId);
             if (data) {
                 for (const item of data) {
                     const mappedItem = {...item, synced: 1, is_deleted: 0};
@@ -286,8 +296,9 @@ export const DataService = {
     },
     uploadImage: async (file: File) => fileToBase64(file),
     getMemories: async (childId?: string): Promise<Memory[]> => {
-        const q = childId ? `SELECT * FROM memories WHERE childId = ? AND is_deleted = 0 ORDER BY date DESC;` : `SELECT * FROM memories WHERE is_deleted = 0 ORDER BY date DESC;`;
-        const p = childId ? [childId] : [];
+        const userId = await getActiveUserId();
+        const q = childId ? `SELECT * FROM memories WHERE childId = ? AND userId = ? AND is_deleted = 0 ORDER BY date DESC;` : `SELECT * FROM memories WHERE userId = ? AND is_deleted = 0 ORDER BY date DESC;`;
+        const p = childId ? [childId, userId] : [userId];
         const res = await getDb().query(q, p);
         const memories = res.values || [];
 
@@ -310,29 +321,39 @@ export const DataService = {
         }));
     },
     addMemory: async (memory: Memory) => {
+        const userId = await getActiveUserId();
         const newImageUrls = await Promise.all(memory.imageUrls.map(url => url.startsWith('data:image') ? saveImageToFile(url) : Promise.resolve(url)));
-        await getDb().run('INSERT OR REPLACE INTO memories (id, childId, title, date, description, imageUrls, tags, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-            [memory.id, memory.childId, memory.title, memory.date, memory.description, JSON.stringify(newImageUrls), JSON.stringify(memory.tags), memory.synced ?? 0, 0]);
+        await getDb().run('INSERT OR REPLACE INTO memories (id, childId, userId, title, date, description, imageUrls, tags, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+            [memory.id, memory.childId, userId, memory.title, memory.date, memory.description, JSON.stringify(newImageUrls), JSON.stringify(memory.tags), memory.synced ?? 0, 0]);
     },
     deleteMemory: async (id: string) => await getDb().run('UPDATE memories SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
     getStories: async (childId?: string) => {
-        const q = childId ? `SELECT * FROM stories WHERE childId = ? AND is_deleted = 0 ORDER BY date DESC;` : `SELECT * FROM stories WHERE is_deleted = 0 ORDER BY date DESC;`;
-        const p = childId ? [childId] : [];
+        const userId = await getActiveUserId();
+        const q = childId ? `SELECT * FROM stories WHERE childId = ? AND userId = ? AND is_deleted = 0 ORDER BY date DESC;` : `SELECT * FROM stories WHERE userId = ? AND is_deleted = 0 ORDER BY date DESC;`;
+        const p = childId ? [childId, userId] : [userId];
         return (await getDb().query(q, p)).values || [];
     },
-    addStory: async (story: Story) => await getDb().run('INSERT OR REPLACE INTO stories (id, childId, title, content, date, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?);',
-        [story.id, story.childId, story.title, story.content, story.date, story.synced ?? 0, 0]),
+    addStory: async (story: Story) => {
+        const userId = await getActiveUserId();
+        await getDb().run('INSERT OR REPLACE INTO stories (id, childId, userId, title, content, date, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+        [story.id, story.childId, userId, story.title, story.content, story.date, story.synced ?? 0, 0]);
+    },
     deleteStory: async (id: string) => await getDb().run('UPDATE stories SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
     getGrowth: async (childId?: string) => {
-        const q = childId ? `SELECT * FROM growth WHERE childId = ? AND is_deleted = 0 ORDER BY month ASC;` : `SELECT * FROM growth WHERE is_deleted = 0 ORDER BY month ASC;`;
-        const p = childId ? [childId] : [];
+        const userId = await getActiveUserId();
+        const q = childId ? `SELECT * FROM growth WHERE childId = ? AND userId = ? AND is_deleted = 0 ORDER BY month ASC;` : `SELECT * FROM growth WHERE userId = ? AND is_deleted = 0 ORDER BY month ASC;`;
+        const p = childId ? [childId, userId] : [userId];
         return (await getDb().query(q, p)).values || [];
     },
-    saveGrowth: async (data: GrowthData) => await getDb().run('INSERT OR REPLACE INTO growth (id, childId, month, height, weight, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?);',
-        [data.id || crypto.randomUUID(), data.childId, data.month, data.height, data.weight, data.synced ?? 0, 0]),
+    saveGrowth: async (data: GrowthData) => {
+        const userId = await getActiveUserId();
+        await getDb().run('INSERT OR REPLACE INTO growth (id, childId, userId, month, height, weight, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+        [data.id || crypto.randomUUID(), data.childId, userId, data.month, data.height, data.weight, data.synced ?? 0, 0]);
+    },
     deleteGrowth: async (id: string) => await getDb().run('UPDATE growth SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
     getProfiles: async (): Promise<ChildProfile[]> => {
-        const res = await getDb().query('SELECT * FROM profiles WHERE is_deleted = 0;');
+        const userId = await getActiveUserId();
+        const res = await getDb().query('SELECT * FROM profiles WHERE userId = ? AND is_deleted = 0;', [userId]);
         const profiles = res.values || [];
 
         return Promise.all(profiles.map(async p => {
@@ -359,28 +380,37 @@ export const DataService = {
         }));
     },
     saveProfile: async (profile: ChildProfile) => {
+        const userId = await getActiveUserId();
         let newProfileImage = profile.profileImage;
         if (profile.profileImage && profile.profileImage.startsWith('data:image')) {
             newProfileImage = await saveImageToFile(profile.profileImage);
         }
-        await getDb().run('INSERT OR REPLACE INTO profiles (id, name, profileImage, dob, gender, birthTime, hospitalName, birthLocation, country, nationality, fatherName, motherName, bloodType, birthWeight, birthHeight, eyeColor, hairColor, notes, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-            [profile.id || crypto.randomUUID(), profile.name, newProfileImage, profile.dob, profile.gender, profile.birthTime, profile.hospitalName, profile.birthLocation, profile.country, profile.nationality, profile.fatherName, profile.motherName, profile.bloodType, profile.birthWeight, profile.birthHeight, profile.eyeColor, profile.hairColor, profile.notes, profile.synced ?? 0, 0]);
+        await getDb().run('INSERT OR REPLACE INTO profiles (id, userId, name, profileImage, dob, gender, birthTime, hospitalName, birthLocation, country, nationality, fatherName, motherName, bloodType, birthWeight, birthHeight, eyeColor, hairColor, notes, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+            [profile.id || crypto.randomUUID(), userId, profile.name, newProfileImage, profile.dob, profile.gender, profile.birthTime, profile.hospitalName, profile.birthLocation, profile.country, profile.nationality, profile.fatherName, profile.motherName, profile.bloodType, profile.birthWeight, profile.birthHeight, profile.eyeColor, profile.hairColor, profile.notes, profile.synced ?? 0, 0]);
     },
     deleteProfile: async (id: string) => await getDb().run('UPDATE profiles SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
-    getReminders: async () => (await getDb().query('SELECT * FROM reminders WHERE is_deleted = 0 ORDER BY date ASC;')).values || [],
-    saveReminder: async (reminder: Reminder) => await getDb().run('INSERT OR REPLACE INTO reminders (id, title, date, type, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?);',
-        [reminder.id, reminder.title, reminder.date, reminder.type, reminder.synced ?? 0, 0]),
+    getReminders: async () => {
+        const userId = await getActiveUserId();
+        return (await getDb().query('SELECT * FROM reminders WHERE userId = ? AND is_deleted = 0 ORDER BY date ASC;', [userId])).values || [];
+    },
+    saveReminder: async (reminder: Reminder) => {
+        const userId = await getActiveUserId();
+        await getDb().run('INSERT OR REPLACE INTO reminders (id, userId, title, date, type, synced, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?);',
+        [reminder.id, userId, reminder.title, reminder.date, reminder.type, reminder.synced ?? 0, 0]);
+    },
     deleteReminder: async (id: string) => await getDb().run('UPDATE reminders SET is_deleted = 1, synced = 0 WHERE id = ?;', [id]),
     getCloudPhotos: async (childId: string): Promise<string[]> => {
         if (!navigator.onLine || !isSupabaseConfigured()) return [];
+        const userId = await getActiveUserId();
+        if (userId === 'GUEST_USER') return [];
         try {
-            const { data: memoriesList } = await supabase.storage.from('images').list(`${childId}/memories`);
-            const { data: profileList } = await supabase.storage.from('images').list(`${childId}/profile`);
+            const { data: memoriesList } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`);
+            const { data: profileList } = await supabase.storage.from('images').list(`${userId}/${childId}/profile`);
             const urls: string[] = [];
             if (memoriesList) {
                 for (const file of memoriesList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/memories/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
                 }
@@ -388,7 +418,7 @@ export const DataService = {
             if (profileList) {
                 for (const file of profileList) {
                     if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${childId}/profile/${file.name}`);
+                        const { data } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/profile/${file.name}`);
                         if (data.publicUrl) urls.push(data.publicUrl);
                     }
                 }

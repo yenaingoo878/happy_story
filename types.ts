@@ -1,4 +1,5 @@
 
+
 export type Language = 'en' | 'mm';
 export type Theme = 'light' | 'dark';
 
@@ -10,6 +11,7 @@ export interface AppSetting {
 export interface Memory {
   id: string;
   childId: string;
+  userId?: string;
   title: string;
   date: string;
   description: string;
@@ -23,6 +25,7 @@ export interface Memory {
 export interface Story {
   id: string;
   childId: string;
+  userId?: string;
   title: string;
   content: string;
   date: string;
@@ -33,6 +36,7 @@ export interface Story {
 export interface GrowthData {
   id?: string;
   childId: string;
+  userId?: string;
   month: number;
   height: number; // cm
   weight: number; // kg
@@ -42,6 +46,7 @@ export interface GrowthData {
 
 export interface ChildProfile {
   id?: string;
+  userId?: string;
   name: string;
   profileImage?: string;
   dob: string;
@@ -65,6 +70,7 @@ export interface ChildProfile {
 
 export interface Reminder {
   id: string;
+  userId?: string;
   title: string;
   date: string;
   type: 'birthday' | 'event' | 'medical';
