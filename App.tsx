@@ -27,6 +27,7 @@ function App() {
   const [session, setSession] = useState<any>(null);
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Passcode states - Enforced strictly 4 digits
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
@@ -87,16 +88,27 @@ function App() {
     if (session || isGuestMode) {
         const loadData = async () => {
           setIsLoading(true);
-          await initDB();
-          await refreshData();
-          setIsLoading(false);
-          if (navigator.onLine && session && isSupabaseConfigured()) {
-            syncData().then(() => { refreshData(); }).catch(() => {});
+          setInitError(null);
+          try {
+            const dbResult = await initDB();
+            if (!dbResult.success) {
+                throw new Error(dbResult.error || 'Failed to initialize database.');
+            }
+            await refreshData();
+            if (navigator.onLine && session && isSupabaseConfigured()) {
+              syncData().then(() => { refreshData(); }).catch((e) => console.error("Post-load sync failed:", e));
+            }
+          } catch (error: any) {
+            console.error("Failed to load application data:", error);
+            setInitError(error.message || "An unexpected error occurred during startup.");
+          } finally {
+            setIsLoading(false);
           }
         };
         loadData();
     }
   }, [session, isGuestMode]);
+
 
   // Effect to handle online/offline status and trigger sync
   useEffect(() => {
@@ -292,6 +304,25 @@ function App() {
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
+
+  if (initError) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-2xl max-w-sm">
+                <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-6"/>
+                <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-3">Application Error</h2>
+                <p className="text-slate-500 dark:text-slate-400 mb-8">
+                    Could not start the application. Please check your connection and try again.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 p-3 rounded-lg font-mono mb-8 break-all">{initError}</p>
+                <button onClick={() => window.location.reload()} className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4"/>
+                    Try Again
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
