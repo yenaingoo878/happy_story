@@ -125,7 +125,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
         if (date.toDateString() === today.toDateString()) {
           dateKey = language === 'mm' ? 'ယနေ့' : 'Today';
         } else if (date.toDateString() === yesterday.toDateString()) {
-          dateKey = language === 'mm' ? 'മറ്റുള്ളവ' : 'Yesterday';
+          dateKey = language === 'mm' ? 'မနေ့က' : 'Yesterday';
         } else {
           dateKey = date.toLocaleDateString(language === 'mm' ? 'my-MM' : 'en-US', { 
             month: 'long', 
@@ -361,7 +361,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 <div className="flex items-center gap-4 pl-2">
                     <button onClick={toggleSelectAll} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 tracking-widest active:scale-90">
                         {selectedPaths.size === cloudPhotos.length ? <CheckSquare className="w-5 h-5 text-primary" /> : <Square className="w-5 h-5" />}
-                        {language === 'mm' ? 'എല്ലാം' : 'All'}
+                        {language === 'mm' ? 'အားလုံး' : 'All'}
                     </button>
                     <div className="h-4 w-px bg-slate-700" />
                     <span className="text-[11px] font-black text-primary">
@@ -405,7 +405,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                     <img 
                         key={previewIndex}
                         src={cloudPhotos[previewIndex].previewUrl} 
-                        className={`w-full h-full object-cover transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
+                        className={`w-full h-full object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
                         alt="Full Preview"
                         onLoad={() => setIsPreviewLoading(false)}
                     />

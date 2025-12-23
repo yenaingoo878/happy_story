@@ -373,7 +373,7 @@ export const DataService = {
                                   url: data.publicUrl, 
                                   path: filePath,
                                   thumbnailUrl: getSupabaseOptimizedUrl(filePath, { width: 450, quality: 75, resize: 'cover' }),
-                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85, resize: 'cover' })
+                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85, resize: 'contain' })
                                 });
                             }
                         }

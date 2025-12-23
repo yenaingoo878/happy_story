@@ -64,7 +64,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
              <img 
               src={memory.imageUrls[currentIndex]} 
               alt={`${memory.title} - ${currentIndex + 1}`}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
+              className={`w-full h-full object-contain transition-opacity duration-300 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
               onLoad={() => setIsImageLoading(false)}
               onError={() => setIsImageLoading(false)}
             />
