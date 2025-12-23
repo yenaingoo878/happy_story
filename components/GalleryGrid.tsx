@@ -35,7 +35,7 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
         src={photo.thumbnailUrl} 
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        className={`w-full h-full object-contain transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
+        className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} 
         alt="Cloud Item" 
       />
       
