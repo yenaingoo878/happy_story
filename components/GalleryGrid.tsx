@@ -23,7 +23,7 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
   return (
     <div 
       onClick={onClick}
-      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
+      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-200 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
     >
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -31,11 +31,18 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
         </div>
       )}
       
+      {/* Background blur to fill squares for non-square photos in grid */}
+      <img 
+        src={photo.thumbnailUrl} 
+        className={`absolute inset-0 w-full h-full object-cover blur-md opacity-40 scale-110 transition-opacity duration-700 ${isLoaded ? 'opacity-40' : 'opacity-0'}`} 
+        alt="Ambient"
+      />
+
       <img 
         src={photo.thumbnailUrl} 
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-all duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 rounded-xl' : 'scale-100'}`} 
+        className={`relative w-full h-full object-contain transition-all duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 rounded-lg' : 'scale-100'}`} 
         alt="Cloud Item" 
       />
       
@@ -355,56 +362,56 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
        )}
 
        {previewIndex !== null && (
-          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex flex-col animate-fade-in overflow-hidden">
+          <div className="fixed inset-0 z-[200] bg-black flex flex-col animate-fade-in overflow-hidden">
+             {/* Background Immersive Glow */}
+             <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <img 
+                  src={cloudPhotos[previewIndex].previewUrl} 
+                  className="absolute inset-0 w-full h-full object-cover blur-[80px] opacity-40 scale-125"
+                  alt="Ambient"
+                />
+             </div>
+
              <div className="flex items-center justify-between p-6 z-20">
-                <div className="text-white/40 text-[10px] font-black uppercase tracking-widest">
+                <div className="text-white/60 text-[10px] font-black uppercase tracking-widest bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full">
                    {previewIndex + 1} / {cloudPhotos.length}
                 </div>
                 <button 
                    onClick={() => setPreviewIndex(null)}
-                   className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors active:scale-90"
+                   className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors active:scale-90 backdrop-blur-md"
                 >
                    <X className="w-6 h-6" />
                 </button>
              </div>
 
-             <div className="flex-1 relative flex items-center justify-center">
+             <div className="flex-1 relative flex items-center justify-center z-10 px-4">
                 {cloudPhotos[previewIndex] && (
-                  <>
-                    {/* Background blurred version for ambient effect */}
                     <img 
                       src={cloudPhotos[previewIndex].previewUrl} 
-                      className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl scale-110"
-                      alt="Ambient"
-                    />
-                    {/* Main uncropped image */}
-                    <img 
-                      src={cloudPhotos[previewIndex].previewUrl} 
-                      className="relative max-w-full max-h-full object-contain animate-zoom-in" 
+                      className="max-w-full max-h-[85vh] object-contain animate-zoom-in shadow-2xl rounded-sm" 
                       alt="Full Preview" 
                     />
-                  </>
                 )}
                 
                 {cloudPhotos.length > 1 && (
                    <>
                       <button 
                          onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! > 0 ? prev! - 1 : cloudPhotos.length - 1)}}
-                         className="absolute left-4 p-4 bg-white/5 text-white rounded-full active:scale-90 transition-all hover:bg-white/10"
+                         className="absolute left-4 p-5 bg-black/10 text-white/50 hover:text-white rounded-full active:scale-90 transition-all backdrop-blur-sm"
                       >
-                         <ChevronLeft className="w-6 h-6" />
+                         <ChevronLeft className="w-7 h-7" />
                       </button>
                       <button 
                          onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev! < cloudPhotos.length - 1 ? prev! + 1 : 0)}}
-                         className="absolute right-4 p-4 bg-white/5 text-white rounded-full active:scale-90 transition-all hover:bg-white/10"
+                         className="absolute right-4 p-5 bg-black/10 text-white/50 hover:text-white rounded-full active:scale-90 transition-all backdrop-blur-sm"
                       >
-                         <ChevronRight className="w-6 h-6" />
+                         <ChevronRight className="w-7 h-7" />
                       </button>
                    </>
                 )}
              </div>
 
-             <div className="p-10 flex justify-center gap-8 z-20">
+             <div className="p-8 flex justify-center gap-6 z-20 pb-12">
                 <button 
                    onClick={async () => {
                       if (previewIndex === null) return;
@@ -418,10 +425,10 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                       link.click();
                       window.URL.revokeObjectURL(url);
                    }}
-                   className="flex flex-col items-center gap-2 text-white/60 hover:text-white active:scale-95 transition-all"
+                   className="flex items-center gap-3 px-6 py-4 bg-white/10 text-white rounded-[24px] backdrop-blur-xl border border-white/10 active:scale-95 transition-all shadow-xl"
                 >
-                   <div className="w-14 h-14 bg-white/10 rounded-[22px] flex items-center justify-center shadow-lg"><Download className="w-6 h-6"/></div>
-                   <span className="text-[10px] font-black uppercase tracking-widest">Download</span>
+                   <Download className="w-5 h-5"/>
+                   <span className="text-[11px] font-black uppercase tracking-widest">Download</span>
                 </button>
                 <button 
                    onClick={async () => {
@@ -435,10 +442,10 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                          else setPreviewIndex(prev => prev! >= nextPhotos.length ? nextPhotos.length - 1 : prev);
                       }
                    }}
-                   className="flex flex-col items-center gap-2 text-rose-400 hover:text-rose-500 active:scale-95 transition-all"
+                   className="flex items-center gap-3 px-6 py-4 bg-rose-500/20 text-rose-400 rounded-[24px] backdrop-blur-xl border border-rose-500/10 active:scale-95 transition-all shadow-xl"
                 >
-                   <div className="w-14 h-14 bg-rose-500/20 rounded-[22px] flex items-center justify-center shadow-lg"><Trash2 className="w-6 h-6"/></div>
-                   <span className="text-[10px] font-black uppercase tracking-widest">Delete</span>
+                   <Trash2 className="w-5 h-5"/>
+                   <span className="text-[11px] font-black uppercase tracking-widest">Delete</span>
                 </button>
              </div>
           </div>
