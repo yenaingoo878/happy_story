@@ -445,7 +445,7 @@ function App() {
 
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
       <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[999] pointer-events-none animate-fade-in">
           {uploadProgress > -1 && (
             <div className="p-3">
