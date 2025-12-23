@@ -90,19 +90,17 @@ const runMigrations = async (db: SQLiteDBConnection) => {
         // Migration from v1 to v2: Add userId columns
         if (user_version < 2) {
             console.log("Applying migration for v2: Adding userId columns...");
-            await db.execute(`
-                ALTER TABLE memories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
-                ALTER TABLE stories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
-                ALTER TABLE growth ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
-                ALTER TABLE profiles ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
-                ALTER TABLE reminders ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
-            `);
-             console.log("userId columns added successfully.");
+            await db.run(`ALTER TABLE memories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+            await db.run(`ALTER TABLE stories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+            await db.run(`ALTER TABLE growth ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+            await db.run(`ALTER TABLE profiles ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+            await db.run(`ALTER TABLE reminders ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';`);
+            console.log("userId columns added successfully.");
         }
         
         // --- Add future migrations below using `if (user_version < 3) { ... }` ---
         
-        await db.execute(`PRAGMA user_version = ${DB_VERSION};`);
+        await db.run(`PRAGMA user_version = ${DB_VERSION};`);
         await db.commitTransaction();
         console.log("Database migration completed.");
     } catch (err) {
