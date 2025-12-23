@@ -275,6 +275,32 @@ export const syncData = async () => {
                 delete cleanPayload.is_deleted;
                 delete cleanPayload.synced;
                 
+                if (_table === 'profiles') {
+                    delete cleanPayload.nationality;
+                    delete cleanPayload.fatherName;
+                    delete cleanPayload.motherName;
+                    delete cleanPayload.birthWeight;
+                    delete cleanPayload.birthHeight;
+                    delete cleanPayload.eyeColor;
+                    delete cleanPayload.hairColor;
+                    delete cleanPayload.notes;
+                }
+
+                if (_table === 'memories') {
+                    if (cleanPayload.imageUrls) {
+                        cleanPayload.imageUrl = cleanPayload.imageUrls;
+                        delete cleanPayload.imageUrls;
+                    }
+                    if (cleanPayload.tags) {
+                        try {
+                            cleanPayload.tags = JSON.parse(cleanPayload.tags);
+                        } catch (e) {
+                            console.warn("Could not parse tags for sync, sending empty array.", e);
+                            cleanPayload.tags = [];
+                        }
+                    }
+                }
+                
                 const { error } = await supabase.from(remoteTable).upsert(cleanPayload);
                 if (error) throw error;
                 await getDb().run(`UPDATE ${_table} SET synced = 1 WHERE id = ?;`, [payload.id]);
@@ -303,16 +329,34 @@ export const syncData = async () => {
 
                 // 1. Merge remote items down to local
                 for (const remoteItem of remoteItems) {
-                    const res = await getDb().query(`SELECT synced FROM ${localTable} WHERE id = ?;`, [remoteItem.id]);
+                    const res = await getDb().query(`SELECT * FROM ${localTable} WHERE id = ?;`, [remoteItem.id]);
                     const localItem = res.values?.[0];
 
                     if (localItem && localItem.synced === 0) {
                         continue; // Prioritize local unsynced changes
                     }
+                    
+                    const remoteData = {...remoteItem};
+                    if (remoteData.user_id) {
+                        remoteData.userId = remoteData.user_id;
+                        delete remoteData.user_id;
+                    }
+                    if (localTable === 'memories' && remoteData.imageUrl) {
+                        remoteData.imageUrls = remoteData.imageUrl;
+                        delete remoteData.imageUrl;
+                    }
 
-                    const mappedItem = {...remoteItem, synced: 1, is_deleted: 0};
+                    const itemToSave = localTable === 'profiles' && localItem
+                        ? { ...localItem, ...remoteData }
+                        : { ...remoteData };
+
+                    const mappedItem = {...itemToSave, synced: 1, is_deleted: 0};
                     const { keys, values, placeholders } = Object.entries(mappedItem).reduce(
-                      (acc, [k, v]) => ({ keys: [...acc.keys, k], values: [...acc.values, typeof v === 'object' ? JSON.stringify(v) : v], placeholders: [...acc.placeholders, '?'] }),
+                      (acc, [k, v]) => ({ 
+                          keys: [...acc.keys, k], 
+                          values: [...acc.values, typeof v === 'object' && v !== null ? JSON.stringify(v) : v], 
+                          placeholders: [...acc.placeholders, '?'] 
+                      }),
                       { keys: [] as string[], values: [] as any[], placeholders: [] as string[] }
                     );
                     const query = `INSERT OR REPLACE INTO ${localTable} (${keys.join(',')}) VALUES (${placeholders.join(',')});`;
