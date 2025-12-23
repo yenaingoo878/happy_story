@@ -10,7 +10,6 @@ interface GalleryGridProps {
   onMemoryClick: (memory: Memory) => void;
 }
 
-// Fix: Extract PhotoItem to top level and use React.FC to handle 'key' prop correctly
 interface PhotoItemProps {
   photo: CloudPhoto;
   isSelected: boolean;
@@ -24,25 +23,30 @@ const PhotoItem: React.FC<PhotoItemProps> = ({ photo, isSelected, isSelectionMod
   return (
     <div 
       onClick={onClick}
-      className={`relative rounded-2xl overflow-hidden shadow-sm border cursor-pointer aspect-square active:scale-95 bg-slate-100 dark:bg-slate-800 group transition-all duration-500 ${isSelected ? 'ring-4 ring-primary ring-offset-2 dark:ring-offset-slate-900 border-primary' : 'border-slate-100 dark:border-slate-700'}`}
+      className={`relative aspect-square overflow-hidden cursor-pointer active:scale-95 bg-slate-100 dark:bg-slate-800 transition-all duration-300 ${isSelected ? 'ring-4 ring-primary ring-inset z-10' : ''}`}
     >
-      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}>
-        <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
-      </div>
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-4 h-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        </div>
+      )}
+      
       <img 
         src={photo.thumbnailUrl} 
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 opacity-60 rounded-[20px]' : 'opacity-100'}`} 
+        className={`w-full h-full object-cover transition-all duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isSelected ? 'scale-90 rounded-xl' : 'scale-100'}`} 
         alt="Cloud Item" 
       />
       
       {isSelectionMode ? (
-        <div className={`absolute top-2.5 right-2.5 w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white scale-110' : 'bg-white/40 border-white text-transparent'}`}>
-          <Check className="w-3.5 h-3.5" />
+        <div className="absolute top-1.5 right-1.5 z-10">
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center shadow-lg border transition-all duration-300 ${isSelected ? 'bg-primary border-primary text-white' : 'bg-black/20 border-white/50 text-transparent'}`}>
+            <Check className="w-3 h-3 stroke-[3px]" />
+          </div>
         </div>
       ) : (
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+        <div className="absolute inset-0 bg-black/0 active:bg-black/10 transition-colors" />
       )}
     </div>
   );
@@ -56,7 +60,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  // Selection Mode States
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -183,14 +186,14 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
 
   return (
     <div className="pb-32 animate-fade-in relative">
-       <div className="mb-6 space-y-5">
-          <div className="flex items-center justify-between px-1">
+       <div className="mb-6 space-y-5 px-1">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center transition-colors tracking-tight">
+              <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center tracking-tight">
                   <ImageIcon className="w-6 h-6 mr-2.5 text-rose-400" />
                   {t('gallery_title')}
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5 transition-colors">{t('gallery_subtitle')}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5">{t('gallery_subtitle')}</p>
             </div>
             
             <div className="flex gap-2">
@@ -217,7 +220,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
             </div>
           </div>
 
-          {/* Tab Selector */}
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[24px] max-w-sm mx-auto shadow-inner border border-slate-200 dark:border-slate-700/50">
              <button 
                 onClick={() => setActiveTab('LOCAL')}
@@ -237,8 +239,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
        </div>
        
        {activeTab === 'LOCAL' ? (
-          <>
-             <div className="relative max-w-md mx-auto group mb-8">
+          <div className="px-2">
+             <div className="relative max-w-md mx-auto group mb-6">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Search className="h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                 </div>
@@ -251,7 +253,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 />
              </div>
 
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1">
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredMemories.map((memory) => (
                 <div 
                     key={memory.id} 
@@ -276,22 +278,22 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 </div>
                 ))}
              </div>
-          </>
+          </div>
        ) : (
-          <div className="px-1 space-y-10 pb-20">
+          <div className="space-y-8 pb-20">
              {isLoadingCloud ? (
                 <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4">
                    <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Optimizing gallery view...</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest">Optimizing cloud view...</p>
                 </div>
              ) : cloudPhotos.length > 0 ? (
                 (Object.entries(groupedCloudPhotos) as [string, CloudPhoto[]][]).map(([date, photos]) => (
-                   <div key={date} className="space-y-4">
-                      <div className="flex items-center gap-3">
-                         <Calendar className="w-4 h-4 text-sky-400" />
-                         <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">{date}</h3>
+                   <div key={date} className="space-y-2">
+                      <div className="flex items-center gap-2 px-3 py-1">
+                         <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                         <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">{date}</h3>
                       </div>
-                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[2px]">
                          {photos.map((photo) => {
                             const isSelected = selectedPaths.has(photo.path);
                             const photoIndex = cloudPhotos.findIndex(p => p.path === photo.path);
@@ -319,7 +321,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
           </div>
        )}
        
-       {/* Floating Selection Bar */}
        {isSelectionMode && activeTab === 'CLOUD' && (
          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[100] animate-slide-up">
             <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl p-4 rounded-[32px] shadow-2xl border border-white/20 flex items-center justify-between">
@@ -353,7 +354,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
          </div>
        )}
 
-       {/* Full Screen Preview */}
        {previewIndex !== null && (
           <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex flex-col animate-fade-in overflow-hidden">
              <div className="flex items-center justify-between p-6 z-20">
@@ -370,11 +370,20 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
 
              <div className="flex-1 relative flex items-center justify-center">
                 {cloudPhotos[previewIndex] && (
-                  <img 
-                     src={cloudPhotos[previewIndex].previewUrl} 
-                     className="max-w-full max-h-full object-contain animate-zoom-in" 
-                     alt="Full Preview" 
-                  />
+                  <>
+                    {/* Background blurred version for ambient effect */}
+                    <img 
+                      src={cloudPhotos[previewIndex].previewUrl} 
+                      className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl scale-110"
+                      alt="Ambient"
+                    />
+                    {/* Main uncropped image */}
+                    <img 
+                      src={cloudPhotos[previewIndex].previewUrl} 
+                      className="relative max-w-full max-h-full object-contain animate-zoom-in" 
+                      alt="Full Preview" 
+                    />
+                  </>
                 )}
                 
                 {cloudPhotos.length > 1 && (

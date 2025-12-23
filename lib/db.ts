@@ -257,9 +257,6 @@ export interface CloudPhoto {
 // Supabase Image Transformation helper
 const getSupabaseOptimizedUrl = (path: string, options: { width?: number; height?: number; quality?: number; resize?: 'cover' | 'contain' | 'fill' } = {}) => {
   const { width = 300, quality = 75, resize = 'cover' } = options;
-  // Format for Supabase transformation (standard storage doesn't support this via publicUrl helper easily)
-  // We use the 'render/image/public' endpoint if the project supports it.
-  // Fallback: If transformation isn't active on the user's plan, it will just serve the original image.
   return `${SUPABASE_URL}/storage/v1/render/image/public/images/${path}?width=${width}&quality=${quality}&resize=${resize}`;
 };
 
@@ -327,8 +324,9 @@ export const DataService = {
                                 allPhotos.push({ 
                                   url: data.publicUrl, 
                                   path: filePath,
-                                  thumbnailUrl: getSupabaseOptimizedUrl(filePath, { width: 300, quality: 70 }),
-                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85 })
+                                  thumbnailUrl: getSupabaseOptimizedUrl(filePath, { width: 450, quality: 75, resize: 'cover' }),
+                                  // Fix: Use 'contain' for preview to avoid cropping
+                                  previewUrl: getSupabaseOptimizedUrl(filePath, { width: 1080, quality: 85, resize: 'contain' })
                                 });
                             }
                         }
