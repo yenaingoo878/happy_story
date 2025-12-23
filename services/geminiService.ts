@@ -1,16 +1,20 @@
-// @google/genai Guidelines Implementation:
-// - Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-// - Use ai.models.generateContent/generateContentStream directly.
-// - Use response.text (property, not method).
-// - Do not provide UI for API key management.
 
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
+import { DataService } from '../lib/db';
+
+const getApiKey = async (): Promise<string | null> => {
+    const setting = await DataService.getSetting('geminiApiKey');
+    return setting?.value || process.env.API_KEY || null;
+}
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    // Initialize the client directly using the injected environment variable.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = await getApiKey();
+    if (!apiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -33,14 +37,20 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
     return response;
   } catch (error: any) {
     console.error("Error generating story:", error);
+    if (error.message === "API_KEY_MISSING") {
+        throw new Error("API key not configured. Please set it in the app settings.");
+    }
     throw error;
   }
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        // Initialize the client directly using the injected environment variable right before the call.
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const apiKey = await getApiKey();
+        if (!apiKey) {
+            return language === 'mm' ? "သင်၏ API Key ကို ဆက်တင်တွင် ထည့်သွင်းပေးပါ။" : "Please set your API Key in the settings.";
+        }
+        const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -65,12 +75,12 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
             }
         });
 
-        // Correctly accessing the text property from the response object.
+        // Directly accessing .text property of GenerateContentResponse
         return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
     } catch (error) {
         console.error("Error analyzing growth:", error);
         return language === 'mm' 
-            ? "ကွန်ဟက်ချိတ်ဆက်မှု သို့မဟုတ် API အမှားရှိနေပါသည်။" 
-            : "Connection or API error. Please try again.";
+            ? "ကွန်ဟက်ချိတ်ဆက်မှု သို့မဟုတ် API Key အမှားရှိနေပါသည်။" 
+            : "Connection or API Key error. Please try again.";
     }
 }
