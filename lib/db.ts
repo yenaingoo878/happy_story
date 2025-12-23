@@ -9,7 +9,7 @@ import { syncManager } from './syncManager';
 // --- DB Connection Holder ---
 let db: SQLiteDBConnection | null = null;
 const DB_NAME = 'little_moments_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented DB Version for migration
 
 // --- Helper to convert base64 to Blob for uploading ---
 const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
@@ -75,6 +75,43 @@ const getDb = (): SQLiteDBConnection => {
     return db;
 };
 
+const runMigrations = async (db: SQLiteDBConnection) => {
+    try {
+        const { user_version } = (await db.query('PRAGMA user_version;')).values![0];
+        
+        if (user_version >= DB_VERSION) {
+            console.log("Database is up to date.");
+            return;
+        }
+
+        console.log(`Current DB version: ${user_version}. Migrating to version: ${DB_VERSION}...`);
+        await db.beginTransaction();
+
+        // Migration from v1 to v2: Add userId columns
+        if (user_version < 2) {
+            console.log("Applying migration for v2: Adding userId columns...");
+            await db.execute(`
+                ALTER TABLE memories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
+                ALTER TABLE stories ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
+                ALTER TABLE growth ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
+                ALTER TABLE profiles ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
+                ALTER TABLE reminders ADD COLUMN userId TEXT NOT NULL DEFAULT 'GUEST_USER';
+            `);
+             console.log("userId columns added successfully.");
+        }
+        
+        // --- Add future migrations below using `if (user_version < 3) { ... }` ---
+        
+        await db.execute(`PRAGMA user_version = ${DB_VERSION};`);
+        await db.commitTransaction();
+        console.log("Database migration completed.");
+    } catch (err) {
+        await db.rollbackTransaction();
+        console.error("Database migration failed:", err);
+        throw err;
+    }
+};
+
 export const initDB = async () => {
     try {
         if (db) return { success: true };
@@ -91,10 +128,13 @@ export const initDB = async () => {
         const ret = await sqlite.checkConnectionsConsistency();
         db = ret.result
             ? await sqlite.retrieveConnection(DB_NAME, false)
-            : await sqlite.createConnection(DB_NAME, false, 'no-encryption', DB_VERSION, false);
+            : await sqlite.createConnection(DB_NAME, false, 'no-encryption', 1, false); // Always create with version 1 to check migrations
 
         await db.open();
-        await db.execute(SCHEMA);
+        // Run schema creation first for new users
+        await db.execute(SCHEMA); 
+        // Run migrations for existing users
+        await runMigrations(db);
         
         try {
             await Filesystem.mkdir({ path: 'images', directory: Directory.Data, recursive: true });
