@@ -376,12 +376,41 @@ function App() {
   };
 
   const SyncProgressBar = () => {
-    if (syncState.status === 'idle' || syncState.total === 0) return null;
-    const isFinished = syncState.status === 'success' || syncState.status === 'error';
-    const bgColor = syncState.status === 'error' ? 'bg-rose-500' : 'bg-sky-500';
-    const text = syncState.status === 'syncing' ? `${t('sync_now')}... (${syncState.completed}/${syncState.total})` : syncState.status === 'success' ? `${t('sync_now')} Complete!` : `${t('sync_now')} Failed!`;
+    if (syncState.status === 'idle' || (syncState.status === 'syncing' && syncState.total === 0)) return null;
+
+    const isSyncing = syncState.status === 'syncing';
+    const isSuccess = syncState.status === 'success';
+
+    let text, Icon, iconColorClass, bgColorClass;
+
+    if (isSyncing) {
+        text = `${t('sync_now')}...`;
+        Icon = Loader2;
+        iconColorClass = 'text-sky-500 animate-spin';
+        bgColorClass = 'bg-sky-500/10';
+    } else if (isSuccess) {
+        text = `${t('sync_now')} Complete!`;
+        Icon = CheckCircle2;
+        iconColorClass = 'text-emerald-500';
+        bgColorClass = 'bg-emerald-500/10';
+    } else { // isError
+        text = `${t('sync_now')} Failed!`;
+        Icon = X;
+        iconColorClass = 'text-rose-500';
+        bgColorClass = 'bg-rose-500/10';
+    }
+
     return (
-        <div className="p-3"><div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4"><div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-500 shadow-inner shrink-0">{isFinished ? (syncState.status === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5 text-rose-500" />) : (<Loader2 className="w-5 h-5 animate-spin" />)}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center mb-1"><p className="text-xs font-black text-slate-800 dark:text-white truncate">{text}</p>{!isFinished && <p className="text-xs font-black text-sky-500">{Math.round(syncState.progress)}%</p>}</div><div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner"><div className={`${bgColor} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${isFinished ? 100 : syncState.progress}%` }}></div></div></div></div></div>
+        <div className="p-3 animate-fade-in">
+            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
+                <div className={`w-10 h-10 ${bgColorClass} rounded-xl flex items-center justify-center shadow-inner shrink-0`}>
+                    <Icon className={`w-5 h-5 ${iconColorClass}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-slate-800 dark:text-white truncate">{text}</p>
+                </div>
+            </div>
+        </div>
     );
   };
 

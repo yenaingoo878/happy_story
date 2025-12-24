@@ -429,28 +429,32 @@ export const DataService = {
         }
     },
     
-    deleteCloudPhoto: async (photoUrl: string): Promise<{ success: boolean; error?: Error }> => {
+    deleteCloudPhoto: async (photoUrl: string): Promise<{ success: boolean; error?: any }> => {
         if (!isSupabaseConfigured()) return { success: false, error: new Error("Supabase not configured.") };
         try {
             const url = new URL(photoUrl);
+            const pathSegments = url.pathname.split('/');
             const bucketName = 'images';
-            const bucketPath = `/${bucketName}/`;
             
-            const pathStartIndex = url.pathname.indexOf(bucketPath);
-
-            if (pathStartIndex === -1) {
-                throw new Error("Invalid photo URL format: bucket 'images' not found in path.");
+            const bucketIndex = pathSegments.findIndex(segment => segment === bucketName);
+    
+            if (bucketIndex === -1) {
+                throw new Error(`Invalid Supabase storage URL: bucket '${bucketName}' not found in path: ${url.pathname}`);
             }
-
-            const filePath = url.pathname.substring(pathStartIndex + bucketPath.length);
-
+    
+            const filePath = pathSegments.slice(bucketIndex + 1).join('/');
+    
             if (!filePath) {
-                 throw new Error("Invalid photo URL format: file path is empty.");
+                 throw new Error("Could not extract file path from URL.");
             }
             
             const { error } = await supabase.storage.from(bucketName).remove([filePath]);
-            if (error) throw error;
-
+    
+            if (error) {
+                console.error("Supabase storage delete error:", error);
+                throw error;
+            }
+    
             await DataService.deleteCachedPhoto(photoUrl);
             
             return { success: true };
