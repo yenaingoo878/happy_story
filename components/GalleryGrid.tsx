@@ -1,7 +1,9 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Memory, Language } from '../types';
 import { Image as ImageIcon, Search, Cloud, HardDrive, Loader2, X, Trash2 } from 'lucide-react';
-import { getTranslation } from '../utils/translations';
+// FIX: Import translations to correctly type the `t` function.
+import { getTranslation, translations } from '../utils/translations';
 import { DataService, blobToBase64 } from '../lib/db';
 
 interface GalleryGridProps {
@@ -13,7 +15,8 @@ interface GalleryGridProps {
 }
 
 export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, onMemoryClick, userId, activeProfileId }) => {
-  const t = (key: any) => getTranslation(language, key);
+  // FIX: Provide a strong type for the translation key.
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'LOCAL' | 'CLOUD'>('LOCAL');
   const [cloudPhotos, setCloudPhotos] = useState<string[]>([]);

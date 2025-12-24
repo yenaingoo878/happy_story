@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
-import { getTranslation } from '../utils/translations';
+import { getTranslation, translations } from '../utils/translations';
 import { DataService, blobToBase64 } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
@@ -13,8 +14,8 @@ interface AddMemoryProps {
   onSaveComplete: () => void;
   onCancel: () => void;
 }
-
-const FormField = ({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children: React.ReactNode }) => (
+// FIX: Made children prop optional to resolve type error.
+const FormField = ({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children?: React.ReactNode }) => (
   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
     <label className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-2">
       <Icon className="w-3.5 h-3.5" />
@@ -31,11 +32,10 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   onSaveComplete,
   onCancel 
 }) => {
-  const t = (key: any) => getTranslation(language, key);
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const isWeb = Capacitor.getPlatform() === 'web';
   
   const getTodayLocal = () => new Date().toISOString().split('T')[0];
@@ -119,30 +119,22 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     try {
         const memory: Memory = {
             id: editMemory ? editMemory.id : crypto.randomUUID(), childId: activeProfileId, title: formState.title, 
-            description: formState.desc, date: formState.date, imageUrls: formState.imageUrls, tags: formState.tags, synced: 0
+            description: formState.desc, date: formState.date, imageUrls: formState.imageUrls, tags: formState.tags
         };
         await DataService.addMemory(memory);
-        setShowSuccess(true);
-        setTimeout(() => { setShowSuccess(false); onSaveComplete(); }, 1500);
-    } catch (error) { console.error("Save failed", error); alert("Failed to save memory locally."); }
-    finally { setIsSaving(false); }
+        onSaveComplete();
+    } catch (error) { 
+        console.error("Save failed", error); 
+        alert("Failed to save memory locally.");
+    } finally { 
+        setIsSaving(false); 
+    }
   };
 
   const removeImage = (indexToRemove: number) => setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
 
   return (
     <div className="max-w-4xl mx-auto relative animate-fade-in pb-32">
-        {showSuccess && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in pointer-events-none">
-            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl p-8 rounded-[40px] shadow-2xl flex flex-col items-center gap-4 animate-zoom-in border border-slate-100 dark:border-slate-700">
-              <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
-                <CheckCircle2 className="w-12 h-12" />
-              </div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('profile_saved')}</h3>
-            </div>
-          </div>
-        )}
-
         <div className="flex justify-between items-center mb-8 px-1">
             <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
             <button onClick={onCancel} disabled={isSaving} className="text-sm font-black text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors uppercase tracking-[0.2em]">{t('cancel_btn')}</button>
@@ -178,17 +170,14 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
             {/* Right Column: Details */}
             <div className="space-y-4">
-              {/* FIX: Wrapped the input element within FormField to provide it as a child, resolving the missing 'children' prop error. */}
               <FormField label={t('form_title')} icon={Text}>
                 <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full bg-transparent outline-none text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400"/>
               </FormField>
 
-              {/* FIX: Wrapped the input element within FormField to provide it as a child, resolving the missing 'children' prop error. */}
               <FormField label={t('date_label')} icon={Calendar}>
                 <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full bg-transparent outline-none text-base font-bold text-slate-800 dark:text-slate-100"/>
               </FormField>
               
-              {/* FIX: Wrapped the tags display and input elements within FormField to provide them as children, resolving the missing 'children' prop error. */}
               <FormField label="Tags" icon={Tag}>
                 <div className="flex flex-wrap gap-2 mb-2">
                     {formState.tags.map(tag => (
@@ -206,7 +195,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                 />
               </FormField>
 
-              {/* FIX: Wrapped the textarea element within FormField to provide it as a child, resolving the missing 'children' prop error. */}
               <FormField label={t('form_desc')} icon={Text}>
                 <textarea value={formState.desc} onChange={e => setFormState({...formState, desc: e.target.value})} placeholder={t('form_desc_placeholder')} disabled={isSaving} className="w-full bg-transparent outline-none h-24 resize-none text-sm font-medium text-slate-600 dark:text-slate-200 placeholder:text-slate-400"/>
               </FormField>

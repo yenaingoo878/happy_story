@@ -175,6 +175,10 @@ export const translations = {
   delete_title: { en: "Delete Item", mm: "ဖျက်မည်" },
   edit: { en: "Edit", mm: "ပြင်မည်" },
   confirm_delete: { en: "Are you sure you want to delete this? This action cannot be undone.", mm: "ဤအချက်အလက်ကို ဖျက်ရန် သေချာပါသလား? ပြန်ယူ၍မရနိုင်ပါ။" },
+  save_success: { en: "Saved successfully", mm: "အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ" },
+  update_success: { en: "Updated successfully", mm: "အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ" },
+  delete_success: { en: "Deleted successfully", mm: "အောင်မြင်စွာ ဖျက်ပြီးပါပြီ" },
+  delete_error_fallback: { en: "Deletion failed. Will be removed on next sync.", mm: "ဖျက်မရသေးပါ။ နောက်တစ်ကြိမ် Sync လုပ်သောအခါ ဖျက်သွားပါမည်။" },
 
   // Security
   private_info: { en: "Private Details", mm: "ကိုယ်ရေးအချက်အလက်များ" },
@@ -204,5 +208,5 @@ export const translations = {
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
-  return translations[key][lang];
+  return translations[key][lang] || translations[key]['en'];
 };

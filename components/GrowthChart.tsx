@@ -1,8 +1,10 @@
 
+
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GrowthData, Language } from '../types';
-import { getTranslation } from '../utils/translations';
+// FIX: Import translations to correctly type the `t` function.
+import { getTranslation, translations } from '../utils/translations';
 import { analyzeGrowthData } from '../services/geminiService';
 import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
 
@@ -15,7 +17,8 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
   const [analysis, setAnalysis] = useState<string>('');
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(false);
-  const t = (key: any) => getTranslation(language, key);
+  // FIX: Provide a strong type for the translation key.
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   const handleAnalyze = async () => {
       if (data.length === 0) return;

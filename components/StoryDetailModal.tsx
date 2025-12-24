@@ -1,8 +1,10 @@
 
+
 import React from 'react';
 import { Story, Language } from '../types';
 import { X, Calendar, BookOpen, Trash2 } from 'lucide-react';
-import { getTranslation } from '../utils/translations';
+// FIX: Import translations to correctly type the `t` function.
+import { getTranslation, translations } from '../utils/translations';
 
 interface StoryDetailModalProps {
   story: Story | null;
@@ -13,7 +15,8 @@ interface StoryDetailModalProps {
 
 export const StoryDetailModal: React.FC<StoryDetailModalProps> = ({ story, language, onClose, onDelete }) => {
   if (!story) return null;
-  const t = (key: any) => getTranslation(language, key);
+  // FIX: Provide a strong type for the translation key.
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   const formatDate = (isoDate: string) => {
      if (!isoDate) return '';

@@ -1,3 +1,4 @@
+
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
@@ -264,6 +265,34 @@ export const blobToBase64 = (blob: Blob): Promise<string> => {
     });
 };
 
+// FIX: Update createActionHandler to be a generic function that accepts an argument.
+const createActionHandler = <T,>(localAction: (arg: T) => Promise<any>) => {
+    return async (arg: T) => {
+        const result = await localAction(arg);
+        syncData().catch(err => console.error("Background sync failed", err));
+        return { success: true, data: result };
+    };
+};
+
+const createDeleteHandler = (tableName: string, supabaseTable: string) => {
+    return async (id: string): Promise<{ success: boolean; error?: any }> => {
+        try {
+            if (isSupabaseConfigured() && navigator.onLine) {
+                const { error } = await supabase.from(supabaseTable).delete().eq('id', id);
+                if (error) throw error;
+                await db.table(tableName).delete(id);
+            } else {
+                await db.table(tableName).update(id, { is_deleted: 1, synced: 0 });
+            }
+            return { success: true };
+        } catch (error) {
+            await db.table(tableName).update(id, { is_deleted: 1, synced: 0 });
+            console.error(`Direct delete from ${tableName} failed, marked for sync:`, error);
+            return { success: false, error };
+        }
+    };
+};
+
 export const DataService = {
     getSetting: async (key: string) => await db.app_settings.get(key),
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
@@ -286,39 +315,33 @@ export const DataService = {
         const mems = await query.sortBy('date');
         return mems.reverse();
     },
-    addMemory: async (memory: Memory) => await db.memories.put({ ...memory, synced: 0, is_deleted: 0 }),
-    deleteMemory: async (id: string) => await db.memories.update(id, { is_deleted: 1, synced: 0 }),
+    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: 0, is_deleted: 0 })),
+    deleteMemory: createDeleteHandler('memories', 'memories'),
 
     getStories: async (childId?: string) => {
         const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);
         return (await query.sortBy('date')).reverse();
     },
-    addStory: async (story: Story) => await db.stories.put({ ...story, synced: 0, is_deleted: 0 }),
-    deleteStory: async (id: string) => await db.stories.update(id, { is_deleted: 1, synced: 0 }),
+    addStory: createActionHandler(async (story: Story) => db.stories.put({ ...story, synced: 0, is_deleted: 0 })),
+    deleteStory: createDeleteHandler('stories', 'stories'),
 
     getGrowth: async (childId?: string) => {
         const query = childId ? db.growth.where({ childId, is_deleted: 0 }) : db.growth.where('is_deleted').equals(0);
         return await query.sortBy('month');
     },
-    saveGrowth: async (data: GrowthData) => await db.growth.put({ ...data, synced: 0, is_deleted: 0 }),
-    deleteGrowth: async (id: string) => await db.growth.update(id, { is_deleted: 1, synced: 0 }),
+    saveGrowth: createActionHandler(async (data: GrowthData) => db.growth.put({ ...data, synced: 0, is_deleted: 0 })),
+    deleteGrowth: createDeleteHandler('growth', 'growth_data'),
     
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
-    saveProfile: async (profile: ChildProfile) => await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 }),
-    deleteProfile: async (id: string) => await db.profiles.update(id, { is_deleted: 1, synced: 0 }),
+    saveProfile: createActionHandler(async (profile: ChildProfile) => db.profiles.put({ ...profile, synced: 0, is_deleted: 0 })),
+    deleteProfile: createDeleteHandler('profiles', 'child_profile'),
 
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
-    saveReminder: async (reminder: Reminder) => await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 }),
-    deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
+    saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
+    deleteReminder: createDeleteHandler('reminders', 'reminders'),
 
     getCloudPhotos: async (userId: string, childId: string): Promise<string[]> => {
         if (!navigator.onLine || !isSupabaseConfigured() || !userId || !childId) {
-            console.warn("getCloudPhotos prerequisites not met:", {
-                isOnline: navigator.onLine,
-                isConfigured: isSupabaseConfigured(),
-                userIdProvided: !!userId,
-                childIdProvided: !!childId,
-            });
             return [];
         }
         
@@ -328,12 +351,12 @@ export const DataService = {
             const urls: string[] = [];
 
             const { data: memoriesList, error: memoriesError } = await supabase.storage.from('images').list(memoriesPath);
-            if (memoriesError) {
+            if (memoriesError && memoriesError.message !== 'The resource was not found') {
                 console.error(`Supabase storage error listing memories at path ${memoriesPath}:`, memoriesError);
             }
 
             const { data: profileList, error: profileError } = await supabase.storage.from('images').list(profilePath);
-            if (profileError) {
+            if (profileError && profileError.message !== 'The resource was not found') {
                 console.error(`Supabase storage error listing profile photos at path ${profilePath}:`, profileError);
             }
             
@@ -384,7 +407,6 @@ export const DataService = {
         }
     },
 
-    // New Caching Methods
     getCachedPhoto: async (url: string) => {
         return await db.cloud_photo_cache.get(url);
     },

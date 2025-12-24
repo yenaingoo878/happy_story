@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles, ShieldCheck, Heart, LogIn, UserCircle } from 'lucide-react';
 import { Language } from '../types';
-import { getTranslation } from '../utils/translations';
+// FIX: Import translations to correctly type the `t` function.
+import { getTranslation, translations } from '../utils/translations';
 
 interface AuthScreenProps {
   language: Language;
@@ -18,7 +20,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const t = (key: any) => getTranslation(language, key);
+  // FIX: Provide a strong type for the translation key.
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
   const supabaseReady = isSupabaseConfigured();
 
   const handleEmailAuth = async (e: React.FormEvent) => {

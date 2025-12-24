@@ -1,9 +1,11 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { generateBedtimeStoryStream } from '../services/geminiService';
 import { Wand2, BookOpen, Sparkles, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import { Language, Story } from '../types';
-import { getTranslation } from '../utils/translations';
+// FIX: Import translations to correctly type the `t` function.
+import { getTranslation, translations } from '../utils/translations';
 import { GenerateContentResponse } from '@google/genai';
 import { DataService } from '../lib/db';
 
@@ -22,7 +24,8 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const t = (key: any) => getTranslation(language, key);
+  // FIX: Provide a strong type for the translation key.
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   useEffect(() => {
     if (defaultChildName) {
@@ -38,6 +41,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
         const streamResponse = await generateBedtimeStoryStream(topic, childName, language);
         for await (const chunk of streamResponse) {
              const c = chunk as GenerateContentResponse;
+             // FIX: Use `response.text` property to get text from streamed response chunks.
              if (c.text) {
                  setStory(prev => prev + c.text);
              }

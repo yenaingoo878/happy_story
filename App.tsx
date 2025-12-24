@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -11,7 +12,7 @@ const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal'
 
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
-import { getTranslation } from './utils/translations';
+import { getTranslation, translations } from './utils/translations';
 import { initDB, DataService, syncData } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
@@ -28,7 +29,7 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Passcode states - Enforced strictly 4 digits
+  // Passcode states
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
@@ -53,13 +54,19 @@ function App() {
 
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'mm');
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
-  const t = (key: any) => getTranslation(language, key);
+  const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   const [uploadProgress, setUploadProgress] = useState(-1);
   const [syncState, setSyncState] = useState({ status: 'idle', progress: 0, total: 0, completed: 0 });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const triggerSuccess = (messageKey: keyof typeof translations) => {
+    setSuccessMessage(t(messageKey));
+    setTimeout(() => setSuccessMessage(null), 2500);
+  };
 
   useEffect(() => {
-    initializeAntiInspect(); // Initialize anti-inspect measures
+    initializeAntiInspect();
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
     return () => {
@@ -98,28 +105,21 @@ function App() {
     }
   }, [session, isGuestMode]);
 
-  // Effect to handle online/offline status and trigger sync
   useEffect(() => {
     const handleOnline = () => {
         setIsOnline(true);
-        // When connection is restored, try to sync data if logged in
         if (session && isSupabaseConfigured()) {
-            console.log("Connection restored, attempting to sync...");
-            syncData().then(() => {
-                refreshData();
-            });
+            syncData().then(() => { refreshData(); });
         }
     };
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
     };
-  }, [session]); // Rerun this effect if the session changes
+  }, [session]);
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
@@ -133,22 +133,10 @@ function App() {
 
   const refreshData = async () => {
       let fetchedProfiles = await DataService.getProfiles();
-      
-      const defaultNameEN = getTranslation('en', 'default_child_name');
-      const defaultNameMM = getTranslation('mm', 'default_child_name');
+      const defaultName = getTranslation(language, 'default_child_name');
 
-      // If more than one profile exists and one is a default placeholder, remove it.
-      if (fetchedProfiles.length > 1) {
-          const defaultProfile = fetchedProfiles.find(p => p.name === defaultNameEN || p.name === defaultNameMM);
-          if (defaultProfile) {
-              await DataService.deleteProfile(defaultProfile.id!);
-              fetchedProfiles = await DataService.getProfiles(); // Re-fetch
-          }
-      }
-      
       if (fetchedProfiles.length === 0) {
-          const defaultProfileName = getTranslation(language, 'default_child_name');
-          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultProfileName, dob: new Date().toISOString().split('T')[0], gender: 'boy', synced: 0 };
+          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultName, dob: new Date().toISOString().split('T')[0], gender: 'boy' };
           await DataService.saveProfile(defaultProfile);
           fetchedProfiles = [defaultProfile];
       }
@@ -166,17 +154,9 @@ function App() {
 
 
   const handleGuestLogin = async () => {
-    // Clear any previous user's data before starting a fresh guest session
     await DataService.clearAllUserData();
-    
-    // Reset state to ensure a clean slate, then set guest mode
-    setProfiles([]); 
-    setMemories([]); 
-    setStories([]); 
-    setGrowthData([]); 
-    setReminders([]);
+    setProfiles([]); setMemories([]); setStories([]); setGrowthData([]); setReminders([]);
     setActiveTab(TabView.HOME);
-    
     setIsGuestMode(true);
     localStorage.setItem('guest_mode', 'true');
   };
@@ -187,20 +167,10 @@ function App() {
       } catch (e) {
         console.error("Error signing out:", e);
       } finally {
-        // Clear all local data upon any form of logout (guest or user)
         await DataService.clearAllUserData(); 
-        
-        // Reset all application state to a clean slate
         localStorage.removeItem('guest_mode');
-        setIsGuestMode(false); 
-        setSession(null);
-        setProfiles([]); 
-        setMemories([]); 
-        setStories([]); 
-        setGrowthData([]); 
-        setReminders([]);
-        setActiveTab(TabView.HOME); 
-        setIsAppUnlocked(false); 
+        setIsGuestMode(false); setSession(null); setProfiles([]); setMemories([]); setStories([]); 
+        setGrowthData([]); setReminders([]); setActiveTab(TabView.HOME); setIsAppUnlocked(false); 
         setShowPasscodeModal(false);
       }
   };
@@ -208,16 +178,29 @@ function App() {
   const handleSaveGrowth = async (data: GrowthData) => {
       await DataService.saveGrowth(data);
       await refreshData();
+      triggerSuccess('profile_saved');
   };
 
   const executeDelete = async () => {
      if (!itemToDelete) return;
-     if (itemToDelete.type === 'MEMORY') await DataService.deleteMemory(itemToDelete.id);
-     else if (itemToDelete.type === 'STORY') await DataService.deleteStory(itemToDelete.id);
-     else if (itemToDelete.type === 'GROWTH') await DataService.deleteGrowth(itemToDelete.id);
-     else if (itemToDelete.type === 'PROFILE') await DataService.deleteProfile(itemToDelete.id);
-     else if (itemToDelete.type === 'REMINDER') await DataService.deleteReminder(itemToDelete.id);
-     await refreshData(); setShowConfirmModal(false); setItemToDelete(null);
+     let result: { success: boolean, error?: any };
+     switch(itemToDelete.type) {
+        case 'MEMORY': result = await DataService.deleteMemory(itemToDelete.id); break;
+        case 'STORY': result = await DataService.deleteStory(itemToDelete.id); break;
+        case 'GROWTH': result = await DataService.deleteGrowth(itemToDelete.id); break;
+        case 'PROFILE': result = await DataService.deleteProfile(itemToDelete.id); break;
+        case 'REMINDER': result = await DataService.deleteReminder(itemToDelete.id); break;
+        default: result = { success: false, error: "Unknown type" };
+     }
+     setShowConfirmModal(false);
+     setItemToDelete(null);
+
+     if (result.success) {
+        triggerSuccess('delete_success');
+        await refreshData();
+     } else {
+        alert(t('delete_error_fallback'));
+     }
   };
 
   const validatePasscode = (code: string) => {
@@ -225,43 +208,22 @@ function App() {
     
     setPasscodeError(false);
     if (passcodeMode === 'UNLOCK') {
-      if (code === passcode) {
-        setIsAppUnlocked(true);
-        setShowPasscodeModal(false);
-        setPasscodeInput('');
-      } else {
-        setPasscodeError(true);
-        setPasscodeInput('');
-      }
+      if (code === passcode) { setIsAppUnlocked(true); setShowPasscodeModal(false); setPasscodeInput(''); }
+      else { setPasscodeError(true); setPasscodeInput(''); }
     } else if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
-      localStorage.setItem('app_passcode', code);
-      setPasscode(code);
-      setIsAppUnlocked(true);
-      setShowPasscodeModal(false);
-      setPasscodeInput('');
+      localStorage.setItem('app_passcode', code); setPasscode(code); setIsAppUnlocked(true);
+      setShowPasscodeModal(false); setPasscodeInput('');
     } else if (passcodeMode === 'CHANGE_VERIFY') {
-      if (code === passcode) {
-        setPasscodeMode('CHANGE_NEW');
-        setPasscodeInput('');
-      } else {
-        setPasscodeError(true);
-        setPasscodeInput('');
-      }
+      if (code === passcode) { setPasscodeMode('CHANGE_NEW'); setPasscodeInput(''); }
+      else { setPasscodeError(true); setPasscodeInput(''); }
     } else if (passcodeMode === 'REMOVE') {
       if (code === passcode) {
-        localStorage.removeItem('app_passcode');
-        setPasscode(null);
-        setIsAppUnlocked(true);
-        setShowPasscodeModal(false);
-        setPasscodeInput('');
-      } else {
-        setPasscodeError(true);
-        setPasscodeInput('');
-      }
+        localStorage.removeItem('app_passcode'); setPasscode(null); setIsAppUnlocked(true);
+        setShowPasscodeModal(false); setPasscodeInput('');
+      } else { setPasscodeError(true); setPasscodeInput(''); }
     }
   };
 
-  // Improved Auto-submit for 4 digits
   useEffect(() => {
     if (passcodeInput.length === 4) {
       const timer = setTimeout(() => validatePasscode(passcodeInput), 150);
@@ -276,13 +238,13 @@ function App() {
 
   const getBirthdayStatus = () => {
     if (!activeProfile.dob) return 'NONE';
-    const today = new Date();
-    const dob = new Date(activeProfile.dob);
+    const today = new Date(); const dob = new Date(activeProfile.dob);
     if (today.getMonth() === dob.getMonth() && today.getDate() === dob.getDate()) return 'TODAY';
     return 'NONE';
   };
 
-  const tabs = [
+  // FIX: Add explicit type to ensure `tab.label` is a valid key for the `t` function.
+  const tabs: { id: TabView; icon: React.ElementType; label: keyof typeof translations }[] = [
     { id: TabView.HOME, icon: Home, label: 'nav_home' },
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
     { id: TabView.ADD_MEMORY, icon: PlusCircle, label: 'nav_create' },
@@ -298,10 +260,10 @@ function App() {
     const bStatus = getBirthdayStatus();
     const todayStr = new Date().toISOString().split('T')[0];
     const todaysReminders = reminders.filter(r => r.date === todayStr);
+    const latestMemory = memories[0];
 
     switch (activeTab) {
       case TabView.HOME:
-        const latestMemory = memories[0];
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
             {remindersEnabled && (
@@ -357,11 +319,7 @@ function App() {
                  {memories.slice(0, 4).map(m => (
                     <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
                        <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700">
-                        {m.imageUrls && m.imageUrls.length > 0 ? (
-                           <img src={m.imageUrls[0]} className="w-full h-full object-cover" />
-                        ) : (
-                           <ImageIcon className="w-8 h-8 text-slate-300"/>
-                        )}
+                        {m.imageUrls && m.imageUrls.length > 0 ? (<img src={m.imageUrls[0]} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
                        </div>
                        <div className="flex-1 min-w-0"><h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p></div>
                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all"><ChevronRight className="w-4.5 h-4.5" /></div>
@@ -375,8 +333,8 @@ function App() {
         return (
             <div className="pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
               <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
-                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await loadChildData(activeProfileId); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} />}
-                {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await loadChildData(activeProfileId); setActiveTab(TabView.HOME); }} />}
+                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} />}
+                {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await refreshData(); triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
                 {activeTab === TabView.GROWTH && <div className="max-w-4xl mx-auto"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>}
                 {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} userId={session?.user?.id} activeProfileId={activeProfileId} />}
                 {activeTab === TabView.SETTINGS && (
@@ -395,7 +353,8 @@ function App() {
                     isGuestMode={isGuestMode} onLogout={handleLogout} remindersEnabled={remindersEnabled} 
                     toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
                     remindersList={reminders} onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
-                    onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); }} 
+                    onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); triggerSuccess('profile_saved'); }}
+                    onSaveSuccess={() => triggerSuccess('profile_saved')}
                     session={session}
                   />
                 )}
@@ -407,73 +366,28 @@ function App() {
 
   const SyncProgressBar = () => {
     if (syncState.status === 'idle' || syncState.total === 0) return null;
-    
     const isFinished = syncState.status === 'success' || syncState.status === 'error';
     const bgColor = syncState.status === 'error' ? 'bg-rose-500' : 'bg-sky-500';
-    const text = syncState.status === 'syncing' ? `${t('sync_now')}... (${syncState.completed}/${syncState.total})` 
-               : syncState.status === 'success' ? `${t('sync_now')} Complete!` 
-               : `${t('sync_now')} Failed!`;
-
+    const text = syncState.status === 'syncing' ? `${t('sync_now')}... (${syncState.completed}/${syncState.total})` : syncState.status === 'success' ? `${t('sync_now')} Complete!` : `${t('sync_now')} Failed!`;
     return (
-        <div className="p-3">
-             <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
-                 <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-500 shadow-inner shrink-0">
-                     {isFinished ? (
-                         syncState.status === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5 text-rose-500" />
-                     ) : (
-                         <Loader2 className="w-5 h-5 animate-spin" />
-                     )}
-                 </div>
-                 <div className="flex-1 min-w-0">
-                     <div className="flex justify-between items-center mb-1">
-                         <p className="text-xs font-black text-slate-800 dark:text-white truncate">
-                             {text}
-                         </p>
-                         {!isFinished && <p className="text-xs font-black text-sky-500">{Math.round(syncState.progress)}%</p>}
-                     </div>
-                     <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
-                         <div
-                             className={`${bgColor} h-1.5 rounded-full transition-all duration-300`}
-                             style={{ width: `${isFinished ? 100 : syncState.progress}%` }}
-                         ></div>
-                     </div>
-                 </div>
-             </div>
-        </div>
+        <div className="p-3"><div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4"><div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-500 shadow-inner shrink-0">{isFinished ? (syncState.status === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5 text-rose-500" />) : (<Loader2 className="w-5 h-5 animate-spin" />)}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center mb-1"><p className="text-xs font-black text-slate-800 dark:text-white truncate">{text}</p>{!isFinished && <p className="text-xs font-black text-sky-500">{Math.round(syncState.progress)}%</p>}</div><div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner"><div className={`${bgColor} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${isFinished ? 100 : syncState.progress}%` }}></div></div></div></div></div>
     );
   };
 
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
-      <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[999] pointer-events-none animate-fade-in">
-          {uploadProgress > -1 && (
-            <div className="p-3">
-              <div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">
-                  {uploadProgress < 100 ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                      <CheckCircle2 className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-xs font-black text-slate-800 dark:text-white truncate">
-                      {uploadProgress < 100 ? t('uploading') : t('profile_saved')}
-                    </p>
-                    <p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner">
-                    <div 
-                      className="bg-primary h-1.5 rounded-full transition-all duration-300" 
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+      {successMessage && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] animate-fade-in pointer-events-none">
+          <div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-white/20">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="text-xs font-black uppercase tracking-widest">{successMessage}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[99] pointer-events-none animate-fade-in">
+          {uploadProgress > -1 && (<div className="p-3"><div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4"><div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">{uploadProgress < 100 ? (<Loader2 className="w-5 h-5 animate-spin" />) : (<CheckCircle2 className="w-5 h-5" />)}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center mb-1"><p className="text-xs font-black text-slate-800 dark:text-white truncate">{uploadProgress < 100 ? t('uploading') : t('profile_saved')}</p><p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p></div><div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner"><div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div></div></div></div></div>)}
           <SyncProgressBar />
       </div>
 
@@ -483,65 +397,12 @@ function App() {
       </aside>
       <main className="flex-1 px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
       
-      {/* Strict 4-Digit Passcode Modal */}
-      {showPasscodeModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/>
-          <div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
-            <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div>
-            <h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">
-              {passcodeMode === 'UNLOCK' ? t('enter_passcode') : 
-               passcodeMode === 'SETUP' ? t('create_passcode') : 
-               passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : 
-               passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}
-            </h3>
-            <p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">
-              {passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}
-            </p>
-            <form onSubmit={handlePasscodeSubmit} className="space-y-8">
-              <input 
-                autoFocus 
-                type="password" 
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={4}
-                value={passcodeInput}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                  setPasscodeInput(val);
-                  if (passcodeError) setPasscodeError(false);
-                }}
-                className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner"
-                placeholder="••••"
-              />
-              <div className="flex flex-col gap-2">
-                <button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>
-                  {t('confirm')}
-                </button>
-                {passcodeMode !== 'UNLOCK' && (
-                   <button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">
-                     {t('cancel_btn')}
-                   </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {showPasscodeModal && (<div className="fixed inset-0 z-[200] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div><h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3><p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">{passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p><form onSubmit={handlePasscodeSubmit} className="space-y-8"><input autoFocus type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} value={passcodeInput} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 4); setPasscodeInput(val); if (passcodeError) setPasscodeError(false);}} className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner" placeholder="••••" /><div className="flex flex-col gap-2"><button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>{t('confirm')}</button>{passcodeMode !== 'UNLOCK' && (<button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">{t('cancel_btn')}</button>)}</div></form></div></div>)}
 
       {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} /></Suspense>)}
       {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => { setItemToDelete({type:'STORY', id:selectedStory.id}); setShowConfirmModal(true); }} /></Suspense>)}
 
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/>
-          <div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20">
-            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div>
-            <h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p>
-            <div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/30 active:scale-95 transition-all">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-all">{t('cancel_btn')}</button></div>
-          </div>
-        </div>
-      )}
+      {showConfirmModal && (<div className="fixed inset-0 z-[110] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div><h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p><div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/30 active:scale-95 transition-all">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-all">{t('cancel_btn')}</button></div></div></div>)}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
         {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 active:scale-95 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-black animate-fade-in">{t(tab.label)}</span>}</button>); })}
       </nav>

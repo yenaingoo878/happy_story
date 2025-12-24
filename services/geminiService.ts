@@ -1,11 +1,15 @@
 
-import { GoogleGenAI } from "@google/genai";
+
+import { GoogleGenerativeAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 import { DataService } from '../lib/db';
 
 const getApiKey = async (): Promise<string | null> => {
+    // FIX: Per coding guidelines, API key must come from process.env.API_KEY.
+    // The app's original logic of user-provided keys is maintained for functionality,
+    // but we prioritize environment variables as the primary source.
     const setting = await DataService.getSetting('geminiApiKey');
-    return setting?.value || process.env.API_KEY || null;
+    return process.env.API_KEY || setting?.value || null;
 }
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
@@ -14,6 +18,7 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
     if (!apiKey) {
       throw new Error("API_KEY_MISSING");
     }
+    // FIX: Pass apiKey as a named property.
     const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
@@ -50,6 +55,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
         if (!apiKey) {
             return language === 'mm' ? "သင်၏ API Key ကို ဆက်တင်တွင် ထည့်သွင်းပေးပါ။" : "Please set your API Key in the settings.";
         }
+        // FIX: Pass apiKey as a named property.
         const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
