@@ -21,7 +21,6 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   const [previewState, setPreviewState] = useState<{ url: string | null; data: string | null; isLoading: boolean }>({ url: null, data: null, isLoading: false });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Critical: Re-fetch when activeProfileId changes
   useEffect(() => {
     if (activeTab === 'CLOUD') {
       fetchCloudPhotos();
@@ -73,19 +72,12 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
     if (isDeleting) return;
     if (window.confirm(t('confirm_delete'))) {
         setIsDeleting(true);
-        try {
-            const { success, error } = await DataService.deleteCloudPhoto(url);
-            if (success) {
-                setPreviewState({ url: null, data: null, isLoading: false });
-                await fetchCloudPhotos();
-            } else {
-                alert(error?.message || "Failed to delete from cloud.");
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsDeleting(false);
+        const { success } = await DataService.deleteCloudPhoto(url);
+        if (success) {
+            setPreviewState({ url: null, data: null, isLoading: false });
+            await fetchCloudPhotos();
         }
+        setIsDeleting(false);
     }
   };
 
@@ -211,10 +203,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
              <div className="absolute inset-0" onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} />
              <button onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-[210]"><X className="w-6 h-6" /></button>
              {previewState.isLoading ? <Loader2 className="w-12 h-12 text-white animate-spin" /> : <img src={previewState.data || previewState.url} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl relative z-[205]" alt="Full" />}
-             <button onClick={(e) => { e.stopPropagation(); if(previewState.url) handleDeleteCloudPhoto(previewState.url); }} disabled={isDeleting} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[210] px-6 py-4 bg-rose-500/80 hover:bg-rose-600 backdrop-blur-md text-white rounded-2xl flex items-center gap-3 font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg disabled:opacity-50">
-                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                {isDeleting ? t('deleting') : t('delete')}
-             </button>
+             <button onClick={(e) => { e.stopPropagation(); if(previewState.url) handleDeleteCloudPhoto(previewState.url); }} disabled={isDeleting} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[210] px-6 py-4 bg-rose-500/80 hover:bg-rose-600 backdrop-blur-md text-white rounded-2xl flex items-center gap-3 font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg disabled:opacity-50"><Trash2 className="w-5 h-5" />{isDeleting ? t('deleting') : t('delete')}</button>
           </div>
        )}
     </div>
