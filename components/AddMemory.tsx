@@ -219,7 +219,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                     <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400"/>
                 </div>
 
-                <div>
+                <div className="space-y-6">
                     <label className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-2 block text-align: start">{t('date_label')}</label>
                     <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none text-base font-bold text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary/50 transition-all"/>
                 </div>
