@@ -12,6 +12,7 @@ import { getTranslation } from '../utils/translations';
 import { DataService, syncData } from '../lib/db';
 import { syncManager } from '../lib/syncManager';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -109,6 +110,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
   const [isProcessingProfileImage, setIsProcessingProfileImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const isWeb = Capacitor.getPlatform() === 'web';
 
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
@@ -337,14 +339,17 @@ export const Settings: React.FC<SettingsProps> = ({
                     </div>
 
                     <div className="flex gap-3 mt-4">
-                       <button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          {t('upload_photo')}
-                       </button>
-                       <button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
-                          <Camera className="w-3.5 h-3.5" />
-                          {t('take_photo')}
-                       </button>
+                       {isWeb ? (
+                         <button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            {t('upload_photo')}
+                         </button>
+                       ) : (
+                         <button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50">
+                            <Camera className="w-3.5 h-3.5" />
+                            {t('take_photo')}
+                         </button>
+                       )}
                     </div>
                     <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
                 </div>

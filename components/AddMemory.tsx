@@ -4,6 +4,7 @@ import { Memory, Language } from '../types';
 import { getTranslation } from '../utils/translations';
 import { DataService, blobToBase64 } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 interface AddMemoryProps {
   language: Language;
@@ -25,6 +26,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const isWeb = Capacitor.getPlatform() === 'web';
   
   const getTodayLocal = () => {
     return new Date().toISOString().split('T')[0];
@@ -186,22 +188,25 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                                 </button>
                             </div>
                         ))}
-                        <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isProcessing || isSaving}
-                            className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
-                        >
-                            {isProcessing ? <Loader2 className="w-6 h-6 animate-spin"/> : <ImageIcon className="w-6 h-6"/>}
-                            <span className="text-[10px] font-black uppercase tracking-widest">{isProcessing ? t('uploading') : t('upload_photo')}</span>
-                        </button>
-                        <button 
-                            onClick={handleTakePhoto}
-                            disabled={isProcessing || isSaving}
-                            className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
-                        >
-                            <Camera className="w-6 h-6"/>
-                            <span className="text-[10px] font-black uppercase tracking-widest">{t('take_photo')}</span>
-                        </button>
+                        {isWeb ? (
+                          <button 
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={isProcessing || isSaving}
+                              className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
+                          >
+                              {isProcessing ? <Loader2 className="w-6 h-6 animate-spin"/> : <ImageIcon className="w-6 h-6"/>}
+                              <span className="text-[10px] font-black uppercase tracking-widest">{isProcessing ? t('uploading') : t('upload_photo')}</span>
+                          </button>
+                        ) : (
+                          <button 
+                              onClick={handleTakePhoto}
+                              disabled={isProcessing || isSaving}
+                              className="aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95"
+                          >
+                              <Camera className="w-6 h-6"/>
+                              <span className="text-[10px] font-black uppercase tracking-widest">{t('take_photo')}</span>
+                          </button>
+                        )}
                     </div>
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
