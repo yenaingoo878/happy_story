@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService } from '../lib/db';
+import { DataService, getImageSrc } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 // Helper function to resize images to a max dimension while maintaining aspect ratio
 const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, quality = 0.8): Promise<string> => {
@@ -15,7 +16,6 @@ const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, qua
       let width = img.width;
       let height = img.height;
 
-      // Calculate new dimensions while preserving aspect ratio
       if (width > height) {
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
@@ -39,19 +39,16 @@ const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, qua
 
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert canvas to a JPEG data URL with specified quality for better compression
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
 
-    // FIX: The onerror handler for an HTMLImageElement receives a single Event argument,
-    // not the multi-argument signature for window.onerror. This is now corrected.
     img.onerror = () => {
       reject(new Error('Image failed to load.'));
     };
 
     if (typeof file === 'string') {
-        img.src = file; // It's already a data URL from the camera
-    } else { // It's a File object from the file input
+        img.src = file;
+    } else {
         const reader = new FileReader();
         reader.onload = (e) => {
             if (e.target?.result) {
@@ -60,7 +57,6 @@ const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, qua
                 reject(new Error('FileReader failed to read file.'));
             }
         };
-        // FIX: Correctly handle file reading errors by rejecting with the reader's error property.
         reader.onerror = () => reject(reader.error || new Error('FileReader unknown error'));
         reader.readAsDataURL(file);
     }
@@ -75,7 +71,6 @@ interface AddMemoryProps {
   onSaveComplete: () => void;
   onCancel: () => void;
 }
-// FIX: Made children prop optional to resolve type error.
 const FormField = ({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children?: React.ReactNode }) => (
   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
     <label className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-2">
@@ -97,7 +92,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const isWeb = Capacitor.getPlatform() === 'web';
   
   const getTodayLocal = () => new Date().toISOString().split('T')[0];
 
@@ -121,14 +115,26 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     }
   }, [editMemory]);
 
+  const saveImageToFile = async (dataUrl: string): Promise<string> => {
+      const fileName = `${new Date().getTime()}.jpeg`;
+      const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: dataUrl,
+          directory: Directory.Data
+      });
+      return savedFile.uri;
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       setIsProcessing(true); 
       try {
-        const resizedImagePromises = Array.from(files).map(file => resizeImage(file));
-        const newImageUrls = await Promise.all(resizedImagePromises);
-        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
+        const newImageUris = await Promise.all(Array.from(files).map(async (file) => {
+            const resizedDataUrl = await resizeImage(file);
+            return await saveImageToFile(resizedDataUrl);
+        }));
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUris] }));
       } catch (error) { console.error("Image processing failed", error); alert("Failed to process images."); }
       finally {
         setIsProcessing(false);
@@ -138,6 +144,10 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   const handleTakePhoto = async () => {
+    if (!Capacitor.isNativePlatform()) {
+        fileInputRef.current?.click();
+        return;
+    }
     setIsProcessing(true);
     try {
       const permissions = await CapacitorCamera.checkPermissions();
@@ -152,7 +162,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       const image = await CapacitorCamera.getPhoto({ quality: 90, allowEditing: false, resultType: CameraResultType.DataUrl });
       if (image.dataUrl) {
         const resizedDataUrl = await resizeImage(image.dataUrl);
-        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, resizedDataUrl] }));
+        const fileUri = await saveImageToFile(resizedDataUrl);
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, fileUri] }));
       }
     } catch (error) {
       console.error("Failed to take photo", error);
@@ -195,7 +206,17 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     }
   };
 
-  const removeImage = (indexToRemove: number) => setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
+  const removeImage = async (indexToRemove: number) => {
+    const urlToRemove = formState.imageUrls[indexToRemove];
+    if (urlToRemove.startsWith('file://')) {
+        try {
+            await Filesystem.deleteFile({ path: urlToRemove });
+        } catch (e) {
+            console.warn(`Could not delete file: ${urlToRemove}`, e);
+        }
+    }
+    setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
+  };
 
   return (
     <div className="max-w-4xl mx-auto relative animate-fade-in pb-32">
@@ -206,12 +227,11 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
         
         <form onSubmit={handleSave}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column: Image Uploader */}
             <div className="space-y-4">
                <div className="grid grid-cols-3 gap-3">
                   {formState.imageUrls.map((url, index) => (
                       <div key={index} className="relative aspect-square group">
-                          <img src={url} className="w-full h-full object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
+                          <img src={getImageSrc(url)} className="w-full h-full object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
                           <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1.5 bg-rose-500 text-white rounded-full shadow-lg transition-transform hover:scale-110 active:scale-90">
                               <X className="w-3.5 h-3.5"/>
                           </button>
@@ -220,7 +240,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                   <div className="col-span-1">
                      <button 
                         type="button"
-                        onClick={isWeb ? () => fileInputRef.current?.click() : handleTakePhoto}
+                        onClick={Capacitor.isNativePlatform() ? handleTakePhoto : () => fileInputRef.current?.click()}
                         disabled={isProcessing || isSaving}
                         className="w-full aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95 disabled:opacity-50"
                      >
@@ -232,7 +252,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
             </div>
 
-            {/* Right Column: Details */}
             <div className="space-y-4">
               <FormField label={t('form_title')} icon={Text}>
                 <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full bg-transparent outline-none text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400"/>
@@ -265,7 +284,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             </div>
           </div>
           
-          {/* Floating Save Button */}
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white dark:from-slate-900 via-white/80 dark:via-slate-900/80 to-transparent md:relative md:p-0 md:bg-none md:mt-8 z-50">
             <button 
                 type="submit"

@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Memory, Language } from '../types';
 import { Image as ImageIcon, Search, Cloud, HardDrive, Loader2, X, Trash2, CheckSquare, Square, ThumbsUp } from 'lucide-react';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, blobToBase64 } from '../lib/db';
+import { DataService, blobToBase64, getImageSrc } from '../lib/db';
 
 interface GalleryGridProps {
   memories: Memory[];
@@ -15,7 +14,6 @@ interface GalleryGridProps {
 }
 
 export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, onMemoryClick, userId, activeProfileId, requestDeleteConfirmation }) => {
-  // FIX: Provide a strong type for the translation key.
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'LOCAL' | 'CLOUD'>('LOCAL');
@@ -60,12 +58,10 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
         const deletePromises = selectedPhotos.map(url => DataService.deleteCloudPhoto(url));
         const results = await Promise.allSettled(deletePromises);
         
-        // After deletion, refresh the photo list and exit select mode
         await fetchCloudPhotos();
         setIsSelectMode(false);
         setSelectedPhotos([]);
 
-        // Check if any promises were rejected and throw an error to be caught by the App component
         if (results.some(r => r.status === 'rejected')) {
             throw new Error("Some photos could not be deleted.");
         }
@@ -136,7 +132,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
        </div>
        
        {activeTab === 'LOCAL' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1">{filteredMemories.map((memory) => (<div key={memory.id} onClick={() => onMemoryClick(memory)} className="group relative rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800">{memory.imageUrls && memory.imageUrls.length > 0 ? (<img src={memory.imageUrls[0]} alt={memory.title} className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" />) : (<div className="w-full h-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center"><ImageIcon className="w-10 h-10 text-slate-200 dark:text-slate-700"/></div>)}<div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5 pointer-events-none"><span className="text-white text-xs font-black truncate uppercase tracking-widest">{memory.title}</span></div></div>))}</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-1">{filteredMemories.map((memory) => (<div key={memory.id} onClick={() => onMemoryClick(memory)} className="group relative rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800">{memory.imageUrls && memory.imageUrls.length > 0 ? (<img src={getImageSrc(memory.imageUrls[0])} alt={memory.title} className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" />) : (<div className="w-full h-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center"><ImageIcon className="w-10 h-10 text-slate-200 dark:text-slate-700"/></div>)}<div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex items-end p-5 pointer-events-none"><span className="text-white text-xs font-black truncate uppercase tracking-widest">{memory.title}</span></div></div>))}</div>
        ) : (
           <div className="px-1">{isLoadingCloud ? (<div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4"><Loader2 className="w-10 h-10 animate-spin text-sky-500" /><p className="text-[10px] font-black uppercase tracking-widest">Fetching from Supabase...</p></div>) : cloudPhotos.length > 0 ? (<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{cloudPhotos.map((url, index) => { const isSelected = selectedPhotos.includes(url); return (<div key={index} onClick={() => handleGridItemClick(url)} className={`relative rounded-[28px] overflow-hidden shadow-sm border-2 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800 group transition-all duration-300 ${isSelected ? 'border-primary' : 'border-white dark:border-slate-700'}`}><img src={url} className={`w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-110 ${isSelectMode && isSelected ? 'opacity-50' : ''}`} alt={`Cloud Photo ${index}`} />{isSelectMode && (<div className={`absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-white transition-all ${isSelected ? 'bg-primary' : 'bg-black/30 backdrop-blur-sm'}`}>{isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 opacity-50" />}</div>)}</div>);})}</div>) : (<div className="py-24 text-center text-slate-400 flex flex-col items-center gap-5 opacity-40"><Cloud className="w-14 h-14" /><div className="space-y-1"><p className="text-xs font-black uppercase tracking-widest">{language === 'mm' ? 'Cloud ပေါ်တွင် ဓာတ်ပုံမရှိသေးပါ' : 'No cloud photos found'}</p><p className="text-[10px] font-bold">{language === 'mm' ? 'အင်တာနက်လိုင်း နှင့် Supabase ချိတ်ဆက်မှုကို စစ်ဆေးပါ' : 'Check connection or Supabase config'}</p></div></div>)}</div>
        )}

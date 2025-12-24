@@ -9,12 +9,12 @@ import {
   Calendar, Heart, FileText, UserPlus, ChevronRight, KeyRound, Sparkles, Eye, EyeOff, Camera
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, syncData } from '../lib/db';
+import { DataService, syncData, getImageSrc } from '../lib/db';
 import { syncManager } from '../lib/syncManager';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -93,6 +93,34 @@ interface SettingsProps {
   session: any;
 }
 
+const resizeImage = (file: File, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width; let height = img.height;
+      if (width > height) {
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+      } else {
+        if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Could not get canvas context'));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('Image failed to load.'));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) { img.src = e.target.result as string; } 
+      else { reject(new Error('FileReader failed to read file.')); }
+    };
+    reader.onerror = () => reject(reader.error || new Error('FileReader unknown error'));
+    reader.readAsDataURL(file);
+  });
+};
+
 export const Settings: React.FC<SettingsProps> = ({
   language, setLanguage, theme, toggleTheme,
   profiles, activeProfileId, onProfileChange, onRefreshData,
@@ -104,7 +132,6 @@ export const Settings: React.FC<SettingsProps> = ({
   onSaveSuccess,
   session
 }) => {
-  // FIX: Provide a strong type for the translation key.
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' });
@@ -114,7 +141,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const [editingGrowth, setEditingGrowth] = useState<Partial<GrowthData>>({});
   const [isProcessingProfileImage, setIsProcessingProfileImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const isWeb = Capacitor.getPlatform() === 'web';
 
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [savedApiKey, setSavedApiKey] = useState<string | null>(null);
@@ -183,14 +209,25 @@ export const Settings: React.FC<SettingsProps> = ({
       if (p) setEditingProfile(p); 
     } 
   }, [activeProfileId, profiles]);
+  
+  const saveImageToFile = async (dataUrl: string): Promise<string> => {
+      const fileName = `profile_${editingProfile.id}_${new Date().getTime()}.jpeg`;
+      const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: dataUrl,
+          directory: Directory.Data
+      });
+      return savedFile.uri;
+  };
 
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && editingProfile.id) {
         setIsProcessingProfileImage(true);
         try {
-            const url = await DataService.uploadImage(file);
-            setEditingProfile(prev => ({ ...prev, profileImage: url }));
+            const resizedDataUrl = await resizeImage(file);
+            const fileUri = await saveImageToFile(resizedDataUrl);
+            setEditingProfile(prev => ({ ...prev, profileImage: fileUri }));
         } catch (error) {
             console.error("Profile image upload failed:", error);
             alert("Profile image upload failed.");
@@ -202,39 +239,36 @@ export const Settings: React.FC<SettingsProps> = ({
   };
   
   const handleTakeProfilePhoto = async () => {
+    if (!Capacitor.isNativePlatform()) {
+        imageInputRef.current?.click();
+        return;
+    }
     setIsProcessingProfileImage(true);
     try {
-      const permissions = await CapacitorCamera.checkPermissions();
-      if (permissions.camera !== 'granted') {
-        const newPermissions = await CapacitorCamera.requestPermissions();
-        if (newPermissions.camera !== 'granted') {
-          alert(language === 'mm' ? "Camera သုံးဖို့ Permission ပေးရန် လိုအပ်ပါတယ်" : "Camera permission is required to take photos.");
-          setIsProcessingProfileImage(false);
-          return;
-        }
-      }
-      
       const image = await CapacitorCamera.getPhoto({
-        quality: 90,
-        allowEditing: true,
-        resultType: CameraResultType.DataUrl
+        quality: 90, allowEditing: true, resultType: CameraResultType.DataUrl
       });
-
       if (image.dataUrl) {
-        setEditingProfile(prev => ({ ...prev, profileImage: image.dataUrl }));
+        const fileUri = await saveImageToFile(image.dataUrl);
+        setEditingProfile(prev => ({ ...prev, profileImage: fileUri }));
       }
     } catch (error) {
       console.error("Failed to take photo", error);
-      if (!(error instanceof Error && error.message.toLowerCase().includes('cancelled'))) {
-         alert(language === 'mm' ? "ဓာတ်ပုံရိုက်မရပါ။" : "Failed to take photo.");
-      }
     } finally {
         setIsProcessingProfileImage(false);
     }
   };
 
-  const handleRemoveImage = (e: React.MouseEvent) => {
+  const handleRemoveImage = async (e: React.MouseEvent) => {
       e.stopPropagation();
+      const currentImage = editingProfile.profileImage;
+      if (currentImage && currentImage.startsWith('file://')) {
+          try {
+              await Filesystem.deleteFile({ path: currentImage });
+          } catch (err) {
+              console.warn("Could not delete profile image file:", err);
+          }
+      }
       setEditingProfile(prev => ({...prev, profileImage: undefined}));
   };
 
@@ -306,7 +340,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 <button onClick={() => DataService.saveProfile({ id: crypto.randomUUID(), name: t('add_new_profile'), dob: new Date().toISOString().split('T')[0], gender: 'boy' }).then(() => onRefreshData())} className="text-primary text-[10px] font-black uppercase tracking-wider px-4 py-2.5 bg-primary/5 rounded-2xl flex items-center gap-1.5 active:scale-95 transition-all"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar border-b border-slate-50 dark:border-slate-700/50 mb-5 items-center">
-                {profiles.map(p => (<button key={p.id} onClick={() => onProfileChange(p.id!)} className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 ${p.id === activeProfileId ? 'scale-105' : 'opacity-40 grayscale'}`}><div className={`w-12 h-12 rounded-[18px] border-2 overflow-hidden flex items-center justify-center ${p.id === activeProfileId ? 'border-primary ring-4 ring-primary/10 shadow-lg' : 'border-transparent bg-slate-100 dark:bg-slate-700'}`}>{p.profileImage ? <img src={p.profileImage} className="w-full h-full object-cover" /> : <Baby className="w-5 h-5 text-slate-400" />}</div><span className="text-[9px] font-black truncate max-w-[50px]">{p.name}</span></button>))}
+                {profiles.map(p => (<button key={p.id} onClick={() => onProfileChange(p.id!)} className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 ${p.id === activeProfileId ? 'scale-105' : 'opacity-40 grayscale'}`}><div className={`w-12 h-12 rounded-[18px] border-2 overflow-hidden flex items-center justify-center ${p.id === activeProfileId ? 'border-primary ring-4 ring-primary/10 shadow-lg' : 'border-transparent bg-slate-100 dark:bg-slate-700'}`}>{p.profileImage ? <img src={getImageSrc(p.profileImage)} className="w-full h-full object-cover" /> : <Baby className="w-5 h-5 text-slate-400" />}</div><span className="text-[9px] font-black truncate max-w-[50px]">{p.name}</span></button>))}
             </div>
             <div className="flex items-center justify-between px-1">
                 <div className="text-left">
@@ -321,13 +355,13 @@ export const Settings: React.FC<SettingsProps> = ({
                  <div className="flex flex-col items-center mb-4">
                     <div className="relative group w-24 h-24">
                        <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center">
-                          {isProcessingProfileImage ? (<Loader2 className="w-8 h-8 text-primary animate-spin" />) : editingProfile.profileImage ? (<img src={editingProfile.profileImage} className="w-full h-full object-cover" alt="Profile" />) : (<Baby className="w-10 h-10 text-slate-400" />)}
+                          {isProcessingProfileImage ? (<Loader2 className="w-8 h-8 text-primary animate-spin" />) : editingProfile.profileImage ? (<img src={getImageSrc(editingProfile.profileImage)} className="w-full h-full object-cover" alt="Profile" />) : (<Baby className="w-10 h-10 text-slate-400" />)}
                        </div>
                        {editingProfile.profileImage && !isProcessingProfileImage && (<button type="button" onClick={handleRemoveImage} className="absolute top-0 right-0 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"><X className="w-3 h-3" /></button>)}
                     </div>
 
                     <div className="flex gap-3 mt-4">
-                       {isWeb ? (<button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><ImageIcon className="w-3.5 h-3.5" />{t('upload_photo')}</button>) : (<button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><Camera className="w-3.5 h-3.5" />{t('take_photo')}</button>)}
+                       {Capacitor.isNativePlatform() ? (<button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><Camera className="w-3.5 h-3.5" />{t('take_photo')}</button>) : (<button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><ImageIcon className="w-3.5 h-3.5" />{t('upload_photo')}</button>)}
                     </div>
                     <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
                 </div>
@@ -392,7 +426,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
-      {view === 'MEMORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2><div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner"><Filter className="w-5 h-5" /></div></div>{memories.length > 0 ? (<div className="grid gap-3">{memories.map(m => (<div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all"><div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center">{m.imageUrls && m.imageUrls.length > 0 ? (<img src={m.imageUrls[0]} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300" />)}</div><div className="min-w-0 text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p></div><div className="flex gap-1 pr-1 ml-auto"><button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (<div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p></div>)}</div>))}
+      {view === 'MEMORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2><div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner"><Filter className="w-5 h-5" /></div></div>{memories.length > 0 ? (<div className="grid gap-3">{memories.map(m => (<div key={m.id} className="bg-white dark:bg-slate-800 p-3 rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center gap-4 group hover:shadow-md transition-all"><div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center">{m.imageUrls && m.imageUrls.length > 0 ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300" />)}</div><div className="min-w-0 text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Clock className="w-2.5 h-2.5"/> {m.date}</p></div><div className="flex gap-1 pr-1 ml-auto"><button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (<div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p></div>)}</div>))}
       {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
       {view === 'STORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}

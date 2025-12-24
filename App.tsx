@@ -12,7 +12,7 @@ const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal'
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -188,7 +188,6 @@ function App() {
   const executeDelete = async () => {
     if (!deleteCallback) return;
     
-    // You could add a global loading state here if needed
     try {
       await deleteCallback();
       triggerSuccess('delete_success');
@@ -242,7 +241,6 @@ function App() {
     return 'NONE';
   };
 
-  // FIX: Add explicit type to ensure `tab.label` is a valid key for the `t` function.
   const tabs: { id: TabView; icon: React.ElementType; label: keyof typeof translations }[] = [
     { id: TabView.HOME, icon: Home, label: 'nav_home' },
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
@@ -297,14 +295,14 @@ function App() {
                       )}
                   </div>
                </div>
-               {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={activeProfile.profileImage} className="w-full h-full object-cover" /></div>)}
+               {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="col-span-2 md:col-span-2">
                   {latestMemory && latestMemory.imageUrls && latestMemory.imageUrls.length > 0 ? (
                       <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
-                        <img src={latestMemory.imageUrls[0]} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
+                        <img src={getImageSrc(latestMemory.imageUrls[0])} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
                           <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
                           <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
@@ -329,7 +327,7 @@ function App() {
                  {memories.slice(0, 4).map(m => (
                     <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
                        <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700">
-                        {m.imageUrls && m.imageUrls.length > 0 ? (<img src={m.imageUrls[0]} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
+                        {m.imageUrls && m.imageUrls.length > 0 ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
                        </div>
                        <div className="flex-1 min-w-0"><h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p></div>
                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all"><ChevronRight className="w-4.5 h-4.5" /></div>

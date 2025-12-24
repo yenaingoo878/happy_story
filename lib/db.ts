@@ -4,6 +4,7 @@ import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '.
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
@@ -16,6 +17,15 @@ export type LittleMomentsDB = Dexie & {
 };
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
+
+// Helper to convert file URIs to displayable sources for the webview
+export const getImageSrc = (src?: string) => {
+    if (!src) return undefined;
+    if (src.startsWith('file://') && Capacitor.isNativePlatform()) {
+        return Capacitor.convertFileSrc(src);
+    }
+    return src; // Works for http, data:, and blob: URLs
+};
 
 db.version(6).stores({
   memories: 'id, childId, date, synced',
@@ -163,12 +173,12 @@ export const syncData = async () => {
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
-                if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('data:image'))) {
+                if (Capacitor.isNativePlatform() && memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://'))) {
                     const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
-                        if (url.startsWith('data:image')) {
-                            const res = await fetch(url);
-                            const blob = await res.blob();
-                            const file = new File([blob], "upload.jpg", { type: blob.type });
+                        if (url.startsWith('file://')) {
+                            const fileData = await Filesystem.readFile({ path: url });
+                            const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                            const file = new File([blob], "upload.jpeg", { type: 'image/jpeg' });
                             return await uploadFileToSupabase(file, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
@@ -203,10 +213,10 @@ export const syncData = async () => {
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
-                if (profileToSync.profileImage && profileToSync.profileImage.startsWith('data:image')) {
-                    const res = await fetch(profileToSync.profileImage);
-                    const blob = await res.blob();
-                    const file = new File([blob], "profile.jpg", { type: blob.type });
+                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
+                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
                     const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
@@ -265,7 +275,6 @@ export const blobToBase64 = (blob: Blob): Promise<string> => {
     });
 };
 
-// FIX: Update createActionHandler to be a generic function that accepts an argument.
 const createActionHandler = <T,>(localAction: (arg: T) => Promise<any>) => {
     return async (arg: T) => {
         const result = await localAction(arg);
@@ -274,9 +283,13 @@ const createActionHandler = <T,>(localAction: (arg: T) => Promise<any>) => {
     };
 };
 
-const createDeleteHandler = (tableName: string, supabaseTable: string) => {
+const createDeleteHandler = (tableName: string, supabaseTable: string, fileCleanup?: (id: string) => Promise<void>) => {
     return async (id: string): Promise<{ success: boolean; error?: any }> => {
         try {
+            if (Capacitor.isNativePlatform() && fileCleanup) {
+                await fileCleanup(id).catch(e => console.warn("File cleanup failed during deletion:", e));
+            }
+
             if (isSupabaseConfigured() && navigator.onLine) {
                 const { error } = await supabase.from(supabaseTable).delete().eq('id', id);
                 if (error) throw error;
@@ -293,6 +306,24 @@ const createDeleteHandler = (tableName: string, supabaseTable: string) => {
     };
 };
 
+const memoryFileCleanup = async (id: string) => {
+    const memory = await db.memories.get(id);
+    if (memory?.imageUrls) {
+        for (const url of memory.imageUrls) {
+            if (url.startsWith('file://')) {
+                await Filesystem.deleteFile({ path: url });
+            }
+        }
+    }
+};
+
+const profileFileCleanup = async (id: string) => {
+    const profile = await db.profiles.get(id);
+    if (profile?.profileImage?.startsWith('file://')) {
+        await Filesystem.deleteFile({ path: profile.profileImage });
+    }
+};
+
 export const DataService = {
     getSetting: async (key: string) => await db.app_settings.get(key),
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
@@ -306,6 +337,19 @@ export const DataService = {
             await db.reminders.clear();
             await db.cloud_photo_cache.clear();
         });
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { files } = await Filesystem.readdir({ path: '', directory: Directory.Data });
+                for (const file of files) {
+                    if (file.name.endsWith('.jpeg')) {
+                        await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not clear app data directory", e);
+            }
+        }
     },
 
     uploadImage: async (file: File) => await blobToBase64(file),
@@ -316,7 +360,7 @@ export const DataService = {
         return mems.reverse();
     },
     addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: 0, is_deleted: 0 })),
-    deleteMemory: createDeleteHandler('memories', 'memories'),
+    deleteMemory: createDeleteHandler('memories', 'memories', memoryFileCleanup),
 
     getStories: async (childId?: string) => {
         const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);
@@ -334,7 +378,7 @@ export const DataService = {
     
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
     saveProfile: createActionHandler(async (profile: ChildProfile) => db.profiles.put({ ...profile, synced: 0, is_deleted: 0 })),
-    deleteProfile: createDeleteHandler('profiles', 'child_profile'),
+    deleteProfile: createDeleteHandler('profiles', 'child_profile', profileFileCleanup),
 
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
@@ -392,14 +436,12 @@ export const DataService = {
             const bucketName = 'images';
             const bucketPath = `/${bucketName}/`;
             
-            // The pathname is typically /storage/v1/object/public/images/path/to/file.png
             const pathStartIndex = url.pathname.indexOf(bucketPath);
 
             if (pathStartIndex === -1) {
                 throw new Error("Invalid photo URL format: bucket 'images' not found in path.");
             }
 
-            // Extract the path of the file within the bucket
             const filePath = url.pathname.substring(pathStartIndex + bucketPath.length);
 
             if (!filePath) {

@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Memory, Language } from '../types';
 import { X, Calendar, Tag, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
+import { getImageSrc } from '../lib/db';
 
 interface MemoryDetailModalProps {
   memory: Memory | null;
@@ -14,7 +14,6 @@ interface MemoryDetailModalProps {
 export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, language, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isImageLoading, setIsImageLoading] = useState(true);
-  // FIX: Provide a strong type for the translation key.
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   useEffect(() => {
@@ -65,7 +64,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
           )}
           {hasImages && (
              <img 
-              src={memory.imageUrls[currentIndex]} 
+              src={getImageSrc(memory.imageUrls[currentIndex])} 
               alt={`${memory.title} - ${currentIndex + 1}`}
               className={`w-full h-full object-cover transition-opacity duration-300 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
               onLoad={() => setIsImageLoading(false)}
