@@ -1,11 +1,69 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, blobToBase64 } from '../lib/db';
+import { DataService } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
+
+// Helper function to resize images to a max dimension while maintaining aspect ratio
+const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      // Calculate new dimensions while preserving aspect ratio
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        return reject(new Error('Could not get canvas context'));
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert canvas to a JPEG data URL with specified quality for better compression
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+
+    img.onerror = (error) => {
+      reject(error);
+    };
+
+    if (typeof file === 'string') {
+        img.src = file; // It's already a data URL from the camera
+    } else { // It's a File object from the file input
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (e.target?.result) {
+                img.src = e.target.result as string;
+            } else {
+                reject(new Error('FileReader failed to read file.'));
+            }
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+    }
+  });
+};
+
 
 interface AddMemoryProps {
   language: Language;
@@ -65,8 +123,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (files && files.length > 0) {
       setIsProcessing(true); 
       try {
-        const base64Promises = Array.from(files).map(file => blobToBase64(file as File));
-        const newImageUrls = await Promise.all(base64Promises);
+        const resizedImagePromises = Array.from(files).map(file => resizeImage(file));
+        const newImageUrls = await Promise.all(resizedImagePromises);
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUrls] }));
       } catch (error) { console.error("Image processing failed", error); alert("Failed to process images."); }
       finally {
@@ -89,7 +147,10 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       }
       
       const image = await CapacitorCamera.getPhoto({ quality: 90, allowEditing: false, resultType: CameraResultType.DataUrl });
-      if (image.dataUrl) setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, image.dataUrl!] }));
+      if (image.dataUrl) {
+        const resizedDataUrl = await resizeImage(image.dataUrl);
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, resizedDataUrl] }));
+      }
     } catch (error) {
       console.error("Failed to take photo", error);
       if (!(error instanceof Error && error.message.toLowerCase().includes('cancelled'))) {
