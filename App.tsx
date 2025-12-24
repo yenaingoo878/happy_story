@@ -1,15 +1,11 @@
-
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
 const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(module => ({ default: module.GalleryGrid })));
 const AddMemory = React.lazy(() => import('./components/AddMemory').then(module => ({ default: module.AddMemory })));
-/* Fix: Property 'Settings' does not exist on module. 
-   Using a safe check for either named export 'SettingsComponent' or fallback to default export. 
-   Renamed 'Settings' icon from lucide-react to 'SettingsIcon' to avoid scope shadowing. */
-const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: (module as any).SettingsComponent || (module as any).Settings || module.default })));
+const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 
@@ -291,7 +287,7 @@ function App() {
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
     { id: TabView.ADD_MEMORY, icon: PlusCircle, label: 'nav_create' },
     { id: TabView.GROWTH, icon: Activity, label: 'nav_growth' },
-    { id: TabView.SETTINGS, icon: SettingsIcon, label: 'nav_settings' },
+    { id: TabView.SETTINGS, icon: Settings, label: 'nav_settings' },
   ];
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
