@@ -285,7 +285,18 @@ function App() {
                </div>
             )}
             <div className="flex justify-between items-center mb-2">
-               <div><h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1><p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p></div>
+               <div>
+                  <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
+                  <div className="flex items-center gap-3">
+                      <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+                      {syncState.status === 'syncing' && (
+                          <div className="flex items-center gap-1.5 text-sky-500 animate-fade-in">
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">{t('sync_now')}...</span>
+                          </div>
+                      )}
+                  </div>
+               </div>
                {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={activeProfile.profileImage} className="w-full h-full object-cover" /></div>)}
             </div>
             
