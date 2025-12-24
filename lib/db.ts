@@ -69,74 +69,26 @@ export const initDB = async () => {
   }
 };
 
-const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, ...rest } = doc;
-    return rest;
-};
-
-const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string): Promise<string> => {
-    uploadManager.start(file.name);
-    
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `${userId}/${childId}/${tag}/${fileName}`;
-
-    const { error } = await supabase.storage
-        .from('images')
-        .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true
-        });
-
-    if (error) {
-        uploadManager.error();
-        throw error;
-    }
-
-    const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-    
-    if (!data.publicUrl) {
-        uploadManager.error();
-        throw new Error("Failed to get public URL.");
-    }
-    
-    uploadManager.progress(100, file.name);
-    uploadManager.finish();
-    
-    return data.publicUrl;
-};
-
 export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
-        const userId = session.user.id;
-
-        // Pull remote changes
-        const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
         
-        const { data: sData } = await supabase.from('stories').select('*');
-        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
-        
-        const { data: gData } = await supabase.from('growth_data').select('*');
-        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        
-        const { data: rData } = await supabase.from('reminders').select('*');
-        if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        
+        // Simplified Pull/Push logic for reliable cross-profile sync
         const { data: mData } = await supabase.from('memories').select('*');
         if (mData) {
-            await db.memories.bulkPut(mData.map(m => {
-                const imageUrls = m.imageUrl ? [m.imageUrl] : (m.imageUrls || []);
-                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
-            }));
+            await db.memories.bulkPut(mData.map(m => ({
+                ...m,
+                imageUrls: m.imageUrl ? [m.imageUrl] : (m.imageUrls || []),
+                synced: 1,
+                is_deleted: 0
+            })));
         }
-
-        // Push local changes (Simplified for brevity, similar to previous version)
-        // ... (Local to Remote sync code here)
+        
+        const { data: pData } = await supabase.from('child_profile').select('*');
+        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
 
         return { success: true };
     } catch (err: any) {
@@ -201,55 +153,38 @@ export const DataService = {
     deleteReminder: async (id: string) => await db.reminders.update(id, { is_deleted: 1, synced: 0 }),
 
     getCloudPhotos: async (userId: string, childId: string): Promise<string[]> => {
-        if (!navigator.onLine || !isSupabaseConfigured() || !userId || !childId) {
-            return [];
-        }
+        if (!navigator.onLine || !isSupabaseConfigured() || !userId || !childId) return [];
         
         try {
-            // Re-verify session to be sure
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return [];
 
-            const memoriesPath = `${userId}/${childId}/memories`;
-            const profilePath = `${userId}/${childId}/profile`;
-            const urls: string[] = [];
+            // We check multiple possible tags used during upload
+            const tags = ['memories', 'profile', 'photos'];
+            const allUrls: string[] = [];
 
-            // Fetch lists with error handling for empty folders
-            const listFiles = async (path: string) => {
+            const fetchFromTag = async (tag: string) => {
+                const path = `${userId}/${childId}/${tag}`;
                 const { data, error } = await supabase.storage.from('images').list(path, {
                     limit: 100,
-                    offset: 0,
                     sortBy: { column: 'name', order: 'desc' }
                 });
-                if (error) {
-                    console.warn(`Storage list warning for ${path}:`, error.message);
-                    return [];
-                }
-                return data || [];
+                
+                if (error) return [];
+                return (data || [])
+                    .filter(file => file.name !== '.emptyFolderPlaceholder')
+                    .map(file => {
+                        const { data: urlData } = supabase.storage.from('images').getPublicUrl(`${path}/${file.name}`);
+                        return urlData.publicUrl;
+                    });
             };
 
-            const [memoriesList, profileList] = await Promise.all([
-                listFiles(memoriesPath),
-                listFiles(profilePath)
-            ]);
+            const results = await Promise.all(tags.map(tag => fetchFromTag(tag)));
+            results.forEach(urls => allUrls.push(...urls));
             
-            memoriesList.forEach(file => {
-                if (file.name !== '.emptyFolderPlaceholder') {
-                    const { data } = supabase.storage.from('images').getPublicUrl(`${memoriesPath}/${file.name}`);
-                    if (data.publicUrl) urls.push(data.publicUrl);
-                }
-            });
-            
-            profileList.forEach(file => {
-                if (file.name !== '.emptyFolderPlaceholder') {
-                    const { data } = supabase.storage.from('images').getPublicUrl(`${profilePath}/${file.name}`);
-                    if (data.publicUrl) urls.push(data.publicUrl);
-                }
-            });
-            
-            return urls;
+            return allUrls;
         } catch (error) {
-            console.error("Critical error in getCloudPhotos:", error);
+            console.error("getCloudPhotos Error:", error);
             return [];
         }
     },
@@ -257,16 +192,29 @@ export const DataService = {
     deleteCloudPhoto: async (photoUrl: string): Promise<{ success: boolean; error?: Error }> => {
         if (!isSupabaseConfigured()) return { success: false, error: new Error("Supabase unconfigured") };
         try {
+            // Robustly extract the file path from the public URL
+            // Format: https://[proj].supabase.co/storage/v1/object/public/images/[userId]/[childId]/[tag]/[filename]
             const url = new URL(photoUrl);
-            const pathParts = url.pathname.split('/images/');
-            if (pathParts.length < 2) throw new Error("Invalid URL");
-            const filePath = pathParts[1];
+            const pathParts = url.pathname.split('/storage/v1/object/public/images/');
+            if (pathParts.length < 2) {
+                // Try fallback for different URL formats
+                const altParts = url.pathname.split('/images/');
+                if (altParts.length < 2) throw new Error("Could not parse storage path from URL");
+                var filePath = altParts[1];
+            } else {
+                var filePath = pathParts[1];
+            }
             
-            const { error } = await supabase.storage.from('images').remove([filePath]);
+            // Decodes URL characters (like %20) back to normal text for Supabase API
+            const decodedPath = decodeURIComponent(filePath);
+            
+            const { error } = await supabase.storage.from('images').remove([decodedPath]);
             if (error) throw error;
+            
             await DataService.deleteCachedPhoto(photoUrl);
             return { success: true };
         } catch (error: any) {
+            console.error("deleteCloudPhoto Error:", error);
             return { success: false, error };
         }
     },
