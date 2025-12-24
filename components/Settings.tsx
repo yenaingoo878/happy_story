@@ -299,8 +299,8 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
 
           {/* User Profile Card */}
-          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-=90 dark:border-slate-700 p-5">
-            <div className="flex items-center justify-between mb-4 px-1">
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-=100 dark:border-slate-700 p-5">
+            <div className="flex items-center justify-between mb-4 mt-3 px-1">
                 <div className="flex items-center gap-2.5">
                    <CircleUser className="w-4 h-4 text-slate-400"/>
                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('about_child')}</h3>
