@@ -361,7 +361,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     value={editingProfile.name} 
                     onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} 
                   />
-                  <div className="space-y-3">
+                  <div className="space-y-3 text-align: start">
                     <IOSInput 
                       label={t('child_dob')} 
                       icon={Calendar} 
@@ -370,7 +370,7 @@ export const Settings: React.FC<SettingsProps> = ({
                       onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} 
                     />
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-3 text-align: start">
                     <IOSInput 
                       label={t('birth_time')} 
                       icon={Clock} 
