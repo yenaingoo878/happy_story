@@ -299,7 +299,7 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
 
           {/* User Profile Card */}
-          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-100 dark:border-slate-700 p-5">
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-=90 dark:border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4 px-1">
                 <div className="flex items-center gap-2.5">
                    <CircleUser className="w-4 h-4 text-slate-400"/>
@@ -361,7 +361,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     value={editingProfile.name} 
                     onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} 
                   />
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <IOSInput 
                       label={t('child_dob')} 
                       icon={Calendar} 
@@ -369,6 +369,8 @@ export const Settings: React.FC<SettingsProps> = ({
                       value={editingProfile.dob} 
                       onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} 
                     />
+                  </div>
+                  <div className="space-y-3">
                     <IOSInput 
                       label={t('birth_time')} 
                       icon={Clock} 
