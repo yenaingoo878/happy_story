@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Memory, Language } from '../types';
-import { Image as ImageIcon, Search, Cloud, HardDrive, Loader2, X, Trash2, RefreshCw } from 'lucide-react';
+import { Image as ImageIcon, Search, Cloud, HardDrive, Loader2, X, Trash2 } from 'lucide-react';
 import { getTranslation } from '../utils/translations';
 import { DataService, blobToBase64 } from '../lib/db';
 
@@ -22,25 +22,17 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'CLOUD') {
+    if (activeTab === 'CLOUD' && userId && activeProfileId) {
       fetchCloudPhotos();
     }
   }, [activeTab, userId, activeProfileId]);
 
   const fetchCloudPhotos = async () => {
-    if (!userId || !activeProfileId) {
-        setCloudPhotos([]);
-        return;
-    }
+    if (!userId || !activeProfileId) return;
     setIsLoadingCloud(true);
-    try {
-        const photos = await DataService.getCloudPhotos(userId, activeProfileId);
-        setCloudPhotos(photos);
-    } catch (err) {
-        console.error("Fetch Cloud Error:", err);
-    } finally {
-        setIsLoadingCloud(false);
-    }
+    const photos = await DataService.getCloudPhotos(userId, activeProfileId);
+    setCloudPhotos(photos);
+    setIsLoadingCloud(false);
   };
 
   const handlePreviewClick = async (url: string) => {
@@ -55,27 +47,35 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
             setPreviewState({ url, data: cached.base64data, isLoading: false });
         } else {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("Fetch Error");
+            if (!response.ok) throw new Error(`Image fetch failed: ${response.statusText}`);
             const blob = await response.blob();
-            if (blob.size === 0) throw new Error("Empty Blob");
+
+            // Validate the fetched blob to prevent caching invalid data (e.g., from opaque responses)
+            if (blob.size === 0 || !blob.type.startsWith('image/')) {
+                throw new Error(`Invalid image data received. Size: ${blob.size}, Type: ${blob.type}`);
+            }
 
             const base64data = await blobToBase64(blob);
             await DataService.cachePhoto(url, userId, base64data);
             setPreviewState({ url, data: base64data, isLoading: false });
         }
     } catch (error) {
+        console.error("Failed to load or cache image:", error);
         setPreviewState({ url, data: url, isLoading: false });
     }
   };
 
   const handleDeleteCloudPhoto = async (url: string) => {
     if (isDeleting) return;
-    if (window.confirm(t('confirm_delete'))) {
+    const confirmDelete = window.confirm(t('confirm_delete'));
+    if (confirmDelete) {
         setIsDeleting(true);
-        const { success } = await DataService.deleteCloudPhoto(url);
+        const { success, error } = await DataService.deleteCloudPhoto(url);
         if (success) {
             setPreviewState({ url: null, data: null, isLoading: false });
             await fetchCloudPhotos();
+        } else {
+            alert("Deletion failed: " + error?.message);
         }
         setIsDeleting(false);
     }
@@ -102,13 +102,9 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
               </h1>
               <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mt-0.5 transition-colors">{t('gallery_subtitle')}</p>
             </div>
-            {activeTab === 'CLOUD' && (
-                <button onClick={fetchCloudPhotos} disabled={isLoadingCloud} className="p-2 text-slate-400 hover:text-primary transition-colors active:rotate-180 duration-500">
-                    <RefreshCw className={`w-5 h-5 ${isLoadingCloud ? 'animate-spin' : ''}`} />
-                </button>
-            )}
           </div>
 
+          {/* Sub-Tabs Selector */}
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[24px] max-w-sm mx-auto shadow-inner border border-slate-200 dark:border-slate-700/50">
              <button 
                 onClick={() => setActiveTab('LOCAL')}
@@ -126,6 +122,7 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
              </button>
           </div>
           
+          {/* Search Bar */}
           {activeTab === 'LOCAL' && (
             <div className="relative max-w-md mx-auto group">
                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -151,7 +148,11 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                  className="group relative rounded-[28px] overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800"
                >
                  {memory.imageUrls && memory.imageUrls.length > 0 ? (
-                    <img src={memory.imageUrls[0]} alt={memory.title} className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" />
+                    <img 
+                     src={memory.imageUrls[0]} 
+                     alt={memory.title} 
+                     className="w-full h-full object-cover transform transition-transform duration-700 md:group-hover:scale-110" 
+                    />
                  ) : (
                    <div className="w-full h-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
                      <ImageIcon className="w-10 h-10 text-slate-200 dark:text-slate-700"/>
@@ -168,14 +169,22 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
              {isLoadingCloud ? (
                 <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4">
                    <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                   <p className="text-[10px] font-black uppercase tracking-widest">Listing cloud files...</p>
+                   <p className="text-[10px] font-black uppercase tracking-widest">Fetching from Supabase...</p>
                 </div>
              ) : cloudPhotos.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                    {cloudPhotos.map((url, index) => (
-                      <div key={index} onClick={() => handlePreviewClick(url)} className="relative rounded-[28px] overflow-hidden shadow-sm border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800 group">
-                         <img src={url} className="w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-110" alt="Cloud" />
-                         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"><div className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white"><Cloud className="w-3.5 h-3.5" /></div></div>
+                      <div 
+                         key={index} 
+                         onClick={() => handlePreviewClick(url)}
+                         className="relative rounded-[28px] overflow-hidden shadow-sm border border-white dark:border-slate-700 cursor-pointer aspect-square active:scale-95 bg-white dark:bg-slate-800 group"
+                      >
+                         <img src={url} className="w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-110" alt={`Cloud Photo ${index}`} />
+                         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white">
+                               <Cloud className="w-3.5 h-3.5" />
+                            </div>
+                         </div>
                       </div>
                    ))}
                 </div>
@@ -183,8 +192,8 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
                 <div className="py-24 text-center text-slate-400 flex flex-col items-center gap-5 opacity-40">
                    <Cloud className="w-14 h-14" />
                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-widest">{!userId ? 'Sign in to see cloud photos' : (language === 'mm' ? 'Cloud ပေါ်တွင် ဓာတ်ပုံမရှိသေးပါ' : 'No cloud photos found')}</p>
-                      <p className="text-[10px] font-bold">{!userId ? 'Sync requires a Supabase account' : (language === 'mm' ? 'အင်တာနက်လိုင်း နှင့် Supabase ချိတ်ဆက်မှုကို စစ်ဆေးပါ' : 'Check connection or Supabase config')}</p>
+                      <p className="text-xs font-black uppercase tracking-widest">{language === 'mm' ? 'Cloud ပေါ်တွင် ဓာတ်ပုံမရှိသေးပါ' : 'No cloud photos found'}</p>
+                      <p className="text-[10px] font-bold">{language === 'mm' ? 'အင်တာနက်လိုင်း နှင့် Supabase ချိတ်ဆက်မှုကို စစ်ဆေးပါ' : 'Check connection or Supabase config'}</p>
                    </div>
                 </div>
              )}
@@ -193,17 +202,42 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
        
        {activeTab === 'LOCAL' && filteredMemories.length === 0 && (
          <div className="flex flex-col items-center justify-center py-24 text-slate-400/50">
-           <Search className="w-14 h-14 mb-4 opacity-20" />
-           <p className="text-xs font-black uppercase tracking-widest">{searchTerm ? 'No matches' : t('no_photos')}</p>
+           {searchTerm ? (
+               <>
+                <Search className="w-14 h-14 mb-4 opacity-20" />
+                <p className="text-xs font-black uppercase tracking-widest">No matches found</p>
+               </>
+           ) : (
+               <>
+                <ImageIcon className="w-14 h-14 mb-4 opacity-20" />
+                <p className="text-xs font-black uppercase tracking-widest">{t('no_photos')}</p>
+               </>
+           )}
          </div>
        )}
 
+       {/* Full Screen Image Preview for Cloud Photos */}
        {previewState.url && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-fade-in">
              <div className="absolute inset-0" onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} />
-             <button onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-[210]"><X className="w-6 h-6" /></button>
-             {previewState.isLoading ? <Loader2 className="w-12 h-12 text-white animate-spin" /> : <img src={previewState.data || previewState.url} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl relative z-[205]" alt="Full" />}
-             <button onClick={(e) => { e.stopPropagation(); if(previewState.url) handleDeleteCloudPhoto(previewState.url); }} disabled={isDeleting} className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[210] px-6 py-4 bg-rose-500/80 hover:bg-rose-600 backdrop-blur-md text-white rounded-2xl flex items-center gap-3 font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg disabled:opacity-50"><Trash2 className="w-5 h-5" />{isDeleting ? t('deleting') : t('delete')}</button>
+             <button onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-[210]">
+                <X className="w-6 h-6" />
+             </button>
+             
+             {previewState.isLoading ? (
+                <Loader2 className="w-12 h-12 text-white animate-spin" />
+             ) : (
+                <img src={previewState.data || previewState.url} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-zoom-in relative z-[205]" alt="Preview" />
+             )}
+
+             <button 
+                onClick={(e) => { e.stopPropagation(); if(previewState.url) handleDeleteCloudPhoto(previewState.url); }}
+                disabled={isDeleting || previewState.isLoading}
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[210] px-6 py-4 bg-rose-500/80 hover:bg-rose-600 backdrop-blur-md text-white rounded-2xl flex items-center gap-3 font-black text-sm uppercase tracking-widest active:scale-95 transition-all shadow-lg disabled:bg-rose-400/50 disabled:cursor-not-allowed"
+             >
+                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                {isDeleting ? t('deleting') : t('delete')}
+             </button>
           </div>
        )}
     </div>
