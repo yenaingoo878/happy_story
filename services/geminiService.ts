@@ -1,6 +1,8 @@
 
 
-import { GoogleGenerativeAI } from "@google/genai";
+
+// FIX: Import 'GoogleGenAI' instead of the deprecated 'GoogleGenerativeAI'.
+import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 import { DataService } from '../lib/db';
 

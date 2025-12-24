@@ -1,4 +1,3 @@
-
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
@@ -389,13 +388,24 @@ export const DataService = {
         if (!isSupabaseConfigured()) return { success: false, error: new Error("Supabase not configured.") };
         try {
             const url = new URL(photoUrl);
-            const pathParts = url.pathname.split('/images/');
-            if (pathParts.length < 2) {
-                throw new Error("Invalid photo URL format.");
-            }
-            const filePath = pathParts[1];
+            const bucketName = 'images';
+            const bucketPath = `/${bucketName}/`;
             
-            const { error } = await supabase.storage.from('images').remove([filePath]);
+            // The pathname is typically /storage/v1/object/public/images/path/to/file.png
+            const pathStartIndex = url.pathname.indexOf(bucketPath);
+
+            if (pathStartIndex === -1) {
+                throw new Error("Invalid photo URL format: bucket 'images' not found in path.");
+            }
+
+            // Extract the path of the file within the bucket
+            const filePath = url.pathname.substring(pathStartIndex + bucketPath.length);
+
+            if (!filePath) {
+                 throw new Error("Invalid photo URL format: file path is empty.");
+            }
+            
+            const { error } = await supabase.storage.from(bucketName).remove([filePath]);
             if (error) throw error;
 
             await DataService.deleteCachedPhoto(photoUrl);
