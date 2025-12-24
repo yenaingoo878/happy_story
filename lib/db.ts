@@ -3,6 +3,8 @@ import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from 
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
+import { KeepAwake } from '@capacitor/keep-awake';
+import { Capacitor } from '@capacitor/core';
 
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
@@ -77,11 +79,11 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
-const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string): Promise<string> => {
+const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     uploadManager.start(file.name);
     
     const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const fileName = `${itemId}_${imageIndex}.${fileExt}`;
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
     const { error } = await supabase.storage
@@ -133,17 +135,30 @@ const syncDeletions = async () => {
 export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
+    let hasImageUploads = false;
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
         const userId = session.user.id;
 
+        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
+
+        hasImageUploads = unsyncedMemories.some(m => m.imageUrls && m.imageUrls.some(u => u.startsWith('data:image'))) ||
+                          unsyncedProfiles.some(p => p.profileImage && p.profileImage.startsWith('data:image'));
+        
+        if (hasImageUploads && Capacitor.isNativePlatform()) {
+            try {
+                await KeepAwake.keepAwake();
+            } catch (e) {
+                console.warn("KeepAwake plugin failed:", e);
+            }
+        }
+
         await syncDeletions();
 
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
@@ -163,12 +178,12 @@ export const syncData = async () => {
             try {
                 let memoryToSync = { ...mem };
                 if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('data:image'))) {
-                    const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url) => {
+                    const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
                         if (url.startsWith('data:image')) {
                             const res = await fetch(url);
                             const blob = await res.blob();
                             const file = new File([blob], "upload.jpg", { type: blob.type });
-                            return await uploadFileToSupabase(file, userId, memoryToSync.childId, 'memories');
+                            return await uploadFileToSupabase(file, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
                     }));
@@ -206,7 +221,7 @@ export const syncData = async () => {
                     const res = await fetch(profileToSync.profileImage);
                     const blob = await res.blob();
                     const file = new File([blob], "profile.jpg", { type: blob.type });
-                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile');
+                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
@@ -252,6 +267,14 @@ export const syncData = async () => {
     } catch (err: any) {
         syncManager.error();
         return { success: false, error: err.message };
+    } finally {
+        if (hasImageUploads && Capacitor.isNativePlatform()) {
+            try {
+                await KeepAwake.allowSleep();
+            } catch (e) {
+                // Silently fail, plugin may not be available.
+            }
+        }
     }
 };
 

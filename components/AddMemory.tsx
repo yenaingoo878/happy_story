@@ -43,8 +43,10 @@ const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, qua
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
 
-    img.onerror = (error) => {
-      reject(error);
+    // FIX: The onerror handler for an HTMLImageElement receives a single Event argument,
+    // not the multi-argument signature for window.onerror. This is now corrected.
+    img.onerror = () => {
+      reject(new Error('Image failed to load.'));
     };
 
     if (typeof file === 'string') {
@@ -58,7 +60,8 @@ const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, qua
                 reject(new Error('FileReader failed to read file.'));
             }
         };
-        reader.onerror = (error) => reject(error);
+        // FIX: Correctly handle file reading errors by rejecting with the reader's error property.
+        reader.onerror = () => reject(reader.error || new Error('FileReader unknown error'));
         reader.readAsDataURL(file);
     }
   });
