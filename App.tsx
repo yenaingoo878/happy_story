@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -37,7 +36,7 @@ function App() {
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
-  const [itemToDelete, setItemToDelete] = useState<{ type: 'MEMORY' | 'GROWTH' | 'PROFILE' | 'REMINDER' | 'STORY', id: string } | null>(null);
+  const [deleteCallback, setDeleteCallback] = useState<(() => Promise<any>) | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -181,26 +180,26 @@ function App() {
       triggerSuccess('profile_saved');
   };
 
-  const executeDelete = async () => {
-     if (!itemToDelete) return;
-     let result: { success: boolean, error?: any };
-     switch(itemToDelete.type) {
-        case 'MEMORY': result = await DataService.deleteMemory(itemToDelete.id); break;
-        case 'STORY': result = await DataService.deleteStory(itemToDelete.id); break;
-        case 'GROWTH': result = await DataService.deleteGrowth(itemToDelete.id); break;
-        case 'PROFILE': result = await DataService.deleteProfile(itemToDelete.id); break;
-        case 'REMINDER': result = await DataService.deleteReminder(itemToDelete.id); break;
-        default: result = { success: false, error: "Unknown type" };
-     }
-     setShowConfirmModal(false);
-     setItemToDelete(null);
+  const requestDeleteConfirmation = (onConfirm: () => Promise<any>) => {
+      setDeleteCallback(() => onConfirm);
+      setShowConfirmModal(true);
+  };
 
-     if (result.success) {
-        triggerSuccess('delete_success');
-        await refreshData();
-     } else {
-        alert(t('delete_error_fallback'));
-     }
+  const executeDelete = async () => {
+    if (!deleteCallback) return;
+    
+    // You could add a global loading state here if needed
+    try {
+      await deleteCallback();
+      triggerSuccess('delete_success');
+      await refreshData();
+    } catch (e) {
+      console.error("Deletion failed:", e);
+      alert(t('delete_error_fallback'));
+    } finally {
+      setShowConfirmModal(false);
+      setDeleteCallback(null);
+    }
   };
 
   const validatePasscode = (code: string) => {
@@ -336,7 +335,7 @@ function App() {
                 {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} />}
                 {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await refreshData(); triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
                 {activeTab === TabView.GROWTH && <div className="max-w-4xl mx-auto"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>}
-                {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} userId={session?.user?.id} activeProfileId={activeProfileId} />}
+                {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} userId={session?.user?.id} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />}
                 {activeTab === TabView.SETTINGS && (
                   <SettingsComponent 
                     language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
@@ -344,15 +343,18 @@ function App() {
                     passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
                     onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
                     onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} onHideDetails={() => setIsAppUnlocked(false)} 
-                    growthData={growthData} memories={memories} stories={stories} onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }} 
-                    onDeleteMemory={(id) => { setItemToDelete({type:'MEMORY', id}); setShowConfirmModal(true); }} 
-                    onStoryClick={setSelectedStory} onDeleteStory={(id) => { setItemToDelete({type:'STORY', id}); setShowConfirmModal(true); }}
-                    onDeleteGrowth={(id) => { setItemToDelete({type:'GROWTH', id}); setShowConfirmModal(true); }}
+                    growthData={growthData} memories={memories} stories={stories} 
+                    onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }} 
+                    onDeleteMemory={(id) => requestDeleteConfirmation(() => DataService.deleteMemory(id))} 
+                    onStoryClick={setSelectedStory} 
+                    onDeleteStory={(id) => requestDeleteConfirmation(() => DataService.deleteStory(id))}
+                    onDeleteGrowth={(id) => requestDeleteConfirmation(() => DataService.deleteGrowth(id))}
                     onSaveGrowth={handleSaveGrowth}
-                    onDeleteProfile={(id) => { setItemToDelete({type:'PROFILE', id}); setShowConfirmModal(true); }} 
+                    onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))} 
                     isGuestMode={isGuestMode} onLogout={handleLogout} remindersEnabled={remindersEnabled} 
                     toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
-                    remindersList={reminders} onDeleteReminder={(id) => { setItemToDelete({type:'REMINDER', id}); setShowConfirmModal(true); }} 
+                    remindersList={reminders} 
+                    onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))} 
                     onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); triggerSuccess('profile_saved'); }}
                     onSaveSuccess={() => triggerSuccess('profile_saved')}
                     session={session}
@@ -400,7 +402,7 @@ function App() {
       {showPasscodeModal && (<div className="fixed inset-0 z-[200] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div><h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3><p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">{passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p><form onSubmit={handlePasscodeSubmit} className="space-y-8"><input autoFocus type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} value={passcodeInput} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 4); setPasscodeInput(val); if (passcodeError) setPasscodeError(false);}} className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner" placeholder="••••" /><div className="flex flex-col gap-2"><button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>{t('confirm')}</button>{passcodeMode !== 'UNLOCK' && (<button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">{t('cancel_btn')}</button>)}</div></form></div></div>)}
 
       {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} /></Suspense>)}
-      {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => { setItemToDelete({type:'STORY', id:selectedStory.id}); setShowConfirmModal(true); }} /></Suspense>)}
+      {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} /></Suspense>)}
 
       {showConfirmModal && (<div className="fixed inset-0 z-[110] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div><h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p><div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/30 active:scale-95 transition-all">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-all">{t('cancel_btn')}</button></div></div></div>)}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
