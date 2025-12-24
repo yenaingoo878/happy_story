@@ -3,7 +3,6 @@ import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from 
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
-import { KeepAwake } from '@capacitor/keep-awake';
 import { Capacitor } from '@capacitor/core';
 
 export type LittleMomentsDB = Dexie & {
@@ -135,30 +134,17 @@ const syncDeletions = async () => {
 export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
-    let hasImageUploads = false;
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
         const userId = session.user.id;
 
-        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
-
-        hasImageUploads = unsyncedMemories.some(m => m.imageUrls && m.imageUrls.some(u => u.startsWith('data:image'))) ||
-                          unsyncedProfiles.some(p => p.profileImage && p.profileImage.startsWith('data:image'));
-        
-        if (hasImageUploads && Capacitor.isNativePlatform()) {
-            try {
-                await KeepAwake.keepAwake();
-            } catch (e) {
-                console.warn("KeepAwake plugin failed:", e);
-            }
-        }
-
         await syncDeletions();
 
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
@@ -267,14 +253,6 @@ export const syncData = async () => {
     } catch (err: any) {
         syncManager.error();
         return { success: false, error: err.message };
-    } finally {
-        if (hasImageUploads && Capacitor.isNativePlatform()) {
-            try {
-                await KeepAwake.allowSleep();
-            } catch (e) {
-                // Silently fail, plugin may not be available.
-            }
-        }
     }
 };
 
