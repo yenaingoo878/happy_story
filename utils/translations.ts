@@ -50,6 +50,7 @@ export const translations = {
   missing_config: { en: "Server not configured", mm: "Cloud ချိတ်ဆက်မှု မသေချာပါ" },
   troubleshoot: { en: "Troubleshoot", mm: "ပြဿနာဖြေရှင်းမည်" },
   sync_error: { en: "Sync failed", mm: "သိမ်းဆည်းမှု မအောင်မြင်ပါ" },
+  syncing_data: { en: "Loading your memories...", mm: "သင်၏ အမှတ်တရများကို ပြင်ဆင်နေပါသည်..." },
 
   // Add/Edit Memory
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },
@@ -121,6 +122,11 @@ export const translations = {
   age_months: { en: "mos", mm: "လ" },
   default_child_name: { en: "My Child", mm: "ကျွန်ုပ်၏ ကလေး" },
   
+  // Onboarding
+  welcome_onboarding_title: { en: "Welcome to Little Moments", mm: "Little Moments မှ ကြိုဆိုပါ၏" },
+  welcome_onboarding_msg: { en: "Let's start by creating a profile for your child to save their precious memories.", mm: "သင့်ကလေး၏ အဖိုးတန်အမှတ်တရများကို သိမ်းဆည်းရန်အတွက် ပရိုဖိုင်တစ်ခု ပြုလုပ်လိုက်ကြရအောင်။" },
+  create_first_profile: { en: "Create Profile", mm: "ပရိုဖိုင် ပြုလုပ်မည်" },
+
   // New Profile Fields
   child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },
   child_dob: { en: "Date of Birth", mm: "မွေးသက္ကရာဇ်" },

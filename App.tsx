@@ -8,6 +8,7 @@ const AddMemory = React.lazy(() => import('./components/AddMemory').then(module 
 const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
+const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
 
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
@@ -45,7 +46,8 @@ function App() {
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => localStorage.getItem('reminders_enabled') !== 'false');
@@ -83,24 +85,26 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) { setAuthLoading(false); return; }
-    supabase.auth.getSession().then(({ data }: any) => { setSession(data?.session || null); setAuthLoading(false); }).catch(() => setAuthLoading(false));
+    if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
+    supabase.auth.getSession().then(({ data }: any) => { setSession(data?.session || null); setAuthLoading(false); }).catch(() => { setAuthLoading(false); setIsInitialLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (session || isGuestMode) {
-        const loadData = async () => {
-          setIsLoading(true);
+        const initialLoad = async () => {
+          setIsInitialLoading(true);
           await initDB();
-          await refreshData();
-          setIsLoading(false);
           if (navigator.onLine && session && isSupabaseConfigured()) {
-            syncData().then(() => { refreshData(); }).catch(() => {});
+            await syncData();
           }
+          await refreshData();
+          setIsInitialLoading(false);
         };
-        loadData();
+        initialLoad();
+    } else {
+        setIsInitialLoading(false);
     }
   }, [session, isGuestMode]);
 
@@ -131,26 +135,42 @@ function App() {
   };
 
   const refreshData = async () => {
-      let fetchedProfiles = await DataService.getProfiles();
-      const defaultName = getTranslation(language, 'default_child_name');
+    const fetchedProfiles = await DataService.getProfiles();
+    setProfiles(fetchedProfiles);
 
-      if (fetchedProfiles.length === 0) {
-          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultName, dob: new Date().toISOString().split('T')[0], gender: 'boy' };
-          await DataService.saveProfile(defaultProfile);
-          fetchedProfiles = [defaultProfile];
-      }
-      setProfiles(fetchedProfiles);
+    let targetId = activeProfileId;
+    if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
+        targetId = fetchedProfiles.length > 0 ? fetchedProfiles[0].id! : '';
+        setActiveProfileId(targetId);
+    }
 
-      let targetId = activeProfileId;
-      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) { 
-          targetId = fetchedProfiles[0]?.id || ''; 
-          setActiveProfileId(targetId); 
-      }
-      if (targetId) {
-          await loadChildData(targetId);
-      }
+    if (targetId) {
+        await loadChildData(targetId);
+    } else {
+        setMemories([]);
+        setStories([]);
+        setGrowthData([]);
+    }
   };
 
+  const handleCreateFirstProfile = async () => {
+    const defaultName = getTranslation(language, 'default_child_name');
+    const defaultProfile: ChildProfile = { 
+        id: crypto.randomUUID(), 
+        name: defaultName, 
+        dob: new Date().toISOString().split('T')[0], 
+        gender: 'boy' 
+    };
+    await DataService.saveProfile(defaultProfile);
+    await refreshData();
+  };
+
+  const handleProfileChange = async (id: string) => {
+    setIsLoading(true);
+    setActiveProfileId(id);
+    await loadChildData(id);
+    setIsLoading(false);
+  };
 
   const handleGuestLogin = async () => {
     await DataService.clearAllUserData();
@@ -251,6 +271,23 @@ function App() {
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
+  
+  if (isInitialLoading) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center">
+            <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+            <p className="font-bold text-slate-500 dark:text-slate-400">{t('syncing_data')}</p>
+        </div>
+    );
+  }
+
+  if (profiles.length === 0) {
+      return (
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} />
+          </Suspense>
+      );
+  }
 
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
@@ -348,7 +385,7 @@ function App() {
                 {activeTab === TabView.SETTINGS && (
                   <SettingsComponent 
                     language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
-                    profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => { setActiveProfileId(id); loadChildData(id); }} onRefreshData={refreshData} 
+                    profiles={profiles} activeProfileId={activeProfileId} onProfileChange={handleProfileChange} onRefreshData={refreshData} 
                     passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
                     onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
                     onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} onHideDetails={() => setIsAppUnlocked(false)} 
