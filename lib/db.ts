@@ -150,8 +150,8 @@ export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
     try {
-        // FIX: Replaced async 'getSession' (v2) with sync 'session' (v1).
-        const session = supabase.auth.session();
+        // FIX: Use async getSession() for Supabase v2 compatibility.
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { success: false, reason: 'No Active Session' };
         const userId = session.user.id;
 
@@ -168,9 +168,7 @@ export const syncData = async () => {
         
         let errors: string[] = [];
         
-        // --- START OF FIX: Reorder sync operations ---
-        
-        // 1. Sync Profiles FIRST to avoid foreign key violations
+        // 1. Sync Profiles FIRST
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
@@ -182,7 +180,30 @@ export const syncData = async () => {
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
-                const payload = { ...cleanForSync(profileToSync), user_id: userId };
+                
+                const {
+                    profileImage, birthTime, hospitalName, birthLocation,
+                    fatherName, motherName, bloodType, birthWeight,
+                    birthHeight, eyeColor, hairColor,
+                    ...rest
+                } = cleanForSync(profileToSync);
+
+                const payload = {
+                    ...rest,
+                    profile_image: profileImage,
+                    birth_time: birthTime,
+                    hospital_name: hospitalName,
+                    birth_location: birthLocation,
+                    father_name: fatherName,
+                    mother_name: motherName,
+                    blood_type: bloodType,
+                    birth_weight: birthWeight,
+                    birth_height: birthHeight,
+                    eye_color: eyeColor,
+                    hair_color: hairColor,
+                    user_id: userId
+                };
+                
                 const { error } = await supabase.from('child_profile').upsert(payload);
                 if (error) throw error;
                 await db.profiles.update(p.id!, { synced: 1 });
@@ -196,7 +217,8 @@ export const syncData = async () => {
         // 2. Sync Stories
         for (const s of unsyncedStories) {
             try {
-                const payload = { ...cleanForSync(s), user_id: userId };
+                const { childId, ...restOfStory } = cleanForSync(s);
+                const payload = { ...restOfStory, child_id: childId, user_id: userId };
                 const { error } = await supabase.from('stories').upsert(payload);
                 if (error) throw error;
                 await db.stories.update(s.id, { synced: 1 }); 
@@ -207,7 +229,7 @@ export const syncData = async () => {
             }
         }
 
-        // 3. Sync Memories (Upload images if needed)
+        // 3. Sync Memories
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -225,11 +247,15 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                 }
                 
-                const supabasePayload: any = { ...cleanForSync(memoryToSync), user_id: userId };
-                if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
-                    supabasePayload.imageUrl = supabasePayload.imageUrls[0];
+                const { childId, imageUrls, ...restOfMem } = cleanForSync(memoryToSync);
+                const supabasePayload: any = { 
+                    ...restOfMem,
+                    child_id: childId,
+                    user_id: userId 
+                };
+                if (imageUrls && imageUrls.length > 0) {
+                    supabasePayload.imageUrl = imageUrls[0];
                 }
-                delete supabasePayload.imageUrls;
 
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
                 if (error) throw error;
@@ -244,7 +270,8 @@ export const syncData = async () => {
         // 4. Sync Growth
         for (const g of unsyncedGrowth) {
             try {
-                const payload = { ...cleanForSync(g), user_id: userId };
+                const { childId, ...restOfGrowth } = cleanForSync(g);
+                const payload = { ...restOfGrowth, child_id: childId, user_id: userId };
                 const { error } = await supabase.from('growth_data').upsert(payload);
                 if (error) throw error;
                 await db.growth.update(g.id!, { synced: 1 }); 
@@ -269,8 +296,6 @@ export const syncData = async () => {
             }
         }
         
-        // --- END OF FIX ---
-
         if (totalToSync > 0) {
             if (errors.length > 0) syncManager.error();
             else syncManager.finish();
@@ -286,19 +311,56 @@ export const syncData = async () => {
                     await db.profiles.bulkDelete(placeholderIds);
                 }
             }
-            await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0, is_placeholder: false })));
+            const mappedProfiles = pData.map(p => {
+                const {
+                    profile_image, birth_time, hospital_name, birth_location,
+                    father_name, mother_name, blood_type, birth_weight,
+                    birth_height, eye_color, hair_color,
+                    ...rest
+                } = p;
+                return {
+                    ...rest,
+                    profileImage: profile_image,
+                    birthTime: birth_time,
+                    hospitalName: hospital_name,
+                    birthLocation: birth_location,
+                    fatherName: father_name,
+                    motherName: mother_name,
+                    bloodType: blood_type,
+                    birthWeight: birth_weight,
+                    birthHeight: birth_height,
+                    eyeColor: eye_color,
+                    hairColor: hair_color,
+                    synced: 1,
+                    is_deleted: 0,
+                    is_placeholder: false
+                };
+            });
+            await db.profiles.bulkPut(mappedProfiles);
         }
         const { data: sData } = await supabase.from('stories').select('*');
-        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
+        if (sData) {
+            await db.stories.bulkPut(sData.map(s => {
+                const { child_id, ...rest } = s;
+                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
+            }));
+        }
         const { data: gData } = await supabase.from('growth_data').select('*');
-        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
+        if (gData) {
+            await db.growth.bulkPut(gData.map(g => {
+                const { child_id, ...rest } = g;
+                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
+            }));
+        }
         const { data: rData } = await supabase.from('reminders').select('*');
         if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
+        
         const { data: mData } = await supabase.from('memories').select('*');
         if (mData) {
             await db.memories.bulkPut(mData.map(m => {
-                const imageUrls = m.imageUrl ? [m.imageUrl] : [];
-                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
+                const { child_id, imageUrl, ...rest } = m;
+                const imageUrls = imageUrl ? [imageUrl] : [];
+                return { ...rest, childId: child_id, imageUrls, synced: 1, is_deleted: 0 };
             }));
         }
 
@@ -312,15 +374,38 @@ export const syncData = async () => {
 export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
     if (!isSupabaseConfigured() || !navigator.onLine) return [];
     try {
-        // FIX: Replaced async 'getSession' (v2) with sync 'session' (v1).
-        const session = supabase.auth.session();
+        // FIX: Use async getSession() for Supabase v2 compatibility.
+        const { data: { session } } = await supabase.auth.getSession();
         if (!session) return [];
         const { data: pData, error } = await supabase.from('child_profile').select('*');
         if (error) {
             console.error("Error fetching profiles directly:", error);
             return [];
         }
-        return pData || [];
+        if (!pData) return [];
+        
+        return pData.map(p => {
+            const {
+                profile_image, birth_time, hospital_name, birth_location,
+                father_name, mother_name, blood_type, birth_weight,
+                birth_height, eye_color, hair_color,
+                ...rest
+            } = p;
+            return {
+                ...rest,
+                profileImage: profile_image,
+                birthTime: birth_time,
+                hospitalName: hospital_name,
+                birthLocation: birth_location,
+                fatherName: father_name,
+                motherName: mother_name,
+                bloodType: blood_type,
+                birthWeight: birth_weight,
+                birthHeight: birth_height,
+                eyeColor: eye_color,
+                hairColor: hair_color,
+            };
+        });
     } catch (e) {
         console.error("Exception fetching profiles:", e);
         return [];

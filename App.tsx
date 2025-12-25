@@ -88,14 +88,17 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
-    // FIX: Updated Supabase auth calls to be compatible with older versions of the library, resolving method-not-found errors.
-    // This uses the synchronous `session()` method and adjusts the `onAuthStateChange` listener accordingly.
-    setSession(supabase.auth.session());
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    
+    // FIX: Use Supabase v2-compatible onAuthStateChange, which fires immediately with the session.
+    // This resolves errors from using deprecated v1 methods like supabase.auth.session().
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setAuthLoading(false);
     });
-    return () => subscription?.unsubscribe();
+    
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
   
   const createDefaultProfile = async () => {
