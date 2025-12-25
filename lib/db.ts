@@ -68,11 +68,6 @@ db.version(9).stores({
   cloud_photo_cache: 'url, userId, timestamp'
 });
 
-// Version 10: Add is_placeholder to profiles to manage temporary local profiles
-db.version(10).stores({
-  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
-});
-
 
 export { db };
 
@@ -89,7 +84,7 @@ export const initDB = async () => {
 };
 
 const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, is_placeholder, ...rest } = doc;
+    const { synced, is_deleted, ...rest } = doc;
     return rest;
 };
 
@@ -159,7 +154,7 @@ export const syncData = async () => {
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).filter(p => !p.is_placeholder).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
@@ -169,8 +164,7 @@ export const syncData = async () => {
 
         // Sync Stories
         for (const s of unsyncedStories) {
-            const payload = { ...cleanForSync(s), user_id: userId };
-            const { error } = await supabase.from('stories').upsert(payload);
+            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
@@ -193,7 +187,7 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                 }
                 
-                const supabasePayload: any = { ...cleanForSync(memoryToSync), user_id: userId };
+                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
                 if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
                     supabasePayload.imageUrl = supabasePayload.imageUrls[0];
                 }
@@ -210,8 +204,7 @@ export const syncData = async () => {
 
         // Sync Growth
         for (const g of unsyncedGrowth) {
-            const payload = { ...cleanForSync(g), user_id: userId };
-            const { error } = await supabase.from('growth_data').upsert(payload);
+            const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
@@ -228,8 +221,7 @@ export const syncData = async () => {
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
-                const payload = { ...cleanForSync(profileToSync), user_id: userId };
-                const { error } = await supabase.from('child_profile').upsert(payload);
+                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
                 if (error) throw error;
                 await db.profiles.update(p.id!, { synced: 1 });
                 syncManager.itemCompleted();
@@ -240,8 +232,7 @@ export const syncData = async () => {
 
         // Sync Reminders
         for (const r of unsyncedReminders) {
-            const payload = { ...cleanForSync(r), user_id: userId };
-            const { error } = await supabase.from('reminders').upsert(payload);
+            const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
@@ -253,16 +244,7 @@ export const syncData = async () => {
 
         // Pull remote changes
         const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) {
-            if (pData.length > 0) {
-                const localPlaceholders = await db.profiles.where({ is_placeholder: true }).toArray();
-                if (localPlaceholders.length > 0) {
-                    const placeholderIds = localPlaceholders.map(p => p.id!);
-                    await db.profiles.bulkDelete(placeholderIds);
-                }
-            }
-            await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0, is_placeholder: false })));
-        }
+        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
         const { data: sData } = await supabase.from('stories').select('*');
         if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
         const { data: gData } = await supabase.from('growth_data').select('*');

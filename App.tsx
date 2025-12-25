@@ -134,20 +134,8 @@ function App() {
       let fetchedProfiles = await DataService.getProfiles();
       const defaultName = getTranslation(language, 'default_child_name');
 
-      // Conditionally create a default profile to avoid duplicates for existing users.
-      // A profile is created only if:
-      // 1. No profiles exist locally.
-      // 2. AND the user is either a guest, OR is logged-in and online (implying a sync
-      //    has happened and they are genuinely a new user with no profiles).
-      // This prevents creating a profile for an existing user who is temporarily offline on a new device.
-      if (fetchedProfiles.length === 0 && (isGuestMode || (session && navigator.onLine))) {
-          const defaultProfile: ChildProfile = { 
-            id: crypto.randomUUID(), 
-            name: defaultName, 
-            dob: new Date().toISOString().split('T')[0], 
-            gender: 'boy',
-            is_placeholder: true 
-          };
+      if (fetchedProfiles.length === 0) {
+          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultName, dob: new Date().toISOString().split('T')[0], gender: 'boy' };
           await DataService.saveProfile(defaultProfile);
           fetchedProfiles = [defaultProfile];
       }
