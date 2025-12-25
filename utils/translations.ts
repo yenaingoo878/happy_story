@@ -50,7 +50,7 @@ export const translations = {
   missing_config: { en: "Server not configured", mm: "Cloud ချိတ်ဆက်မှု မသေချာပါ" },
   troubleshoot: { en: "Troubleshoot", mm: "ပြဿနာဖြေရှင်းမည်" },
   sync_error: { en: "Sync failed", mm: "သိမ်းဆည်းမှု မအောင်မြင်ပါ" },
-  syncing_data: { en: "Checking your account...", mm: "သင်၏ အကောင့်ကို စစ်ဆေးနေပါသည်..." },
+  syncing_data: { en: "Loading your memories...", mm: "သင်၏ အမှတ်တရများကို ပြင်ဆင်နေပါသည်..." },
 
   // Add/Edit Memory
   add_memory_title: { en: "Add New Memory", mm: "အမှတ်တရအသစ်ထည့်မယ်" },

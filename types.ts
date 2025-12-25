@@ -61,7 +61,6 @@ export interface ChildProfile {
   notes?: string;
   synced?: number;
   is_deleted?: number;
-  is_placeholder?: boolean;
 }
 
 export interface Reminder {

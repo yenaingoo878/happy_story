@@ -9,13 +9,11 @@ const SettingsComponent = React.lazy(() => import('./components/Settings').then(
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
-const CreateFirstProfile = React.lazy(() => import('./components/CreateFirstProfile').then(module => ({ default: module.default })));
-
 
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData, getImageSrc, fetchServerProfiles } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -88,84 +86,21 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
-    
-    // FIX: Use Supabase v2-compatible onAuthStateChange, which fires immediately with the session.
-    // This resolves errors from using deprecated v1 methods like supabase.auth.session().
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-    
-    return () => {
-      subscription?.unsubscribe();
-    };
+    supabase.auth.getSession().then(({ data }: any) => { setSession(data?.session || null); setAuthLoading(false); }).catch(() => { setAuthLoading(false); setIsInitialLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
+    return () => subscription.unsubscribe();
   }, []);
-  
-  const createDefaultProfile = async () => {
-    const defaultName = getTranslation(language, 'default_child_name');
-    const defaultProfile: ChildProfile = { 
-        id: crypto.randomUUID(), 
-        name: defaultName, 
-        dob: new Date().toISOString().split('T')[0], 
-        gender: 'boy' 
-    };
-    await DataService.saveProfile(defaultProfile);
-    await refreshData();
-  };
 
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
+          setIsInitialLoading(true);
           await initDB();
-
-          if (isGuestMode) {
-            setIsInitialLoading(true);
-            await refreshData();
-            setIsInitialLoading(false);
-            return;
+          if (navigator.onLine && session && isSupabaseConfigured()) {
+            await syncData();
           }
-
-          // Logged-in user flow
-          const userId = session.user.id;
-          const syncFlagKey = `hasCompletedFirstSync_${userId}`;
-          const firstSyncSetting = await DataService.getSetting(syncFlagKey);
-          const hasSyncedBefore = firstSyncSetting?.value === true;
-
-          if (!hasSyncedBefore) {
-            setIsInitialLoading(true); // Show loading screen
-            
-            let serverProfiles: ChildProfile[] = [];
-            if (navigator.onLine) {
-                // Directly check the server for profiles first.
-                serverProfiles = await fetchServerProfiles();
-            }
-
-            if (serverProfiles.length > 0) {
-                // Profiles exist on the server. Now perform a full sync to get all data.
-                if (navigator.onLine) {
-                    await syncData();
-                }
-                await refreshData(); // Load all data from local DB into state.
-            } else {
-                // No profiles found on the server. We can safely show the 'Create Profile' screen.
-                setProfiles([]);
-            }
-
-            await DataService.saveSetting(syncFlagKey, true);
-            setIsInitialLoading(false);
-          } else {
-            // Subsequent app open. Load local data first for speed.
-            setIsInitialLoading(true);
-            await refreshData();
-            setIsInitialLoading(false);
-
-            // Then, trigger a non-blocking background sync.
-            if (navigator.onLine) {
-              syncData().then(() => {
-                refreshData(); 
-              });
-            }
-          }
+          await refreshData();
+          setIsInitialLoading(false);
         };
         initialLoad();
     } else {
@@ -216,6 +151,18 @@ function App() {
         setStories([]);
         setGrowthData([]);
     }
+  };
+
+  const handleCreateFirstProfile = async () => {
+    const defaultName = getTranslation(language, 'default_child_name');
+    const defaultProfile: ChildProfile = { 
+        id: crypto.randomUUID(), 
+        name: defaultName, 
+        dob: new Date().toISOString().split('T')[0], 
+        gender: 'boy' 
+    };
+    await DataService.saveProfile(defaultProfile);
+    await refreshData();
   };
 
   const handleProfileChange = async (id: string) => {
@@ -333,31 +280,13 @@ function App() {
         </div>
     );
   }
-  
-  const handleCreateFirstProfile = async (profileData: Omit<ChildProfile, 'id'>) => {
-      const newProfile: ChildProfile = {
-          ...profileData,
-          id: crypto.randomUUID(),
-      };
-      await DataService.saveProfile(newProfile);
-      await refreshData();
-  };
 
   if (profiles.length === 0) {
-      if (isGuestMode) {
-          return (
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <Onboarding language={language} onCreateProfile={createDefaultProfile} />
-              </Suspense>
-          );
-      } else {
-          // New logged-in user with no profile
-          return (
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <CreateFirstProfile language={language} onProfileCreated={handleCreateFirstProfile} />
-              </Suspense>
-          );
-      }
+      return (
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} />
+          </Suspense>
+      );
   }
 
   const renderContent = () => {
