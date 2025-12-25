@@ -9,6 +9,8 @@ const SettingsComponent = React.lazy(() => import('./components/Settings').then(
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
+const CreateFirstProfile = React.lazy(() => import('./components/CreateFirstProfile').then(module => ({ default: module.default })));
+
 
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
@@ -129,12 +131,13 @@ function App() {
             }
             await DataService.saveSetting(syncFlagKey, true);
             
-            // Check for profiles after sync, create one if none exist
+            // Check for profiles after sync. If none exist, let the render logic
+            // show the creation form. Otherwise, load the data.
             const profilesAfterSync = await DataService.getProfiles();
-            if (profilesAfterSync.length === 0) {
-              await createDefaultProfile();
+            if (profilesAfterSync.length > 0) {
+                await refreshData();
             } else {
-              await refreshData();
+                setProfiles([]); // Explicitly set to empty to trigger render
             }
             
             setIsInitialLoading(false);
@@ -318,13 +321,31 @@ function App() {
         </div>
     );
   }
+  
+  const handleCreateFirstProfile = async (profileData: Omit<ChildProfile, 'id'>) => {
+      const newProfile: ChildProfile = {
+          ...profileData,
+          id: crypto.randomUUID(),
+      };
+      await DataService.saveProfile(newProfile);
+      await refreshData();
+  };
 
   if (profiles.length === 0) {
-      return (
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-              <Onboarding language={language} onCreateProfile={createDefaultProfile} />
-          </Suspense>
-      );
+      if (isGuestMode) {
+          return (
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+                  <Onboarding language={language} onCreateProfile={createDefaultProfile} />
+              </Suspense>
+          );
+      } else {
+          // New logged-in user with no profile
+          return (
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+                  <CreateFirstProfile language={language} onProfileCreated={handleCreateFirstProfile} />
+              </Suspense>
+          );
+      }
   }
 
   const renderContent = () => {
