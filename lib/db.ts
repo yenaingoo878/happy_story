@@ -68,6 +68,11 @@ db.version(9).stores({
   cloud_photo_cache: 'url, userId, timestamp'
 });
 
+// Version 10: Add is_placeholder to profiles to manage temporary local profiles
+db.version(10).stores({
+  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
+});
+
 
 export { db };
 
@@ -84,7 +89,7 @@ export const initDB = async () => {
 };
 
 const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, ...rest } = doc;
+    const { synced, is_deleted, is_placeholder, ...rest } = doc;
     return rest;
 };
 
@@ -154,7 +159,7 @@ export const syncData = async () => {
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).filter(p => !p.is_placeholder).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
@@ -244,7 +249,16 @@ export const syncData = async () => {
 
         // Pull remote changes
         const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
+        if (pData) {
+            if (pData.length > 0) {
+                const localPlaceholders = await db.profiles.where({ is_placeholder: true }).toArray();
+                if (localPlaceholders.length > 0) {
+                    const placeholderIds = localPlaceholders.map(p => p.id!);
+                    await db.profiles.bulkDelete(placeholderIds);
+                }
+            }
+            await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0, is_placeholder: false })));
+        }
         const { data: sData } = await supabase.from('stories').select('*');
         if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
         const { data: gData } = await supabase.from('growth_data').select('*');

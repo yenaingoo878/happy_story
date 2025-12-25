@@ -141,7 +141,13 @@ function App() {
       //    has happened and they are genuinely a new user with no profiles).
       // This prevents creating a profile for an existing user who is temporarily offline on a new device.
       if (fetchedProfiles.length === 0 && (isGuestMode || (session && navigator.onLine))) {
-          const defaultProfile: ChildProfile = { id: crypto.randomUUID(), name: defaultName, dob: new Date().toISOString().split('T')[0], gender: 'boy' };
+          const defaultProfile: ChildProfile = { 
+            id: crypto.randomUUID(), 
+            name: defaultName, 
+            dob: new Date().toISOString().split('T')[0], 
+            gender: 'boy',
+            is_placeholder: true 
+          };
           await DataService.saveProfile(defaultProfile);
           fetchedProfiles = [defaultProfile];
       }

@@ -276,7 +276,9 @@ export const Settings: React.FC<SettingsProps> = ({
       if (editingProfile.name && editingProfile.id) {
           setIsSavingProfile(true);
           try {
-              await DataService.saveProfile({ ...editingProfile, synced: 0 });
+              const profileToSave = { ...editingProfile, synced: 0 };
+              delete (profileToSave as Partial<ChildProfile>).is_placeholder;
+              await DataService.saveProfile(profileToSave);
               await onRefreshData(); 
               setShowProfileDetails(false); 
               onSaveSuccess();
