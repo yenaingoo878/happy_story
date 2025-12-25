@@ -166,8 +166,32 @@ export const syncData = async () => {
         if (totalToSync > 0) syncManager.start(totalToSync);
         
         let errors: string[] = [];
+        
+        // --- START OF FIX: Reorder sync operations ---
+        
+        // 1. Sync Profiles FIRST to avoid foreign key violations
+        for (const p of unsyncedProfiles) {
+            try {
+                let profileToSync = { ...p };
+                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
+                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
+                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
+                    await db.profiles.update(p.id!, { profileImage: newUrl });
+                    profileToSync.profileImage = newUrl;
+                }
+                const payload = { ...cleanForSync(profileToSync), user_id: userId };
+                const { error } = await supabase.from('child_profile').upsert(payload);
+                if (error) throw error;
+                await db.profiles.update(p.id!, { synced: 1 });
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                errors.push(error.message);
+            }
+        }
 
-        // Sync Stories
+        // 2. Sync Stories
         for (const s of unsyncedStories) {
             const payload = { ...cleanForSync(s), user_id: userId };
             const { error } = await supabase.from('stories').upsert(payload);
@@ -175,7 +199,7 @@ export const syncData = async () => {
             else errors.push(error.message);
         }
 
-        // Sync Memories (Upload images if needed)
+        // 3. Sync Memories (Upload images if needed)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -208,7 +232,7 @@ export const syncData = async () => {
             }
         }
 
-        // Sync Growth
+        // 4. Sync Growth
         for (const g of unsyncedGrowth) {
             const payload = { ...cleanForSync(g), user_id: userId };
             const { error } = await supabase.from('growth_data').upsert(payload);
@@ -216,35 +240,15 @@ export const syncData = async () => {
             else errors.push(error.message);
         }
 
-        // Sync Profiles (Upload image if needed)
-        for (const p of unsyncedProfiles) {
-            try {
-                let profileToSync = { ...p };
-                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
-                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
-                    await db.profiles.update(p.id!, { profileImage: newUrl });
-                    profileToSync.profileImage = newUrl;
-                }
-                const payload = { ...cleanForSync(profileToSync), user_id: userId };
-                const { error } = await supabase.from('child_profile').upsert(payload);
-                if (error) throw error;
-                await db.profiles.update(p.id!, { synced: 1 });
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                errors.push(error.message);
-            }
-        }
-
-        // Sync Reminders
+        // 5. Sync Reminders
         for (const r of unsyncedReminders) {
             const payload = { ...cleanForSync(r), user_id: userId };
             const { error } = await supabase.from('reminders').upsert(payload);
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
+        
+        // --- END OF FIX ---
 
         if (totalToSync > 0) {
             if (errors.length > 0) syncManager.error();

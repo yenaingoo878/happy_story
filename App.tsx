@@ -90,6 +90,18 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
     return () => subscription.unsubscribe();
   }, []);
+  
+  const createDefaultProfile = async () => {
+    const defaultName = getTranslation(language, 'default_child_name');
+    const defaultProfile: ChildProfile = { 
+        id: crypto.randomUUID(), 
+        name: defaultName, 
+        dob: new Date().toISOString().split('T')[0], 
+        gender: 'boy' 
+    };
+    await DataService.saveProfile(defaultProfile);
+    await refreshData();
+  };
 
   useEffect(() => {
     if (session || isGuestMode) {
@@ -116,7 +128,15 @@ function App() {
               await syncData();
             }
             await DataService.saveSetting(syncFlagKey, true);
-            await refreshData();
+            
+            // Check for profiles after sync, create one if none exist
+            const profilesAfterSync = await DataService.getProfiles();
+            if (profilesAfterSync.length === 0) {
+              await createDefaultProfile();
+            } else {
+              await refreshData();
+            }
+            
             setIsInitialLoading(false);
           } else {
             // Subsequent app open. Load local data first for speed.
@@ -181,18 +201,6 @@ function App() {
         setStories([]);
         setGrowthData([]);
     }
-  };
-
-  const handleCreateFirstProfile = async () => {
-    const defaultName = getTranslation(language, 'default_child_name');
-    const defaultProfile: ChildProfile = { 
-        id: crypto.randomUUID(), 
-        name: defaultName, 
-        dob: new Date().toISOString().split('T')[0], 
-        gender: 'boy' 
-    };
-    await DataService.saveProfile(defaultProfile);
-    await refreshData();
   };
 
   const handleProfileChange = async (id: string) => {
@@ -314,7 +322,7 @@ function App() {
   if (profiles.length === 0) {
       return (
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} />
+              <Onboarding language={language} onCreateProfile={createDefaultProfile} />
           </Suspense>
       );
   }
