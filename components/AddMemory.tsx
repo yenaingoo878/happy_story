@@ -167,7 +167,19 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       }
     } catch (error) {
       console.error("Failed to take photo", error);
-      if (!(error instanceof Error && error.message.toLowerCase().includes('cancelled'))) {
+
+      // FIX: Refactor error handling to be more explicit and safe with the 'unknown' type.
+      // This prevents potential errors if a non-Error object is thrown, and avoids
+      // passing an 'unknown' value to functions expecting specific types, which is the
+      // likely root cause of the reported error.
+      let isCancellation = false;
+      if (error instanceof Error) {
+        isCancellation = error.message.toLowerCase().includes('cancelled');
+      } else if (typeof error === 'string') {
+        isCancellation = error.toLowerCase().includes('cancelled');
+      }
+
+      if (!isCancellation) {
         alert(language === 'mm' ? "ဓာတ်ပုံရိုက်မရပါ။" : "Failed to take photo.");
       }
     } finally {
