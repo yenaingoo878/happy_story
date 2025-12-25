@@ -15,7 +15,7 @@ const CreateFirstProfile = React.lazy(() => import('./components/CreateFirstProf
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData, getImageSrc } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc, fetchServerProfiles } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -124,22 +124,26 @@ function App() {
           const hasSyncedBefore = firstSyncSetting?.value === true;
 
           if (!hasSyncedBefore) {
-            // First time sync for this user on this device. Perform a blocking sync.
-            setIsInitialLoading(true);
+            setIsInitialLoading(true); // Show loading screen
+            
+            let serverProfiles: ChildProfile[] = [];
             if (navigator.onLine) {
-              await syncData();
+                // Directly check the server for profiles first.
+                serverProfiles = await fetchServerProfiles();
             }
-            await DataService.saveSetting(syncFlagKey, true);
-            
-            // Check for profiles after sync. If none exist, let the render logic
-            // show the creation form. Otherwise, load the data.
-            const profilesAfterSync = await DataService.getProfiles();
-            if (profilesAfterSync.length > 0) {
-                await refreshData();
+
+            if (serverProfiles.length > 0) {
+                // Profiles exist on the server. Now perform a full sync to get all data.
+                if (navigator.onLine) {
+                    await syncData();
+                }
+                await refreshData(); // Load all data from local DB into state.
             } else {
-                setProfiles([]); // Explicitly set to empty to trigger render
+                // No profiles found on the server. We can safely show the 'Create Profile' screen.
+                setProfiles([]);
             }
-            
+
+            await DataService.saveSetting(syncFlagKey, true);
             setIsInitialLoading(false);
           } else {
             // Subsequent app open. Load local data first for speed.

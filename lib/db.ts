@@ -288,6 +288,23 @@ export const syncData = async () => {
     }
 };
 
+export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
+    if (!isSupabaseConfigured() || !navigator.onLine) return [];
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return [];
+        const { data: pData, error } = await supabase.from('child_profile').select('*');
+        if (error) {
+            console.error("Error fetching profiles directly:", error);
+            return [];
+        }
+        return pData || [];
+    } catch (e) {
+        console.error("Exception fetching profiles:", e);
+        return [];
+    }
+};
+
 export const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
