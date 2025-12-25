@@ -94,13 +94,43 @@ function App() {
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
-          setIsInitialLoading(true);
           await initDB();
-          if (navigator.onLine && session && isSupabaseConfigured()) {
-            await syncData();
+
+          if (isGuestMode) {
+            setIsInitialLoading(true);
+            await refreshData();
+            setIsInitialLoading(false);
+            return;
           }
-          await refreshData();
-          setIsInitialLoading(false);
+
+          // Logged-in user flow
+          const userId = session.user.id;
+          const syncFlagKey = `hasCompletedFirstSync_${userId}`;
+          const firstSyncSetting = await DataService.getSetting(syncFlagKey);
+          const hasSyncedBefore = firstSyncSetting?.value === true;
+
+          if (!hasSyncedBefore) {
+            // First time sync for this user on this device. Perform a blocking sync.
+            setIsInitialLoading(true);
+            if (navigator.onLine) {
+              await syncData();
+            }
+            await DataService.saveSetting(syncFlagKey, true);
+            await refreshData();
+            setIsInitialLoading(false);
+          } else {
+            // Subsequent app open. Load local data first for speed.
+            setIsInitialLoading(true);
+            await refreshData();
+            setIsInitialLoading(false);
+
+            // Then, trigger a non-blocking background sync.
+            if (navigator.onLine) {
+              syncData().then(() => {
+                refreshData(); 
+              });
+            }
+          }
         };
         initialLoad();
     } else {
