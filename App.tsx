@@ -88,9 +88,14 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
-    supabase.auth.getSession().then(({ data }: any) => { setSession(data?.session || null); setAuthLoading(false); }).catch(() => { setAuthLoading(false); setIsInitialLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
-    return () => subscription.unsubscribe();
+    // FIX: Updated Supabase auth calls to be compatible with older versions of the library, resolving method-not-found errors.
+    // This uses the synchronous `session()` method and adjusts the `onAuthStateChange` listener accordingly.
+    setSession(supabase.auth.session());
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    return () => subscription?.unsubscribe();
   }, []);
   
   const createDefaultProfile = async () => {

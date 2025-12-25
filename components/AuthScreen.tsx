@@ -42,7 +42,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
         if (error) throw error;
         alert(language === 'mm' ? "အီးမေးလ်ကို စစ်ဆေးပြီး အတည်ပြုပေးပါ။" : "Check your email for the confirmation link!");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        // FIX: Replaced v2's 'signInWithPassword' with v1's 'signIn' to match library version.
+        const { error } = await supabase.auth.signIn({ email, password });
         if (error) throw error;
       }
     } catch (err: any) {

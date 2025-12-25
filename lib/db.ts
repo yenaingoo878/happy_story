@@ -150,7 +150,8 @@ export const syncData = async () => {
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // FIX: Replaced async 'getSession' (v2) with sync 'session' (v1).
+        const session = supabase.auth.session();
         if (!session) return { success: false, reason: 'No Active Session' };
         const userId = session.user.id;
 
@@ -187,16 +188,23 @@ export const syncData = async () => {
                 await db.profiles.update(p.id!, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
+                console.error(`Sync failed for profile ${p.id}:`, error);
                 errors.push(error.message);
             }
         }
 
         // 2. Sync Stories
         for (const s of unsyncedStories) {
-            const payload = { ...cleanForSync(s), user_id: userId };
-            const { error } = await supabase.from('stories').upsert(payload);
-            if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            try {
+                const payload = { ...cleanForSync(s), user_id: userId };
+                const { error } = await supabase.from('stories').upsert(payload);
+                if (error) throw error;
+                await db.stories.update(s.id, { synced: 1 }); 
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for story ${s.id}:`, error);
+                errors.push(error.message);
+            }
         }
 
         // 3. Sync Memories (Upload images if needed)
@@ -228,24 +236,37 @@ export const syncData = async () => {
                 await db.memories.update(mem.id, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
+                console.error(`Sync failed for memory ${mem.id}:`, error);
                 errors.push(error.message);
             }
         }
 
         // 4. Sync Growth
         for (const g of unsyncedGrowth) {
-            const payload = { ...cleanForSync(g), user_id: userId };
-            const { error } = await supabase.from('growth_data').upsert(payload);
-            if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            try {
+                const payload = { ...cleanForSync(g), user_id: userId };
+                const { error } = await supabase.from('growth_data').upsert(payload);
+                if (error) throw error;
+                await db.growth.update(g.id!, { synced: 1 }); 
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for growth data ${g.id}:`, error);
+                errors.push(error.message);
+            }
         }
 
         // 5. Sync Reminders
         for (const r of unsyncedReminders) {
-            const payload = { ...cleanForSync(r), user_id: userId };
-            const { error } = await supabase.from('reminders').upsert(payload);
-            if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            try {
+                const payload = { ...cleanForSync(r), user_id: userId };
+                const { error } = await supabase.from('reminders').upsert(payload);
+                if (error) throw error;
+                await db.reminders.update(r.id, { synced: 1 }); 
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for reminder ${r.id}:`, error);
+                errors.push(error.message);
+            }
         }
         
         // --- END OF FIX ---
@@ -291,7 +312,8 @@ export const syncData = async () => {
 export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
     if (!isSupabaseConfigured() || !navigator.onLine) return [];
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // FIX: Replaced async 'getSession' (v2) with sync 'session' (v1).
+        const session = supabase.auth.session();
         if (!session) return [];
         const { data: pData, error } = await supabase.from('child_profile').select('*');
         if (error) {
