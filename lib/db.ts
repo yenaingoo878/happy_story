@@ -169,7 +169,8 @@ export const syncData = async () => {
 
         // Sync Stories
         for (const s of unsyncedStories) {
-            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
+            const payload = { ...cleanForSync(s), user_id: userId };
+            const { error } = await supabase.from('stories').upsert(payload);
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
@@ -192,7 +193,7 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                 }
                 
-                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
+                const supabasePayload: any = { ...cleanForSync(memoryToSync), user_id: userId };
                 if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
                     supabasePayload.imageUrl = supabasePayload.imageUrls[0];
                 }
@@ -209,7 +210,8 @@ export const syncData = async () => {
 
         // Sync Growth
         for (const g of unsyncedGrowth) {
-            const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
+            const payload = { ...cleanForSync(g), user_id: userId };
+            const { error } = await supabase.from('growth_data').upsert(payload);
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
@@ -226,7 +228,8 @@ export const syncData = async () => {
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
-                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
+                const payload = { ...cleanForSync(profileToSync), user_id: userId };
+                const { error } = await supabase.from('child_profile').upsert(payload);
                 if (error) throw error;
                 await db.profiles.update(p.id!, { synced: 1 });
                 syncManager.itemCompleted();
@@ -237,7 +240,8 @@ export const syncData = async () => {
 
         // Sync Reminders
         for (const r of unsyncedReminders) {
-            const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
+            const payload = { ...cleanForSync(r), user_id: userId };
+            const { error } = await supabase.from('reminders').upsert(payload);
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
