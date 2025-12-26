@@ -1,14 +1,15 @@
 import React from 'react';
-import { Baby, ArrowRight } from 'lucide-react';
+import { Baby, ArrowRight, ChevronLeft } from 'lucide-react';
 import { Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
 
 interface OnboardingProps {
   language: Language;
   onCreateProfile: () => void;
+  onGoBackToLogin: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfile }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfile, onGoBackToLogin }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   return (
@@ -29,6 +30,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfil
         >
           {t('create_first_profile')}
           <ArrowRight className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onGoBackToLogin}
+          className="mt-8 text-xs font-bold text-slate-400 hover:text-primary transition-colors flex items-center justify-center gap-2 mx-auto"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          {t('back_to_login')}
         </button>
       </div>
     </div>

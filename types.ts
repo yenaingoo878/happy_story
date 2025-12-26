@@ -62,7 +62,6 @@ export interface ChildProfile {
   notes?: string;
   synced?: number;
   is_deleted?: number;
-  // FIX: Add is_placeholder to the type to match the database schema and fix compile error in db.ts.
   is_placeholder?: boolean; 
 }
 

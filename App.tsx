@@ -9,7 +9,6 @@ const SettingsComponent = React.lazy(() => import('./components/Settings').then(
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
-// FIX: Corrected lazy import to use named export 'CreateFirstProfile' consistent with other components, resolving the props type error.
 const CreateFirstProfile = React.lazy(() => import('./components/CreateFirstProfile').then(module => ({ default: module.CreateFirstProfile })));
 
 
@@ -340,7 +339,7 @@ function App() {
       if (isGuestMode) {
           return (
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <Onboarding language={language} onCreateProfile={createDefaultProfile} />
+                  <Onboarding language={language} onCreateProfile={createDefaultProfile} onGoBackToLogin={handleLogout} />
               </Suspense>
           );
       } else {

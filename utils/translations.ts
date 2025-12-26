@@ -30,6 +30,7 @@ export const translations = {
   no_account: { en: "Don't have an account?", mm: "အကောင့်မရှိဘူးလား?" },
   have_account: { en: "Already have an account?", mm: "အကောင့်ရှိပြီးသားလား?" },
   auth_error: { en: "Authentication failed. Please check your credentials.", mm: "အကောင့်ဝင်မရပါ။ အချက်အလက်များ ပြန်စစ်ဆေးပါ။" },
+  back_to_login: { en: "Back to Login", mm: "အကောင့်ဝင်ရန် ပြန်သွားမည်" },
 
   // Navigation
   nav_home: { en: "Home", mm: "ပင်မ" },
