@@ -51,6 +51,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => localStorage.getItem('reminders_enabled') !== 'false');
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
@@ -108,51 +109,47 @@ function App() {
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
-          await initDB();
+          try {
+            await initDB();
 
-          if (isGuestMode) {
-            setIsInitialLoading(true);
-            await refreshData();
-            setIsInitialLoading(false);
-            return;
-          }
-
-          // Logged-in user flow
-          const userId = session.user.id;
-          const syncFlagKey = `hasCompletedFirstSync_${userId}`;
-          const firstSyncSetting = await DataService.getSetting(syncFlagKey);
-          const hasSyncedBefore = firstSyncSetting?.value === true;
-
-          if (!hasSyncedBefore) {
-            setIsInitialLoading(true); // Show loading screen for the first sync
-            
-            // On first login, prioritize fetching all data from the cloud.
-            // syncData handles both pushing local changes (none on first login) 
-            // and pulling all remote data.
-            if (navigator.onLine) {
-                await syncData();
+            if (isGuestMode) {
+              setIsInitialLoading(true);
+              await refreshData();
+              setIsInitialLoading(false);
+              return;
             }
-            
-            // After syncing, refreshData will load the (now populated) local DB into state.
-            // If the user has no cloud profiles, this will result in an empty profiles array,
-            // which correctly triggers the CreateFirstProfile screen.
-            await refreshData();
-            
-            // Mark that the initial sync is complete for this user.
-            await DataService.saveSetting(syncFlagKey, true);
-            setIsInitialLoading(false);
-          } else {
-            // Subsequent app open. Load local data first for speed.
-            setIsInitialLoading(true);
-            await refreshData();
-            setIsInitialLoading(false);
 
-            // Then, trigger a non-blocking background sync.
-            if (navigator.onLine) {
-              syncData().then(() => {
-                refreshData(); 
-              });
+            // Logged-in user flow
+            const userId = session.user.id;
+            const syncFlagKey = `hasCompletedFirstSync_${userId}`;
+            const firstSyncSetting = await DataService.getSetting(syncFlagKey);
+            const hasSyncedBefore = firstSyncSetting?.value === true;
+
+            if (!hasSyncedBefore) {
+              setIsInitialLoading(true); // Show loading screen for the first sync
+              if (navigator.onLine) {
+                  await syncData();
+              }
+              await refreshData();
+              await DataService.saveSetting(syncFlagKey, true);
+              setIsInitialLoading(false);
+            } else {
+              // Subsequent app open. Load local data first for speed.
+              setIsInitialLoading(true);
+              await refreshData();
+              setIsInitialLoading(false);
+
+              // Then, trigger a non-blocking background sync.
+              if (navigator.onLine) {
+                syncData().then(() => {
+                  refreshData(); 
+                });
+              }
             }
+          } catch (e: any) {
+              console.error("Initialization failed:", e);
+              setInitializationError(e.message || "An unknown error occurred during startup.");
+              setIsInitialLoading(false);
           }
         };
         initialLoad();
@@ -313,6 +310,20 @@ function App() {
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
+  if (initializationError) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-rose-50 dark:bg-slate-900 text-center p-4">
+            <AlertTriangle className="w-12 h-12 text-rose-500 mb-4" />
+            <h1 className="text-2xl font-black text-rose-700 dark:text-rose-400 mb-2">Application Error</h1>
+            <p className="text-slate-600 dark:text-slate-400 mb-6">Could not initialize the application. Please try again later.</p>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg text-left w-full max-w-lg">
+                <p className="text-sm font-bold text-slate-500 dark:text-slate-500">Error Details (for debugging):</p>
+                <pre className="text-xs text-rose-500 whitespace-pre-wrap font-mono mt-2">{initializationError}</pre>
+            </div>
+        </div>
+    );
+  }
+
   if (isInitialLoading) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center">
@@ -322,30 +333,12 @@ function App() {
     );
   }
   
-  const handleCreateFirstProfile = async (profileData: Omit<ChildProfile, 'id'>) => {
-      const newProfile: ChildProfile = {
-          ...profileData,
-          id: crypto.randomUUID(),
-      };
-      await DataService.saveProfile(newProfile);
-      await refreshData();
-  };
-
-  if (profiles.length === 0) {
-      if (isGuestMode) {
-          return (
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <Onboarding language={language} onCreateProfile={createDefaultProfile} onGoBackToLogin={handleLogout} />
-              </Suspense>
-          );
-      } else {
-          // New logged-in user with no profile
-          return (
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <CreateFirstProfile language={language} onProfileCreated={handleCreateFirstProfile} onGoBackToLogin={handleLogout} />
-              </Suspense>
-          );
-      }
+  if (profiles.length === 0 && isGuestMode) {
+      return (
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+              <Onboarding language={language} onCreateProfile={createDefaultProfile} onGoBackToLogin={handleLogout} />
+          </Suspense>
+      );
   }
 
   const renderContent = () => {
