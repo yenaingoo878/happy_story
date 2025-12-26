@@ -9,13 +9,11 @@ const SettingsComponent = React.lazy(() => import('./components/Settings').then(
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
-const CreateFirstProfile = React.lazy(() => import('./components/CreateFirstProfile').then(module => ({ default: module.CreateFirstProfile })));
-
 
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData, getImageSrc, fetchServerProfiles } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -51,7 +49,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
-  const [initializationError, setInitializationError] = useState<string | null>(null);
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => localStorage.getItem('reminders_enabled') !== 'false');
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
@@ -93,69 +90,17 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
     return () => subscription.unsubscribe();
   }, []);
-  
-  const createDefaultProfile = async () => {
-    const defaultName = getTranslation(language, 'default_child_name');
-    const defaultProfile: ChildProfile = { 
-        id: crypto.randomUUID(), 
-        name: defaultName, 
-        dob: new Date().toISOString().split('T')[0], 
-        gender: 'boy' 
-    };
-    await DataService.saveProfile(defaultProfile);
-    await refreshData();
-  };
 
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
-          try {
-            await initDB();
-
-            if (isGuestMode) {
-              setIsInitialLoading(true);
-              await refreshData();
-              setIsInitialLoading(false);
-              return;
-            }
-
-            // Logged-in user flow
-            const userId = session.user.id;
-            const syncFlagKey = `hasCompletedFirstSync_${userId}`;
-            const firstSyncSetting = await DataService.getSetting(syncFlagKey);
-            const hasSyncedBefore = firstSyncSetting?.value === true;
-
-            if (!hasSyncedBefore) {
-              setIsInitialLoading(true);
-              if (navigator.onLine) {
-                  const syncResult = await syncData();
-                  if (!syncResult.success) {
-                      throw new Error(syncResult.error || "A problem occurred during the initial account sync.");
-                  }
-              }
-              await refreshData();
-              await DataService.saveSetting(syncFlagKey, true);
-              setIsInitialLoading(false);
-            } else {
-              setIsInitialLoading(true);
-              await refreshData();
-              setIsInitialLoading(false);
-
-              if (navigator.onLine) {
-                syncData().then((res) => {
-                  if (res.success) {
-                    refreshData(); 
-                  } else {
-                    console.warn("Background sync failed:", res.error);
-                  }
-                });
-              }
-            }
-          } catch (e: any) {
-              console.error("Initialization failed:", e);
-              setInitializationError(e.message || "An unknown error occurred during startup.");
-              setIsInitialLoading(false);
+          setIsInitialLoading(true);
+          await initDB();
+          if (navigator.onLine && session && isSupabaseConfigured()) {
+            await syncData();
           }
+          await refreshData();
+          setIsInitialLoading(false);
         };
         initialLoad();
     } else {
@@ -206,6 +151,18 @@ function App() {
         setStories([]);
         setGrowthData([]);
     }
+  };
+
+  const handleCreateFirstProfile = async () => {
+    const defaultName = getTranslation(language, 'default_child_name');
+    const defaultProfile: ChildProfile = { 
+        id: crypto.randomUUID(), 
+        name: defaultName, 
+        dob: new Date().toISOString().split('T')[0], 
+        gender: 'boy' 
+    };
+    await DataService.saveProfile(defaultProfile);
+    await refreshData();
   };
 
   const handleProfileChange = async (id: string) => {
@@ -315,20 +272,6 @@ function App() {
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
-  if (initializationError) {
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-rose-50 dark:bg-slate-900 text-center p-4">
-            <AlertTriangle className="w-12 h-12 text-rose-500 mb-4" />
-            <h1 className="text-2xl font-black text-rose-700 dark:text-rose-400 mb-2">Application Error</h1>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">Could not initialize the application. Please try again later.</p>
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg text-left w-full max-w-lg">
-                <p className="text-sm font-bold text-slate-500 dark:text-slate-500">Error Details (for debugging):</p>
-                <pre className="text-xs text-rose-500 whitespace-pre-wrap font-mono mt-2">{initializationError}</pre>
-            </div>
-        </div>
-    );
-  }
-
   if (isInitialLoading) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center">
@@ -337,11 +280,11 @@ function App() {
         </div>
     );
   }
-  
-  if (profiles.length === 0 && isGuestMode) {
+
+  if (profiles.length === 0) {
       return (
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-              <Onboarding language={language} onCreateProfile={createDefaultProfile} onGoBackToLogin={handleLogout} />
+              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} />
           </Suspense>
       );
   }
@@ -455,9 +398,7 @@ function App() {
                     onSaveGrowth={handleSaveGrowth}
                     onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))} 
                     isGuestMode={isGuestMode} onLogout={handleLogout} remindersEnabled={remindersEnabled} 
-                    // FIX: Use `next.toString()` instead of `String(next)` to avoid issues where
-                    // the global `String` object might be shadowed, causing a "not callable" error.
-                    toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', next.toString()); }} 
+                    toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
                     remindersList={reminders} 
                     onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))} 
                     onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); triggerSuccess('profile_saved'); }}
