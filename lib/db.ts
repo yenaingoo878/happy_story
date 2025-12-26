@@ -68,6 +68,11 @@ db.version(9).stores({
   cloud_photo_cache: 'url, userId, timestamp'
 });
 
+// Version 10: Add is_placeholder to profiles to manage temporary local profiles
+db.version(10).stores({
+  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
+});
+
 
 export { db };
 
@@ -84,7 +89,7 @@ export const initDB = async () => {
 };
 
 const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, ...rest } = doc;
+    const { synced, is_deleted, is_placeholder, ...rest } = doc;
     return rest;
 };
 
@@ -154,22 +159,76 @@ export const syncData = async () => {
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).filter(p => !p.is_placeholder).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToSync > 0) syncManager.start(totalToSync);
         
         let errors: string[] = [];
+        
+        // 1. Sync Profiles FIRST
+        for (const p of unsyncedProfiles) {
+            try {
+                let profileToSync = { ...p };
+                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
+                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
+                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
+                    await db.profiles.update(p.id!, { profileImage: newUrl });
+                    profileToSync.profileImage = newUrl;
+                }
+                
+                const {
+                    profileImage, birthTime, hospitalName, birthLocation,
+                    fatherName, motherName, bloodType, birthWeight,
+                    birthHeight, eyeColor, hairColor,
+                    ...rest
+                } = cleanForSync(profileToSync);
 
-        // Sync Stories
-        for (const s of unsyncedStories) {
-            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
-            if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+                const payload = {
+                    ...rest,
+                    profile_image: profileImage,
+                    birth_time: birthTime,
+                    hospital_name: hospitalName,
+                    birth_location: birthLocation,
+                    father_name: fatherName,
+                    mother_name: motherName,
+                    blood_type: bloodType,
+                    birth_weight: birthWeight,
+                    birth_height: birthHeight,
+                    eye_color: eyeColor,
+                    hair_color: hairColor,
+                    user_id: userId
+                };
+                
+                const { error } = await supabase.from('child_profile').upsert(payload);
+                if (error) throw error;
+                await db.profiles.update(p.id!, { synced: 1 });
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for profile ${p.id}:`, error);
+                errors.push(error.message);
+            }
         }
 
-        // Sync Memories (Upload images if needed)
+        // 2. Sync Stories
+        for (const s of unsyncedStories) {
+            try {
+                const { childId, ...restOfStory } = cleanForSync(s);
+                const payload = { ...restOfStory, child_id: childId, user_id: userId };
+                const { error } = await supabase.from('stories').upsert(payload);
+                if (error) throw error;
+                await db.stories.update(s.id, { synced: 1 }); 
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for story ${s.id}:`, error);
+                errors.push(error.message);
+            }
+        }
+
+        // 3. Sync Memories
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -187,56 +246,55 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                 }
                 
-                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
-                if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
-                    supabasePayload.imageUrl = supabasePayload.imageUrls[0];
+                const { childId, imageUrls, ...restOfMem } = cleanForSync(memoryToSync);
+                const supabasePayload: any = { 
+                    ...restOfMem,
+                    child_id: childId,
+                    user_id: userId 
+                };
+                if (imageUrls && imageUrls.length > 0) {
+                    supabasePayload.imageUrl = imageUrls[0];
                 }
-                delete supabasePayload.imageUrls;
 
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
                 if (error) throw error;
                 await db.memories.update(mem.id, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
+                console.error(`Sync failed for memory ${mem.id}:`, error);
                 errors.push(error.message);
             }
         }
 
-        // Sync Growth
+        // 4. Sync Growth
         for (const g of unsyncedGrowth) {
-            const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
-            if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
-        }
-
-        // Sync Profiles (Upload image if needed)
-        for (const p of unsyncedProfiles) {
             try {
-                let profileToSync = { ...p };
-                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
-                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
-                    await db.profiles.update(p.id!, { profileImage: newUrl });
-                    profileToSync.profileImage = newUrl;
-                }
-                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
+                const { childId, ...restOfGrowth } = cleanForSync(g);
+                const payload = { ...restOfGrowth, child_id: childId, user_id: userId };
+                const { error } = await supabase.from('growth_data').upsert(payload);
                 if (error) throw error;
-                await db.profiles.update(p.id!, { synced: 1 });
+                await db.growth.update(g.id!, { synced: 1 }); 
                 syncManager.itemCompleted();
             } catch (error: any) {
+                console.error(`Sync failed for growth data ${g.id}:`, error);
                 errors.push(error.message);
             }
         }
 
-        // Sync Reminders
+        // 5. Sync Reminders
         for (const r of unsyncedReminders) {
-            const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
-            if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            try {
+                const payload = { ...cleanForSync(r), user_id: userId };
+                const { error } = await supabase.from('reminders').upsert(payload);
+                if (error) throw error;
+                await db.reminders.update(r.id, { synced: 1 }); 
+                syncManager.itemCompleted();
+            } catch (error: any) {
+                console.error(`Sync failed for reminder ${r.id}:`, error);
+                errors.push(error.message);
+            }
         }
-
+        
         if (totalToSync > 0) {
             if (errors.length > 0) syncManager.error();
             else syncManager.finish();
@@ -244,18 +302,64 @@ export const syncData = async () => {
 
         // Pull remote changes
         const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
+        if (pData) {
+            if (pData.length > 0) {
+                const localPlaceholders = await db.profiles.where({ is_placeholder: true }).toArray();
+                if (localPlaceholders.length > 0) {
+                    const placeholderIds = localPlaceholders.map(p => p.id!);
+                    await db.profiles.bulkDelete(placeholderIds);
+                }
+            }
+            const mappedProfiles = pData.map(p => {
+                const {
+                    profile_image, birth_time, hospital_name, birth_location,
+                    father_name, mother_name, blood_type, birth_weight,
+                    birth_height, eye_color, hair_color,
+                    ...rest
+                } = p;
+                return {
+                    ...rest,
+                    profileImage: profile_image,
+                    birthTime: birth_time,
+                    hospitalName: hospital_name,
+                    birthLocation: birth_location,
+                    fatherName: father_name,
+                    motherName: mother_name,
+                    bloodType: blood_type,
+                    birthWeight: birth_weight,
+                    birthHeight: birth_height,
+                    eyeColor: eye_color,
+                    hairColor: hair_color,
+                    synced: 1,
+                    is_deleted: 0,
+                    is_placeholder: false
+                };
+            });
+            await db.profiles.bulkPut(mappedProfiles);
+        }
         const { data: sData } = await supabase.from('stories').select('*');
-        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
+        if (sData) {
+            await db.stories.bulkPut(sData.map(s => {
+                const { child_id, ...rest } = s;
+                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
+            }));
+        }
         const { data: gData } = await supabase.from('growth_data').select('*');
-        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
+        if (gData) {
+            await db.growth.bulkPut(gData.map(g => {
+                const { child_id, ...rest } = g;
+                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
+            }));
+        }
         const { data: rData } = await supabase.from('reminders').select('*');
         if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
+        
         const { data: mData } = await supabase.from('memories').select('*');
         if (mData) {
             await db.memories.bulkPut(mData.map(m => {
-                const imageUrls = m.imageUrl ? [m.imageUrl] : [];
-                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
+                const { child_id, imageUrl, ...rest } = m;
+                const imageUrls = imageUrl ? [imageUrl] : [];
+                return { ...rest, childId: child_id, imageUrls, synced: 1, is_deleted: 0 };
             }));
         }
 
@@ -263,6 +367,46 @@ export const syncData = async () => {
     } catch (err: any) {
         syncManager.error();
         return { success: false, error: err.message };
+    }
+};
+
+export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
+    if (!isSupabaseConfigured() || !navigator.onLine) return [];
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return [];
+        const { data: pData, error } = await supabase.from('child_profile').select('*');
+        if (error) {
+            console.error("Error fetching profiles directly:", error);
+            return [];
+        }
+        if (!pData) return [];
+        
+        return pData.map(p => {
+            const {
+                profile_image, birth_time, hospital_name, birth_location,
+                father_name, mother_name, blood_type, birth_weight,
+                birth_height, eye_color, hair_color,
+                ...rest
+            } = p;
+            return {
+                ...rest,
+                profileImage: profile_image,
+                birthTime: birth_time,
+                hospitalName: hospital_name,
+                birthLocation: birth_location,
+                fatherName: father_name,
+                motherName: mother_name,
+                bloodType: blood_type,
+                birthWeight: birth_weight,
+                birthHeight: birth_height,
+                eyeColor: eye_color,
+                hairColor: hair_color,
+            };
+        });
+    } catch (e) {
+        console.error("Exception fetching profiles:", e);
+        return [];
     }
 };
 
@@ -329,13 +473,19 @@ export const DataService = {
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
     removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
-        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache], async () => {
+        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache, db.app_settings], async () => {
             await db.memories.clear();
             await db.stories.clear();
             await db.growth.clear();
             await db.profiles.clear();
             await db.reminders.clear();
             await db.cloud_photo_cache.clear();
+            // Clear all settings except the Gemini API key
+            const settingsToKeep = await db.app_settings.where('key').equals('geminiApiKey').toArray();
+            await db.app_settings.clear();
+            if (settingsToKeep.length > 0) {
+                await db.app_settings.bulkPut(settingsToKeep);
+            }
         });
 
         if (Capacitor.isNativePlatform()) {
