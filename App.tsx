@@ -126,23 +126,28 @@ function App() {
             const hasSyncedBefore = firstSyncSetting?.value === true;
 
             if (!hasSyncedBefore) {
-              setIsInitialLoading(true); // Show loading screen for the first sync
+              setIsInitialLoading(true);
               if (navigator.onLine) {
-                  await syncData();
+                  const syncResult = await syncData();
+                  if (!syncResult.success) {
+                      throw new Error(syncResult.error || "A problem occurred during the initial account sync.");
+                  }
               }
               await refreshData();
               await DataService.saveSetting(syncFlagKey, true);
               setIsInitialLoading(false);
             } else {
-              // Subsequent app open. Load local data first for speed.
               setIsInitialLoading(true);
               await refreshData();
               setIsInitialLoading(false);
 
-              // Then, trigger a non-blocking background sync.
               if (navigator.onLine) {
-                syncData().then(() => {
-                  refreshData(); 
+                syncData().then((res) => {
+                  if (res.success) {
+                    refreshData(); 
+                  } else {
+                    console.warn("Background sync failed:", res.error);
+                  }
                 });
               }
             }
@@ -450,7 +455,9 @@ function App() {
                     onSaveGrowth={handleSaveGrowth}
                     onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))} 
                     isGuestMode={isGuestMode} onLogout={handleLogout} remindersEnabled={remindersEnabled} 
-                    toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
+                    // FIX: Use `next.toString()` instead of `String(next)` to avoid issues where
+                    // the global `String` object might be shadowed, causing a "not callable" error.
+                    toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', next.toString()); }} 
                     remindersList={reminders} 
                     onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))} 
                     onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); triggerSuccess('profile_saved'); }}
