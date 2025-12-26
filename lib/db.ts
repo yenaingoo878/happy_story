@@ -108,31 +108,35 @@ async function _syncProfileToSupabase(profile: ChildProfile, userId: string): Pr
         profileToSync.profileImage = newUrl;
     }
     
-    const {
-        profileImage, birthTime, hospitalName, birthLocation,
-        fatherName, motherName, bloodType, birthWeight,
-        birthHeight, eyeColor, hairColor,
-        ...rest
-    } = cleanForSync(profileToSync);
+    const cleanProfile = cleanForSync(profileToSync);
 
     const payload = {
-        ...rest,
-        profile_image: profileImage,
-        birth_time: birthTime,
-        hospital_name: hospitalName,
-        birth_location: birthLocation,
-        father_name: fatherName,
-        mother_name: motherName,
-        blood_type: bloodType,
-        birth_weight: birthWeight,
-        birth_height: birthHeight,
-        eye_color: eyeColor,
-        hair_color: hairColor,
+        id: cleanProfile.id,
+        name: cleanProfile.name,
+        dob: cleanProfile.dob,
+        gender: cleanProfile.gender,
+        notes: cleanProfile.notes,
+        nationality: cleanProfile.nationality,
+        country: cleanProfile.country,
+        profile_image: cleanProfile.profileImage,
+        birth_time: cleanProfile.birthTime,
+        hospital_name: cleanProfile.hospitalName,
+        birth_location: cleanProfile.birthLocation,
+        father_name: cleanProfile.fatherName,
+        mother_name: cleanProfile.motherName,
+        blood_type: cleanProfile.bloodType,
+        birth_weight: cleanProfile.birthWeight,
+        birth_height: cleanProfile.birthHeight,
+        eye_color: cleanProfile.eyeColor,
+        hair_color: cleanProfile.hairColor,
         user_id: userId
     };
     
     const { error } = await supabase.from('child_profile').upsert(payload);
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase profile upsert error:", error);
+        throw new Error(`Failed to sync profile to Supabase. DB Error: ${error.message}`);
+    }
 
     return profileToSync;
 }
