@@ -42,6 +42,14 @@ db.version(10).stores({
   profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
 });
 
+// Version 11: Explicitly define simple indices for fields used in queries to prevent "invalid key" errors
+db.version(11).stores({
+  memories: 'id, childId, [childId+is_deleted], date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+  stories: 'id, childId, [childId+is_deleted], date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+  growth: 'id, childId, [childId+is_deleted], month, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
+  reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+});
 
 export { db };
 
@@ -152,7 +160,8 @@ const syncDeletions = async () => {
     };
     
     for (const tableName of tables) {
-        const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
+        // Use explicit compound index query for robustness
+        const itemsToDelete = await db.table(tableName).where('[is_deleted+synced]').equals([1, 0]).toArray();
         for (const item of itemsToDelete) {
             const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
             if (!error) {
@@ -172,11 +181,12 @@ export const syncData = async () => {
 
         await syncDeletions();
 
-        const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
-        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).filter(p => !p.is_placeholder).toArray();
-        const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
+        // Using explicit compound index queries to prevent "parameter is not a valid key" errors
+        const unsyncedStories = await db.stories.where('[synced+is_deleted]').equals([0, 0]).toArray();
+        const unsyncedMemories = await db.memories.where('[synced+is_deleted]').equals([0, 0]).toArray();
+        const unsyncedGrowth = await db.growth.where('[synced+is_deleted]').equals([0, 0]).toArray();
+        const unsyncedProfiles = await db.profiles.where('[synced+is_deleted]').equals([0, 0]).filter(p => !p.is_placeholder).toArray();
+        const unsyncedReminders = await db.reminders.where('[synced+is_deleted]').equals([0, 0]).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToSync > 0) syncManager.start(totalToSync);
