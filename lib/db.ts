@@ -156,8 +156,12 @@ const syncDeletions = async () => {
     };
     
     for (const tableName of tables) {
-        // Use explicit compound index query for robustness
-        const itemsToDelete = await db.table(tableName).where('[is_deleted+synced]').equals([1, 0]).toArray();
+        // Use simple index 'is_deleted' and JS filter for robustness to avoid IDBKeyRange errors
+        const itemsToDelete = await db.table(tableName)
+            .where('is_deleted').equals(1)
+            .filter(item => item.synced === 0)
+            .toArray();
+
         for (const item of itemsToDelete) {
             const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
             if (!error) {
@@ -177,12 +181,12 @@ export const syncData = async () => {
 
         await syncDeletions();
 
-        // Using explicit compound index queries to prevent "parameter is not a valid key" errors
-        const unsyncedStories = await db.stories.where('[synced+is_deleted]').equals([0, 0]).toArray();
-        const unsyncedMemories = await db.memories.where('[synced+is_deleted]').equals([0, 0]).toArray();
-        const unsyncedGrowth = await db.growth.where('[synced+is_deleted]').equals([0, 0]).toArray();
-        const unsyncedProfiles = await db.profiles.where('[synced+is_deleted]').equals([0, 0]).filter(p => !p.is_placeholder).toArray();
-        const unsyncedReminders = await db.reminders.where('[synced+is_deleted]').equals([0, 0]).toArray();
+        // Use simple index 'synced' and JS filter to avoid IDBKeyRange errors with compound indices
+        const unsyncedStories = await db.stories.where('synced').equals(0).filter(s => s.is_deleted === 0).toArray();
+        const unsyncedMemories = await db.memories.where('synced').equals(0).filter(m => m.is_deleted === 0).toArray();
+        const unsyncedGrowth = await db.growth.where('synced').equals(0).filter(g => g.is_deleted === 0).toArray();
+        const unsyncedProfiles = await db.profiles.where('synced').equals(0).filter(p => p.is_deleted === 0 && !p.is_placeholder).toArray();
+        const unsyncedReminders = await db.reminders.where('synced').equals(0).filter(r => r.is_deleted === 0).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToSync > 0) syncManager.start(totalToSync);
