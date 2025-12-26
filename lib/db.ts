@@ -27,29 +27,47 @@ export const getImageSrc = (src?: string) => {
     return src; // Works for http, data:, and blob: URLs
 };
 
-db.version(9).stores({
+db.version(6).stores({
+  memories: 'id, childId, date, synced',
+  stories: 'id, childId, date, synced',
+  growth: 'id, childId, month, synced',
+  profiles: 'id, name, synced',
+  reminders: 'id, date, synced',
+  app_settings: 'key'
+});
+
+db.version(7).stores({
+  memories: 'id, [childId+is_deleted], date, synced',
+  stories: 'id, [childId+is_deleted], date, synced',
+  growth: 'id, [childId+is_deleted], month, synced',
+  profiles: 'id, name, synced, is_deleted',
+  reminders: 'id, date, synced, is_deleted',
+  app_settings: 'key'
+}).upgrade(tx => {
+  const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
+  return Promise.all(tables.map(tableName => 
+    tx.table(tableName).toCollection().modify(item => {
+      if (item.is_deleted === undefined) {
+        item.is_deleted = 0;
+      }
+    })
+  ));
+});
+
+// Version 8: Add compound indexes for sync performance
+db.version(8).stores({
   memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
   profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  app_settings: 'key',
+});
+
+// Version 9: Add table for cloud photo caching
+db.version(9).stores({
   cloud_photo_cache: 'url, userId, timestamp'
 });
 
-// Version 10: Add is_placeholder to profiles to manage temporary local profiles
-db.version(10).stores({
-  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
-});
-
-// Version 11: Explicitly define simple indices for fields used in queries to prevent "invalid key" errors
-db.version(11).stores({
-  memories: 'id, childId, [childId+is_deleted], date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  stories: 'id, childId, [childId+is_deleted], date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  growth: 'id, childId, [childId+is_deleted], month, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  profiles: 'id, name, synced, is_deleted, is_placeholder, [is_deleted+synced], [synced+is_deleted]',
-  reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-});
 
 export { db };
 
@@ -66,7 +84,7 @@ export const initDB = async () => {
 };
 
 const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, is_placeholder, ...rest } = doc;
+    const { synced, is_deleted, ...rest } = doc;
     return rest;
 };
 
@@ -102,49 +120,6 @@ const uploadFileToSupabase = async (file: File, userId: string, childId: string,
     return data.publicUrl;
 };
 
-async function _syncProfileToSupabase(profile: ChildProfile, userId: string): Promise<ChildProfile> {
-    let profileToSync = { ...profile };
-    if (!profileToSync.id) {
-        throw new Error("Profile must have an ID to be synced.");
-    }
-
-    if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
-        const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-        const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-        const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-        const newUrl = await uploadFileToSupabase(file, userId, profileToSync.id, 'profile', profileToSync.id, 0);
-        profileToSync.profileImage = newUrl;
-    }
-    
-    const cleanProfile = cleanForSync(profileToSync);
-
-    // Map to the specific schema provided:
-    // "profileImage", "birthTime", "hospitalName", "birthLocation", "bloodType" are camelCase in DB
-    const payload = {
-        id: cleanProfile.id,
-        user_id: userId,
-        name: cleanProfile.name,
-        profileImage: cleanProfile.profileImage, // DB column: "profileImage"
-        dob: cleanProfile.dob,
-        birthTime: cleanProfile.birthTime,       // DB column: "birthTime"
-        hospitalName: cleanProfile.hospitalName, // DB column: "hospitalName"
-        birthLocation: cleanProfile.birthLocation, // DB column: "birthLocation"
-        gender: cleanProfile.gender,
-        bloodType: cleanProfile.bloodType,       // DB column: "bloodType"
-        country: cleanProfile.country,
-        // Fields not present in the provided DB schema are omitted to prevent errors:
-        // nationality, notes, father_name, mother_name, birth_weight, birth_height, eye_color, hair_color
-    };
-    
-    const { error } = await supabase.from('child_profile').upsert(payload);
-    if (error) {
-        console.error("Supabase profile upsert error:", error);
-        throw new Error(`Failed to sync profile to Supabase. DB Error: ${error.message}`);
-    }
-
-    return profileToSync;
-}
-
 const syncDeletions = async () => {
     const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
     const supabaseTables: { [key: string]: string } = {
@@ -156,12 +131,7 @@ const syncDeletions = async () => {
     };
     
     for (const tableName of tables) {
-        // Use simple index 'is_deleted' and JS filter for robustness to avoid IDBKeyRange errors
-        const itemsToDelete = await db.table(tableName)
-            .where('is_deleted').equals(1)
-            .filter(item => item.synced === 0)
-            .toArray();
-
+        const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
         for (const item of itemsToDelete) {
             const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
             if (!error) {
@@ -181,47 +151,25 @@ export const syncData = async () => {
 
         await syncDeletions();
 
-        // Use simple index 'synced' and JS filter to avoid IDBKeyRange errors with compound indices
-        const unsyncedStories = await db.stories.where('synced').equals(0).filter(s => s.is_deleted === 0).toArray();
-        const unsyncedMemories = await db.memories.where('synced').equals(0).filter(m => m.is_deleted === 0).toArray();
-        const unsyncedGrowth = await db.growth.where('synced').equals(0).filter(g => g.is_deleted === 0).toArray();
-        const unsyncedProfiles = await db.profiles.where('synced').equals(0).filter(p => p.is_deleted === 0 && !p.is_placeholder).toArray();
-        const unsyncedReminders = await db.reminders.where('synced').equals(0).filter(r => r.is_deleted === 0).toArray();
+        const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
+        const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToSync > 0) syncManager.start(totalToSync);
         
         let errors: string[] = [];
-        
-        // 1. Sync Profiles FIRST
-        for (const p of unsyncedProfiles) {
-            try {
-                const syncedProfile = await _syncProfileToSupabase(p, userId);
-                await db.profiles.update(p.id!, { profileImage: syncedProfile.profileImage, synced: 1 });
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                console.error(`Sync failed for profile ${p.id}:`, error);
-                errors.push(error.message);
-            }
-        }
 
-        // 2. Sync Stories
+        // Sync Stories
         for (const s of unsyncedStories) {
-            try {
-                const { childId, ...restOfStory } = cleanForSync(s);
-                // Note: Story schema was not provided in detail, using snake_case as safe default for foreign keys
-                const payload = { ...restOfStory, child_id: childId, user_id: userId };
-                const { error } = await supabase.from('stories').upsert(payload);
-                if (error) throw error;
-                await db.stories.update(s.id, { synced: 1 }); 
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                console.error(`Sync failed for story ${s.id}:`, error);
-                errors.push(error.message);
-            }
+            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
+            if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
+            else errors.push(error.message);
         }
 
-        // 3. Sync Memories
+        // Sync Memories (Upload images if needed)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -239,62 +187,56 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                 }
                 
-                const { childId, imageUrls, ...restOfMem } = cleanForSync(memoryToSync);
-                // Schema: "childId" (camelCase), "imageUrl" (camelCase, singular text)
-                const supabasePayload: any = { 
-                    ...restOfMem,
-                    childId: childId, // DB column: "childId"
-                    user_id: userId 
-                };
-                if (imageUrls && imageUrls.length > 0) {
-                    supabasePayload.imageUrl = imageUrls[0]; // DB column: "imageUrl"
+                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
+                if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
+                    supabasePayload.imageUrl = supabasePayload.imageUrls[0];
                 }
+                delete supabasePayload.imageUrls;
 
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
                 if (error) throw error;
                 await db.memories.update(mem.id, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
-                console.error(`Sync failed for memory ${mem.id}:`, error);
                 errors.push(error.message);
             }
         }
 
-        // 4. Sync Growth
+        // Sync Growth
         for (const g of unsyncedGrowth) {
+            const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
+            if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
+            else errors.push(error.message);
+        }
+
+        // Sync Profiles (Upload image if needed)
+        for (const p of unsyncedProfiles) {
             try {
-                const { childId, ...restOfGrowth } = cleanForSync(g);
-                // Schema: "childId" (camelCase)
-                const payload = { 
-                    ...restOfGrowth, 
-                    childId: childId, // DB column: "childId"
-                    user_id: userId 
-                };
-                const { error } = await supabase.from('growth_data').upsert(payload);
+                let profileToSync = { ...p };
+                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
+                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
+                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
+                    await db.profiles.update(p.id!, { profileImage: newUrl });
+                    profileToSync.profileImage = newUrl;
+                }
+                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
                 if (error) throw error;
-                await db.growth.update(g.id!, { synced: 1 }); 
+                await db.profiles.update(p.id!, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
-                console.error(`Sync failed for growth data ${g.id}:`, error);
                 errors.push(error.message);
             }
         }
 
-        // 5. Sync Reminders
+        // Sync Reminders
         for (const r of unsyncedReminders) {
-            try {
-                // Reminder schema not provided, assuming default snake_case for consistency with other non-provided schemas
-                const payload = { ...cleanForSync(r), user_id: userId };
-                const { error } = await supabase.from('reminders').upsert(payload);
-                if (error) throw error;
-                await db.reminders.update(r.id, { synced: 1 }); 
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                console.error(`Sync failed for reminder ${r.id}:`, error);
-                errors.push(error.message);
-            }
+            const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
+            if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
+            else errors.push(error.message);
         }
-        
+
         if (totalToSync > 0) {
             if (errors.length > 0) syncManager.error();
             else syncManager.finish();
@@ -302,66 +244,18 @@ export const syncData = async () => {
 
         // Pull remote changes
         const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) {
-            if (pData.length > 0) {
-                const localPlaceholders = await db.profiles.where({ is_placeholder: true }).toArray();
-                if (localPlaceholders.length > 0) {
-                    const placeholderIds = localPlaceholders.map(p => p.id!);
-                    await db.profiles.bulkDelete(placeholderIds);
-                }
-            }
-            const mappedProfiles = pData.map(p => {
-                // DB columns are camelCase in the provided schema
-                // Using direct assignment for columns that match, manual mapping for others if needed.
-                // Note: The response object keys from Supabase JS client generally match the DB column names.
-                const {
-                    profileImage, birthTime, hospitalName, birthLocation, bloodType,
-                    ...rest
-                } = p;
-                
-                return {
-                    ...rest,
-                    profileImage: profileImage,
-                    birthTime: birthTime,
-                    hospitalName: hospitalName,
-                    birthLocation: birthLocation,
-                    bloodType: bloodType,
-                    // Ensure local fields that might not be in DB are handled or undefined
-                    synced: 1,
-                    is_deleted: 0,
-                    is_placeholder: false
-                };
-            });
-            await db.profiles.bulkPut(mappedProfiles);
-        }
-
+        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
         const { data: sData } = await supabase.from('stories').select('*');
-        if (sData) {
-            await db.stories.bulkPut(sData.map(s => {
-                const { child_id, ...rest } = s;
-                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
-            }));
-        }
-
+        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
         const { data: gData } = await supabase.from('growth_data').select('*');
-        if (gData) {
-            await db.growth.bulkPut(gData.map(g => {
-                // DB column: "childId"
-                const { childId, ...rest } = g;
-                return { ...rest, childId: childId, synced: 1, is_deleted: 0 };
-            }));
-        }
-
+        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
         const { data: rData } = await supabase.from('reminders').select('*');
         if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        
         const { data: mData } = await supabase.from('memories').select('*');
         if (mData) {
             await db.memories.bulkPut(mData.map(m => {
-                // DB columns: "childId", "imageUrl"
-                const { childId, imageUrl, ...rest } = m;
-                const imageUrls = imageUrl ? [imageUrl] : [];
-                return { ...rest, childId: childId, imageUrls, synced: 1, is_deleted: 0 };
+                const imageUrls = m.imageUrl ? [m.imageUrl] : [];
+                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
             }));
         }
 
@@ -369,39 +263,6 @@ export const syncData = async () => {
     } catch (err: any) {
         syncManager.error();
         return { success: false, error: err.message };
-    }
-};
-
-export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
-    if (!isSupabaseConfigured() || !navigator.onLine) return [];
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return [];
-        const { data: pData, error } = await supabase.from('child_profile').select('*');
-        if (error) {
-            console.error("Error fetching profiles directly:", error);
-            return [];
-        }
-        if (!pData) return [];
-        
-        return pData.map(p => {
-             // Matching DB Schema: profileImage, birthTime, etc.
-             const {
-                profileImage, birthTime, hospitalName, birthLocation, bloodType,
-                ...rest
-            } = p;
-            return {
-                ...rest,
-                profileImage: profileImage,
-                birthTime: birthTime,
-                hospitalName: hospitalName,
-                birthLocation: birthLocation,
-                bloodType: bloodType,
-            };
-        });
-    } catch (e) {
-        console.error("Exception fetching profiles:", e);
-        return [];
     }
 };
 
@@ -468,19 +329,13 @@ export const DataService = {
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
     removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
-        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache, db.app_settings], async () => {
+        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache], async () => {
             await db.memories.clear();
             await db.stories.clear();
             await db.growth.clear();
             await db.profiles.clear();
             await db.reminders.clear();
             await db.cloud_photo_cache.clear();
-            // Clear all settings except the Gemini API key
-            const settingsToKeep = await db.app_settings.where('key').equals('geminiApiKey').toArray();
-            await db.app_settings.clear();
-            if (settingsToKeep.length > 0) {
-                await db.app_settings.bulkPut(settingsToKeep);
-            }
         });
 
         if (Capacitor.isNativePlatform()) {
@@ -522,30 +377,7 @@ export const DataService = {
     deleteGrowth: createDeleteHandler('growth', 'growth_data'),
     
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
-    saveProfile: async (profile: ChildProfile) => {
-        const profileToSave = { ...profile, id: profile.id || crypto.randomUUID(), is_deleted: 0 };
-
-        if (navigator.onLine && isSupabaseConfigured()) {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) throw new Error("No session, saving locally");
-
-                const syncedProfile = await _syncProfileToSupabase(profileToSave, session.user.id);
-                await db.profiles.put({ ...syncedProfile, synced: 1, is_placeholder: false });
-                
-                syncData().catch(err => console.error("Background sync triggered after profile save", err));
-                return { success: true, data: syncedProfile };
-            } catch (error) {
-                console.warn("Direct profile save to Supabase failed, falling back to local-only save:", error);
-                await db.profiles.put({ ...profileToSave, synced: 0, is_placeholder: true });
-                syncData().catch(err => console.error("Background sync triggered after profile save fallback", err));
-                return { success: true, data: profileToSave };
-            }
-        } else {
-            await db.profiles.put({ ...profileToSave, synced: 0, is_placeholder: true });
-            return { success: true, data: profileToSave };
-        }
-    },
+    saveProfile: createActionHandler(async (profile: ChildProfile) => db.profiles.put({ ...profile, synced: 0, is_deleted: 0 })),
     deleteProfile: createDeleteHandler('profiles', 'child_profile', profileFileCleanup),
 
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
