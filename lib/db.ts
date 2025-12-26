@@ -118,26 +118,22 @@ async function _syncProfileToSupabase(profile: ChildProfile, userId: string): Pr
     
     const cleanProfile = cleanForSync(profileToSync);
 
+    // Map to the specific schema provided:
+    // "profileImage", "birthTime", "hospitalName", "birthLocation", "bloodType" are camelCase in DB
     const payload = {
         id: cleanProfile.id,
+        user_id: userId,
         name: cleanProfile.name,
+        profileImage: cleanProfile.profileImage, // DB column: "profileImage"
         dob: cleanProfile.dob,
+        birthTime: cleanProfile.birthTime,       // DB column: "birthTime"
+        hospitalName: cleanProfile.hospitalName, // DB column: "hospitalName"
+        birthLocation: cleanProfile.birthLocation, // DB column: "birthLocation"
         gender: cleanProfile.gender,
-        notes: cleanProfile.notes,
-        nationality: cleanProfile.nationality,
+        bloodType: cleanProfile.bloodType,       // DB column: "bloodType"
         country: cleanProfile.country,
-        profile_image: cleanProfile.profileImage,
-        birth_time: cleanProfile.birthTime,
-        hospital_name: cleanProfile.hospitalName,
-        birth_location: cleanProfile.birthLocation,
-        father_name: cleanProfile.fatherName,
-        mother_name: cleanProfile.motherName,
-        blood_type: cleanProfile.bloodType,
-        birth_weight: cleanProfile.birthWeight,
-        birth_height: cleanProfile.birthHeight,
-        eye_color: cleanProfile.eyeColor,
-        hair_color: cleanProfile.hairColor,
-        user_id: userId
+        // Fields not present in the provided DB schema are omitted to prevent errors:
+        // nationality, notes, father_name, mother_name, birth_weight, birth_height, eye_color, hair_color
     };
     
     const { error } = await supabase.from('child_profile').upsert(payload);
@@ -209,6 +205,7 @@ export const syncData = async () => {
         for (const s of unsyncedStories) {
             try {
                 const { childId, ...restOfStory } = cleanForSync(s);
+                // Note: Story schema was not provided in detail, using snake_case as safe default for foreign keys
                 const payload = { ...restOfStory, child_id: childId, user_id: userId };
                 const { error } = await supabase.from('stories').upsert(payload);
                 if (error) throw error;
@@ -239,13 +236,14 @@ export const syncData = async () => {
                 }
                 
                 const { childId, imageUrls, ...restOfMem } = cleanForSync(memoryToSync);
+                // Schema: "childId" (camelCase), "imageUrl" (camelCase, singular text)
                 const supabasePayload: any = { 
                     ...restOfMem,
-                    child_id: childId,
+                    childId: childId, // DB column: "childId"
                     user_id: userId 
                 };
                 if (imageUrls && imageUrls.length > 0) {
-                    supabasePayload.imageUrl = imageUrls[0];
+                    supabasePayload.imageUrl = imageUrls[0]; // DB column: "imageUrl"
                 }
 
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
@@ -262,7 +260,12 @@ export const syncData = async () => {
         for (const g of unsyncedGrowth) {
             try {
                 const { childId, ...restOfGrowth } = cleanForSync(g);
-                const payload = { ...restOfGrowth, child_id: childId, user_id: userId };
+                // Schema: "childId" (camelCase)
+                const payload = { 
+                    ...restOfGrowth, 
+                    childId: childId, // DB column: "childId"
+                    user_id: userId 
+                };
                 const { error } = await supabase.from('growth_data').upsert(payload);
                 if (error) throw error;
                 await db.growth.update(g.id!, { synced: 1 }); 
@@ -276,6 +279,7 @@ export const syncData = async () => {
         // 5. Sync Reminders
         for (const r of unsyncedReminders) {
             try {
+                // Reminder schema not provided, assuming default snake_case for consistency with other non-provided schemas
                 const payload = { ...cleanForSync(r), user_id: userId };
                 const { error } = await supabase.from('reminders').upsert(payload);
                 if (error) throw error;
@@ -303,25 +307,22 @@ export const syncData = async () => {
                 }
             }
             const mappedProfiles = pData.map(p => {
+                // DB columns are camelCase in the provided schema
+                // Using direct assignment for columns that match, manual mapping for others if needed.
+                // Note: The response object keys from Supabase JS client generally match the DB column names.
                 const {
-                    profile_image, birth_time, hospital_name, birth_location,
-                    father_name, mother_name, blood_type, birth_weight,
-                    birth_height, eye_color, hair_color,
+                    profileImage, birthTime, hospitalName, birthLocation, bloodType,
                     ...rest
                 } = p;
+                
                 return {
                     ...rest,
-                    profileImage: profile_image,
-                    birthTime: birth_time,
-                    hospitalName: hospital_name,
-                    birthLocation: birth_location,
-                    fatherName: father_name,
-                    motherName: mother_name,
-                    bloodType: blood_type,
-                    birthWeight: birth_weight,
-                    birthHeight: birth_height,
-                    eyeColor: eye_color,
-                    hairColor: hair_color,
+                    profileImage: profileImage,
+                    birthTime: birthTime,
+                    hospitalName: hospitalName,
+                    birthLocation: birthLocation,
+                    bloodType: bloodType,
+                    // Ensure local fields that might not be in DB are handled or undefined
                     synced: 1,
                     is_deleted: 0,
                     is_placeholder: false
@@ -329,6 +330,7 @@ export const syncData = async () => {
             });
             await db.profiles.bulkPut(mappedProfiles);
         }
+
         const { data: sData } = await supabase.from('stories').select('*');
         if (sData) {
             await db.stories.bulkPut(sData.map(s => {
@@ -336,22 +338,26 @@ export const syncData = async () => {
                 return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
             }));
         }
+
         const { data: gData } = await supabase.from('growth_data').select('*');
         if (gData) {
             await db.growth.bulkPut(gData.map(g => {
-                const { child_id, ...rest } = g;
-                return { ...rest, childId: child_id, synced: 1, is_deleted: 0 };
+                // DB column: "childId"
+                const { childId, ...rest } = g;
+                return { ...rest, childId: childId, synced: 1, is_deleted: 0 };
             }));
         }
+
         const { data: rData } = await supabase.from('reminders').select('*');
         if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
         
         const { data: mData } = await supabase.from('memories').select('*');
         if (mData) {
             await db.memories.bulkPut(mData.map(m => {
-                const { child_id, imageUrl, ...rest } = m;
+                // DB columns: "childId", "imageUrl"
+                const { childId, imageUrl, ...rest } = m;
                 const imageUrls = imageUrl ? [imageUrl] : [];
-                return { ...rest, childId: child_id, imageUrls, synced: 1, is_deleted: 0 };
+                return { ...rest, childId: childId, imageUrls, synced: 1, is_deleted: 0 };
             }));
         }
 
@@ -375,25 +381,18 @@ export const fetchServerProfiles = async (): Promise<ChildProfile[]> => {
         if (!pData) return [];
         
         return pData.map(p => {
-            const {
-                profile_image, birth_time, hospital_name, birth_location,
-                father_name, mother_name, blood_type, birth_weight,
-                birth_height, eye_color, hair_color,
+             // Matching DB Schema: profileImage, birthTime, etc.
+             const {
+                profileImage, birthTime, hospitalName, birthLocation, bloodType,
                 ...rest
             } = p;
             return {
                 ...rest,
-                profileImage: profile_image,
-                birthTime: birth_time,
-                hospitalName: hospital_name,
-                birthLocation: birth_location,
-                fatherName: father_name,
-                motherName: mother_name,
-                bloodType: blood_type,
-                birthWeight: birth_weight,
-                birthHeight: birth_height,
-                eyeColor: eye_color,
-                hairColor: hair_color,
+                profileImage: profileImage,
+                birthTime: birthTime,
+                hospitalName: hospitalName,
+                birthLocation: birthLocation,
+                bloodType: bloodType,
             };
         });
     } catch (e) {
