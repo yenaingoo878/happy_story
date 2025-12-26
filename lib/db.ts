@@ -27,44 +27,13 @@ export const getImageSrc = (src?: string) => {
     return src; // Works for http, data:, and blob: URLs
 };
 
-db.version(6).stores({
-  memories: 'id, childId, date, synced',
-  stories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced',
-  reminders: 'id, date, synced',
-  app_settings: 'key'
-});
-
-db.version(7).stores({
-  memories: 'id, [childId+is_deleted], date, synced',
-  stories: 'id, [childId+is_deleted], date, synced',
-  growth: 'id, [childId+is_deleted], month, synced',
-  profiles: 'id, name, synced, is_deleted',
-  reminders: 'id, date, synced, is_deleted',
-  app_settings: 'key'
-}).upgrade(tx => {
-  const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
-  return Promise.all(tables.map(tableName => 
-    tx.table(tableName).toCollection().modify(item => {
-      if (item.is_deleted === undefined) {
-        item.is_deleted = 0;
-      }
-    })
-  ));
-});
-
-// Version 8: Add compound indexes for sync performance
-db.version(8).stores({
+db.version(9).stores({
   memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
   profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-});
-
-// Version 9: Add table for cloud photo caching
-db.version(9).stores({
+  app_settings: 'key',
   cloud_photo_cache: 'url, userId, timestamp'
 });
 
@@ -125,6 +94,49 @@ const uploadFileToSupabase = async (file: File, userId: string, childId: string,
     return data.publicUrl;
 };
 
+async function _syncProfileToSupabase(profile: ChildProfile, userId: string): Promise<ChildProfile> {
+    let profileToSync = { ...profile };
+    if (!profileToSync.id) {
+        throw new Error("Profile must have an ID to be synced.");
+    }
+
+    if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
+        const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+        const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+        const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
+        const newUrl = await uploadFileToSupabase(file, userId, profileToSync.id, 'profile', profileToSync.id, 0);
+        profileToSync.profileImage = newUrl;
+    }
+    
+    const {
+        profileImage, birthTime, hospitalName, birthLocation,
+        fatherName, motherName, bloodType, birthWeight,
+        birthHeight, eyeColor, hairColor,
+        ...rest
+    } = cleanForSync(profileToSync);
+
+    const payload = {
+        ...rest,
+        profile_image: profileImage,
+        birth_time: birthTime,
+        hospital_name: hospitalName,
+        birth_location: birthLocation,
+        father_name: fatherName,
+        mother_name: motherName,
+        blood_type: bloodType,
+        birth_weight: birthWeight,
+        birth_height: birthHeight,
+        eye_color: eyeColor,
+        hair_color: hairColor,
+        user_id: userId
+    };
+    
+    const { error } = await supabase.from('child_profile').upsert(payload);
+    if (error) throw error;
+
+    return profileToSync;
+}
+
 const syncDeletions = async () => {
     const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
     const supabaseTables: { [key: string]: string } = {
@@ -170,42 +182,8 @@ export const syncData = async () => {
         // 1. Sync Profiles FIRST
         for (const p of unsyncedProfiles) {
             try {
-                let profileToSync = { ...p };
-                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
-                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
-                    await db.profiles.update(p.id!, { profileImage: newUrl });
-                    profileToSync.profileImage = newUrl;
-                }
-                
-                const {
-                    profileImage, birthTime, hospitalName, birthLocation,
-                    fatherName, motherName, bloodType, birthWeight,
-                    birthHeight, eyeColor, hairColor,
-                    ...rest
-                } = cleanForSync(profileToSync);
-
-                const payload = {
-                    ...rest,
-                    profile_image: profileImage,
-                    birth_time: birthTime,
-                    hospital_name: hospitalName,
-                    birth_location: birthLocation,
-                    father_name: fatherName,
-                    mother_name: motherName,
-                    blood_type: bloodType,
-                    birth_weight: birthWeight,
-                    birth_height: birthHeight,
-                    eye_color: eyeColor,
-                    hair_color: hairColor,
-                    user_id: userId
-                };
-                
-                const { error } = await supabase.from('child_profile').upsert(payload);
-                if (error) throw error;
-                await db.profiles.update(p.id!, { synced: 1 });
+                const syncedProfile = await _syncProfileToSupabase(p, userId);
+                await db.profiles.update(p.id!, { profileImage: syncedProfile.profileImage, synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
                 console.error(`Sync failed for profile ${p.id}:`, error);
@@ -527,7 +505,30 @@ export const DataService = {
     deleteGrowth: createDeleteHandler('growth', 'growth_data'),
     
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
-    saveProfile: createActionHandler(async (profile: ChildProfile) => db.profiles.put({ ...profile, synced: 0, is_deleted: 0 })),
+    saveProfile: async (profile: ChildProfile) => {
+        const profileToSave = { ...profile, id: profile.id || crypto.randomUUID(), is_deleted: 0 };
+
+        if (navigator.onLine && isSupabaseConfigured()) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error("No session, saving locally");
+
+                const syncedProfile = await _syncProfileToSupabase(profileToSave, session.user.id);
+                await db.profiles.put({ ...syncedProfile, synced: 1, is_placeholder: false });
+                
+                syncData().catch(err => console.error("Background sync triggered after profile save", err));
+                return { success: true, data: syncedProfile };
+            } catch (error) {
+                console.warn("Direct profile save to Supabase failed, falling back to local-only save:", error);
+                await db.profiles.put({ ...profileToSave, synced: 0, is_placeholder: true });
+                syncData().catch(err => console.error("Background sync triggered after profile save fallback", err));
+                return { success: true, data: profileToSave };
+            }
+        } else {
+            await db.profiles.put({ ...profileToSave, synced: 0, is_placeholder: true });
+            return { success: true, data: profileToSave };
+        }
+    },
     deleteProfile: createDeleteHandler('profiles', 'child_profile', profileFileCleanup),
 
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
