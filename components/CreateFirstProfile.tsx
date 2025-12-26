@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ChildProfile, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { User, Calendar, Baby, ArrowRight, Loader2 } from 'lucide-react';
+import { User, Calendar, Baby, ArrowRight, Loader2, ChevronLeft } from 'lucide-react';
 
 interface CreateFirstProfileProps {
   language: Language;
   onProfileCreated: (profileData: Omit<ChildProfile, 'id'>) => void;
+  onGoBackToLogin: () => void;
 }
 
 // Simple input component to maintain style consistency
@@ -20,7 +21,7 @@ const FormInput = ({ label, icon: Icon, children }: { label: string; icon: React
 );
 
 
-export const CreateFirstProfile: React.FC<CreateFirstProfileProps> = ({ language, onProfileCreated }) => {
+export const CreateFirstProfile: React.FC<CreateFirstProfileProps> = ({ language, onProfileCreated, onGoBackToLogin }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
   const [name, setName] = useState('');
@@ -114,6 +115,14 @@ export const CreateFirstProfile: React.FC<CreateFirstProfileProps> = ({ language
                     </button>
                 </div>
             </form>
+
+            <button
+                onClick={onGoBackToLogin}
+                className="mt-8 text-xs font-bold text-slate-400 hover:text-primary transition-colors flex items-center justify-center gap-2 mx-auto"
+            >
+                <ChevronLeft className="w-4 h-4" />
+                {t('back_to_login')}
+            </button>
         </div>
     </div>
   );

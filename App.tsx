@@ -346,7 +346,7 @@ function App() {
           // New logged-in user with no profile
           return (
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-                  <CreateFirstProfile language={language} onProfileCreated={handleCreateFirstProfile} />
+                  <CreateFirstProfile language={language} onProfileCreated={handleCreateFirstProfile} onGoBackToLogin={handleLogout} />
               </Suspense>
           );
       }
