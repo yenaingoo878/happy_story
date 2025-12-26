@@ -124,25 +124,21 @@ function App() {
           const hasSyncedBefore = firstSyncSetting?.value === true;
 
           if (!hasSyncedBefore) {
-            setIsInitialLoading(true); // Show loading screen
+            setIsInitialLoading(true); // Show loading screen for the first sync
             
-            let serverProfiles: ChildProfile[] = [];
+            // On first login, prioritize fetching all data from the cloud.
+            // syncData handles both pushing local changes (none on first login) 
+            // and pulling all remote data.
             if (navigator.onLine) {
-                // Directly check the server for profiles first.
-                serverProfiles = await fetchServerProfiles();
+                await syncData();
             }
-
-            if (serverProfiles.length > 0) {
-                // Profiles exist on the server. Now perform a full sync to get all data.
-                if (navigator.onLine) {
-                    await syncData();
-                }
-                await refreshData(); // Load all data from local DB into state.
-            } else {
-                // No profiles found on the server. We can safely show the 'Create Profile' screen.
-                setProfiles([]);
-            }
-
+            
+            // After syncing, refreshData will load the (now populated) local DB into state.
+            // If the user has no cloud profiles, this will result in an empty profiles array,
+            // which correctly triggers the CreateFirstProfile screen.
+            await refreshData();
+            
+            // Mark that the initial sync is complete for this user.
             await DataService.saveSetting(syncFlagKey, true);
             setIsInitialLoading(false);
           } else {
