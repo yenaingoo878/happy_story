@@ -97,15 +97,47 @@ function App() {
           try {
             setIsInitialLoading(true);
             await initDB();
-            if (navigator.onLine && session && isSupabaseConfigured()) {
-                // Sync in background, catch errors to prevent hanging
-                await syncData().catch(e => console.warn("Sync failed during initial load:", e));
+            
+            // Check if we already have profiles locally
+            const localProfiles = await DataService.getProfiles();
+            
+            if (localProfiles.length > 0) {
+              // OPTIMIZATION: We have data! Load it and show UI immediately.
+              setProfiles(localProfiles);
+              const firstId = localProfiles[0].id!;
+              setActiveProfileId(firstId);
+              
+              // Load the rest of the child's data locally
+              const mems = await DataService.getMemories(firstId);
+              const strs = await DataService.getStories(firstId);
+              const growth = await DataService.getGrowth(firstId);
+              const rems = await DataService.getReminders();
+              
+              setMemories(mems); 
+              setStories(strs); 
+              setGrowthData(growth); 
+              setReminders(rems);
+
+              // Hide loading screen as soon as local data is ready
+              setIsInitialLoading(false);
+
+              // Now start sync in background if online
+              if (navigator.onLine && session && isSupabaseConfigured()) {
+                  syncData()
+                    .then(() => refreshData())
+                    .catch(e => console.warn("Background sync failed:", e));
+              }
+            } else {
+              // No local profiles - might be a new install or first sync
+              if (navigator.onLine && session && isSupabaseConfigured()) {
+                  // Must wait for first sync as there's no local data to show
+                  await syncData().catch(e => console.warn("First sync failed:", e));
+                  await refreshData();
+              }
+              setIsInitialLoading(false);
             }
           } catch (err) {
             console.error("Critical error during setup:", err);
-          } finally {
-            // Always try to refresh data from local DB and hide the spinner
-            await refreshData().catch(e => console.error("Error refreshing data:", e));
             setIsInitialLoading(false);
           }
         };
