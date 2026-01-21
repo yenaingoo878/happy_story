@@ -15,8 +15,55 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
     
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
-  <script type="importmap">
+    
+    <!-- Tailwind CSS CDN with Typography Plugin -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Padauk', 'sans-serif'],
+            },
+            colors: {
+              primary: '#FF9AA2', // Soft Rose
+              secondary: '#B5EAD7', // Soft Mint
+              accent: '#C7CEEA', // Soft Periwinkle
+              textDark: '#4A5568',
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s ease-out forwards',
+              'zoom-in': 'zoomIn 0.3s ease-out forwards',
+              'slide-up': 'slideUp 0.4s ease-out forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(8px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              zoomIn: {
+                '0%': { opacity: '0', transform: 'scale(0.95)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./index.css" />
+    
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.3.1",
@@ -28,17 +75,18 @@
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.89.0",
     "@tailwindcss/typography": "https://esm.sh/@tailwindcss/typography@0.5.10",
     "dexie": "https://esm.sh/dexie@3.2.7",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.0",
+    "dexie-react-hooks": "https://esm.sh/dexie-react-hooks@1.1.7",
     "@capacitor/core": "https://esm.sh/@capacitor/core@6.0.0",
     "@capacitor/camera": "https://esm.sh/@capacitor/camera@6.0.0",
-    "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@6.0.0"
+    "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@6.0.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

@@ -1,27 +1,12 @@
 
-
-
 // FIX: Import 'GoogleGenAI' instead of the deprecated 'GoogleGenerativeAI'.
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
-import { DataService } from '../lib/db';
-
-const getApiKey = async (): Promise<string | null> => {
-    // FIX: Per coding guidelines, API key must come from process.env.API_KEY.
-    // The app's original logic of user-provided keys is maintained for functionality,
-    // but we prioritize environment variables as the primary source.
-    const setting = await DataService.getSetting('geminiApiKey');
-    return process.env.API_KEY || setting?.value || null;
-}
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    const apiKey = await getApiKey();
-    if (!apiKey) {
-      throw new Error("API_KEY_MISSING");
-    }
-    // FIX: Pass apiKey as a named property.
-    const ai = new GoogleGenAI({ apiKey });
+    // FIX: Always use process.env.API_KEY directly for initialization.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -44,21 +29,14 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
     return response;
   } catch (error: any) {
     console.error("Error generating story:", error);
-    if (error.message === "API_KEY_MISSING") {
-        throw new Error("API key not configured. Please set it in the app settings.");
-    }
     throw error;
   }
 };
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        const apiKey = await getApiKey();
-        if (!apiKey) {
-            return language === 'mm' ? "သင်၏ API Key ကို ဆက်တင်တွင် ထည့်သွင်းပေးပါ။" : "Please set your API Key in the settings.";
-        }
-        // FIX: Pass apiKey as a named property.
-        const ai = new GoogleGenAI({ apiKey });
+        // FIX: Always use process.env.API_KEY directly for initialization.
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -74,8 +52,9 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
           Example Tone: "Your child's growth is progressing steadily, following along their own percentile curve, which is a wonderful sign."
         `;
 
+        // FIX: Use 'gemini-3-pro-preview' for tasks requiring reasoning and analysis.
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 thinkingConfig: { thinkingBudget: 0 },

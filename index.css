@@ -1,99 +1,45 @@
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  :root {
-    --rs-primary: #FF9AA2;
-    --rs-secondary: #B5EAD7;
-  }
-
-  * {
-    /* Standard mobile app cleanup */
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Re-enable text selection for inputs only */
-  input, textarea, [contenteditable="true"] {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
-  }
-
-  body {
-    background-color: #F7FAFC;
-    font-family: 'Padauk', sans-serif;
-    overscroll-behavior-y: none;
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-  
-  #root {
-    height: 100%;
-    width: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .dark body {
-    background-color: #0f172a;
-  }
+/* Custom Base Styles */
+:root {
+  --rs-primary: #FF9AA2;
+  --rs-secondary: #B5EAD7;
 }
 
-/* 
-  INTERACTION EFFECTS 
-  Clean separation between Desktop (Hover) and Mobile (Active)
-*/
-
-/* 1. Universal Scaling Effect (Native feel) */
-.btn-active-scale {
-  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s ease;
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Active state for any touch/click */
-.btn-active-scale:active {
-  transform: scale(0.95);
-  background-color: rgba(0, 0, 0, 0.05);
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
-.dark .btn-active-scale:active {
-  background-color: rgba(255, 255, 255, 0.05);
+body {
+  background-color: #F7FAFC;
+  font-family: 'Padauk', sans-serif;
+  overscroll-behavior-y: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* 2. Specific for primary/solid buttons to prevent gray tint overlap */
-.btn-primary-active {
-  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.15s ease;
+#root {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.btn-primary-active:active {
-  transform: scale(0.96);
-  filter: brightness(0.9);
-}
-
-/* 3. FIX: Sticky Hover on Mobile. 
-   Only apply hover styles if the device actually supports hover (Mouse) */
-@media (hover: hover) {
-  .btn-active-scale:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-  }
-  .dark .btn-active-scale:hover {
-    background-color: rgba(255, 255, 255, 0.03);
-  }
-  
-  .hover-glow:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
-  }
+.dark body {
+  background-color: #0f172a;
 }
 
 /* Custom Scrollbar */
@@ -111,40 +57,24 @@
   background: #334155;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Native-like interaction effects */
+.btn-active-scale {
+  transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
-@keyframes zoomIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-}
-
-.animate-zoom-in {
-  animation: zoomIn 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-}
-
-@keyframes confetti-burst {
-  0% { transform: scale(0) translate(0, 0) rotate(0deg); opacity: 1; }
-  100% { transform: scale(1) translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)); opacity: 0; }
-}
-
-.celebration-particle {
-  position: fixed;
-  pointer-events: none;
-  z-index: 1000;
-  width: 12px;
-  height: 12px;
-  will-change: transform, opacity;
+.btn-active-scale:active {
+  transform: scale(0.96);
 }
 
 img {
   -webkit-user-drag: none;
   user-drag: none;
+}
+
+/* Hide scrollbars for cleaner mobile look */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

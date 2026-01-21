@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
@@ -131,7 +132,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       setIsProcessing(true); 
       try {
         const newImageUris = await Promise.all(Array.from(files).map(async (file) => {
-            const resizedDataUrl = await resizeImage(file);
+            // FIX: Explicitly cast 'file' as 'File' to resolve 'unknown' type issues in environments where inference is weak.
+            const resizedDataUrl = await resizeImage(file as File);
             return await saveImageToFile(resizedDataUrl);
         }));
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUris] }));
@@ -161,17 +163,15 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       
       const image = await CapacitorCamera.getPhoto({ quality: 90, allowEditing: false, resultType: CameraResultType.DataUrl });
       if (image.dataUrl) {
-        const resizedDataUrl = await resizeImage(image.dataUrl);
+        // FIX: Explicitly cast 'image.dataUrl' to 'string' to resolve type assignment issues.
+        const resizedDataUrl = await resizeImage(image.dataUrl as string);
         const fileUri = await saveImageToFile(resizedDataUrl);
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, fileUri] }));
       }
     } catch (error) {
       console.error("Failed to take photo", error);
 
-      // FIX: Refactor error handling to be more explicit and safe with the 'unknown' type.
-      // This prevents potential errors if a non-Error object is thrown, and avoids
-      // passing an 'unknown' value to functions expecting specific types, which is the
-      // likely root cause of the reported error.
+      // FIX: Safely handle 'error' which is 'unknown' in current TypeScript catching logic.
       let isCancellation = false;
       if (error instanceof Error) {
         isCancellation = error.message.toLowerCase().includes('cancelled');

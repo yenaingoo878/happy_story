@@ -131,12 +131,16 @@ const syncDeletions = async () => {
     };
     
     for (const tableName of tables) {
-        const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
-        for (const item of itemsToDelete) {
-            const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
-            if (!error) {
-                await db.table(tableName).delete(item.id);
+        try {
+            const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
+            for (const item of itemsToDelete) {
+                const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
+                if (!error) {
+                    await db.table(tableName).delete(item.id);
+                }
             }
+        } catch (e) {
+            console.warn(`Deletion sync failed for table ${tableName}:`, e);
         }
     }
 };
@@ -242,25 +246,40 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pull remote changes
-        const { data: pData } = await supabase.from('child_profile').select('*');
-        if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
-        const { data: sData } = await supabase.from('stories').select('*');
-        if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
-        const { data: gData } = await supabase.from('growth_data').select('*');
-        if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        const { data: rData } = await supabase.from('reminders').select('*');
-        if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        const { data: mData } = await supabase.from('memories').select('*');
-        if (mData) {
-            await db.memories.bulkPut(mData.map(m => {
-                const imageUrls = m.imageUrl ? [m.imageUrl] : [];
-                return { ...m, imageUrls, synced: 1, is_deleted: 0 };
-            }));
-        }
+        // Pull remote changes - Each fetch is independent and safe
+        try {
+            const { data: pData } = await supabase.from('child_profile').select('*');
+            if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
+        } catch (e) { console.warn("Failed to pull profiles:", e); }
+
+        try {
+            const { data: sData } = await supabase.from('stories').select('*');
+            if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
+        } catch (e) { console.warn("Failed to pull stories:", e); }
+
+        try {
+            const { data: gData } = await supabase.from('growth_data').select('*');
+            if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
+        } catch (e) { console.warn("Failed to pull growth data:", e); }
+
+        try {
+            const { data: rData } = await supabase.from('reminders').select('*');
+            if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
+        } catch (e) { console.warn("Failed to pull reminders:", e); }
+
+        try {
+            const { data: mData } = await supabase.from('memories').select('*');
+            if (mData) {
+                await db.memories.bulkPut(mData.map(m => {
+                    const imageUrls = m.imageUrl ? [m.imageUrl] : [];
+                    return { ...m, imageUrls, synced: 1, is_deleted: 0 };
+                }));
+            }
+        } catch (e) { console.warn("Failed to pull memories:", e); }
 
         return { success: errors.length === 0 };
     } catch (err: any) {
+        console.error("Critical sync error:", err);
         syncManager.error();
         return { success: false, error: err.message };
     }

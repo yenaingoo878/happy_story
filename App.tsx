@@ -94,13 +94,20 @@ function App() {
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
-          setIsInitialLoading(true);
-          await initDB();
-          if (navigator.onLine && session && isSupabaseConfigured()) {
-            await syncData();
+          try {
+            setIsInitialLoading(true);
+            await initDB();
+            if (navigator.onLine && session && isSupabaseConfigured()) {
+                // Sync in background, catch errors to prevent hanging
+                await syncData().catch(e => console.warn("Sync failed during initial load:", e));
+            }
+          } catch (err) {
+            console.error("Critical error during setup:", err);
+          } finally {
+            // Always try to refresh data from local DB and hide the spinner
+            await refreshData().catch(e => console.error("Error refreshing data:", e));
+            setIsInitialLoading(false);
           }
-          await refreshData();
-          setIsInitialLoading(false);
         };
         initialLoad();
     } else {
@@ -112,7 +119,7 @@ function App() {
     const handleOnline = () => {
         setIsOnline(true);
         if (session && isSupabaseConfigured()) {
-            syncData().then(() => { refreshData(); });
+            syncData().then(() => { refreshData(); }).catch(e => console.warn("Sync failed when coming online:", e));
         }
     };
     const handleOffline = () => setIsOnline(false);
@@ -135,21 +142,25 @@ function App() {
   };
 
   const refreshData = async () => {
-    const fetchedProfiles = await DataService.getProfiles();
-    setProfiles(fetchedProfiles);
+    try {
+      const fetchedProfiles = await DataService.getProfiles();
+      setProfiles(fetchedProfiles);
 
-    let targetId = activeProfileId;
-    if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
-        targetId = fetchedProfiles.length > 0 ? fetchedProfiles[0].id! : '';
-        setActiveProfileId(targetId);
-    }
+      let targetId = activeProfileId;
+      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
+          targetId = fetchedProfiles.length > 0 ? fetchedProfiles[0].id! : '';
+          setActiveProfileId(targetId);
+      }
 
-    if (targetId) {
-        await loadChildData(targetId);
-    } else {
-        setMemories([]);
-        setStories([]);
-        setGrowthData([]);
+      if (targetId) {
+          await loadChildData(targetId);
+      } else {
+          setMemories([]);
+          setStories([]);
+          setGrowthData([]);
+      }
+    } catch (e) {
+      console.error("Failed to refresh data from IndexedDB:", e);
     }
   };
 
