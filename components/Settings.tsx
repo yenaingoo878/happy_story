@@ -317,31 +317,33 @@ export const Settings: React.FC<SettingsProps> = ({
           {memories.length > 0 ? (
             <div className="grid gap-3">
               {memories.map(m => (
-                <div key={m.id} className="bg-white dark:bg-slate-800 p-2 sm:p-3 rounded-[24px] sm:rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all">
-                  {/* Left part: Image + Title/Date (Uses min-w-0 and flex-1 to allow child truncation) */}
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center">
+                <div key={m.id} className="bg-white dark:bg-slate-800 p-2 sm:p-3 rounded-[24px] sm:rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all overflow-hidden">
+                  {/* Left part: Image + Title/Date */}
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 overflow-hidden">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                       {m.imageUrls && m.imageUrls.length > 0 ? (
                         <img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />
                       ) : (
                         <ImageIcon className="w-8 h-8 text-slate-300" />
                       )}
                     </div>
-                    {/* Middle: Title and Date (Truncation happens here) */}
-                    <div className="min-w-0 text-left flex-1">
-                      <h4 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1.5">{m.title}</h4>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <Clock className="w-2.5 h-2.5"/> {m.date}
+                    {/* Middle: Title and Date - Strict truncation container */}
+                    <div className="min-w-0 text-left flex-1 overflow-hidden flex flex-col">
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm truncate block whitespace-nowrap leading-none mb-1.5 w-full pr-1">
+                        {m.title}
+                      </h4>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                        <Clock className="w-2.5 h-2.5 shrink-0"/> {m.date}
                       </p>
                     </div>
                   </div>
-                  {/* Right part: Action Buttons (Must not shrink) */}
-                  <div className="flex gap-0 sm:gap-1 shrink-0">
-                    <button onClick={() => onEditMemory(m)} className="p-2 sm:p-3 text-slate-400 hover:text-primary transition-colors active:scale-90">
-                      <Pencil className="w-4 h-4" />
+                  {/* Right part: Action Buttons - Locked and Unshrinkable */}
+                  <div className="flex gap-0 sm:gap-1 shrink-0 ml-1">
+                    <button onClick={() => onEditMemory(m)} className="p-2 sm:p-3 text-slate-400 hover:text-primary transition-colors active:scale-90 flex items-center justify-center shrink-0">
+                      <Pencil className="w-4.5 h-4.5" />
                     </button>
-                    <button onClick={() => onDeleteMemory(m.id)} className="p-2 sm:p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90">
-                      <Trash2 className="w-4 h-4" />
+                    <button onClick={() => onDeleteMemory(m.id)} className="p-2 sm:p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90 flex items-center justify-center shrink-0">
+                      <Trash2 className="w-4.5 h-4.5" />
                     </button>
                   </div>
                 </div>
