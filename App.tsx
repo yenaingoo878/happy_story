@@ -89,8 +89,32 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
-    supabase.auth.getSession().then(({ data }: any) => { setSession(data?.session || null); setAuthLoading(false); }).catch(() => { setAuthLoading(false); setIsInitialLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); setAuthLoading(false); });
+    
+    // Improved auth session handling
+    supabase.auth.getSession().then(({ data, error }: any) => {
+      if (error) {
+        console.warn("Auth session error (possibly stale refresh token):", error);
+        // If the refresh token is invalid, sign out to clear storage
+        supabase.auth.signOut();
+        setSession(null);
+      } else {
+        setSession(data?.session || null);
+      }
+      setAuthLoading(false);
+    }).catch(() => {
+      setAuthLoading(false);
+      setIsInitialLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+          // Force refresh session state
+          setSession(session);
+      } else {
+          setSession(session);
+      }
+      setAuthLoading(false);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -110,8 +134,6 @@ function App() {
             
             const localProfiles = await DataService.getProfiles();
             
-            // If user has a session but no local data, this is likely a first login on a new device.
-            // We must force a sync from cloud first.
             if (session && localProfiles.length === 0 && navigator.onLine && isSupabaseConfigured()) {
                 setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရှာဖွေနေပါသည်...' : 'Checking for cloud backups...');
                 await syncData();
@@ -133,7 +155,6 @@ function App() {
               await loadChildData(firstId);
               setIsInitialLoading(false);
               
-              // Background sync if online
               if (navigator.onLine && session && isSupabaseConfigured()) {
                   syncData().then(() => refreshData()).catch(e => console.warn("Background sync failed:", e));
               }
@@ -307,7 +328,6 @@ function App() {
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
-  // Database Error Screen
   if (dbError) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-8">
@@ -453,7 +473,7 @@ function App() {
         return (
             <div className="pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
               <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
-                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} />}
+                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />}
                 {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await refreshData(); triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
                 {activeTab === TabView.GROWTH && <div className="max-w-4xl mx-auto"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>}
                 {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} userId={session?.user?.id} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />}

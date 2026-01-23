@@ -31,8 +31,6 @@ export const getImageSrc = (src?: string) => {
         if (Capacitor.isNativePlatform()) {
             return Capacitor.convertFileSrc(src);
         } else {
-            // Browsers block file:// access, so if we ended up with one on web,
-            // we have a data corruption issue or pathing error.
             return undefined;
         }
     }
@@ -78,9 +76,6 @@ db.version(8).stores({
 
 export { db };
 
-/**
- * Resets the entire local database. Use only as a last resort.
- */
 export const resetDatabase = async () => {
     try {
         await db.delete();
@@ -103,26 +98,8 @@ export const initDB = async () => {
       }
       return { success: true };
   } catch (err: any) {
-      console.error("Dexie Open Error Details:", {
-        name: err.name,
-        message: err.message,
-        inner: err.inner
-      });
-      
-      let friendlyMessage = 'Unknown DB Error';
-      if (err.name === 'SecurityError' || err.message?.includes('SecurityError')) {
-        friendlyMessage = 'Privacy settings or Incognito mode is blocking the database.';
-      } else if (err.name === 'QuotaExceededError') {
-        friendlyMessage = 'Device storage is full.';
-      } else if (err.name === 'VersionError') {
-        friendlyMessage = 'Database version conflict. Please try resetting the app.';
-      } else if (err.name === 'NoSuchDatabaseError') {
-          friendlyMessage = 'Database not found. Refreshing might help.';
-      } else {
-        friendlyMessage = err.message || 'Could not initialize database.';
-      }
-      
-      return { success: false, error: friendlyMessage, errorName: err.name };
+      console.error("Dexie Open Error Details:", err);
+      return { success: false, error: err.message || 'Could not initialize database.', errorName: err.name };
   }
 };
 
@@ -131,16 +108,18 @@ const cleanForSync = (doc: any) => {
     return rest;
 };
 
-const uploadFileToSupabase = async (file: File, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
-    uploadManager.start(file.name);
+export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
+    const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
+    const displayName = fileOrBlob instanceof File ? fileOrBlob.name : `image_${imageIndex}.jpg`;
     
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${itemId}_${imageIndex}.${fileExt}`;
+    uploadManager.start(displayName);
+    
+    const fileName = `${itemId}_${imageIndex}_${Date.now()}.${fileNameSuffix}`;
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
     const { error } = await supabase.storage
         .from('images')
-        .upload(filePath, file, {
+        .upload(filePath, fileOrBlob, {
             cacheControl: '3600',
             upsert: true
         });
@@ -157,7 +136,7 @@ const uploadFileToSupabase = async (file: File, userId: string, childId: string,
         throw new Error("Failed to get public URL.");
     }
     
-    uploadManager.progress(100, file.name);
+    uploadManager.progress(100, displayName);
     uploadManager.finish();
     
     return data.publicUrl;
@@ -218,13 +197,13 @@ export const syncData = async () => {
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
+                // If native and has local files, upload them
                 if (Capacitor.isNativePlatform() && memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://'))) {
                     const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
                         if (url.startsWith('file://')) {
                             const fileData = await Filesystem.readFile({ path: url });
                             const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                            const file = new File([blob], "upload.jpeg", { type: 'image/jpeg' });
-                            return await uploadFileToSupabase(file, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
+                            return await uploadFileToSupabase(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
                     }));
@@ -259,8 +238,7 @@ export const syncData = async () => {
                 if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
                     const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
                     const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    const file = new File([blob], "profile.jpeg", { type: 'image/jpeg' });
-                    const newUrl = await uploadFileToSupabase(file, userId, p.id!, 'profile', p.id!, 0);
+                    const newUrl = await uploadFileToSupabase(blob, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
@@ -284,25 +262,26 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
+        // Pulling updates
         try {
             const { data: pData } = await supabase.from('child_profile').select('*');
             if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
-        } catch (e) { console.warn("Failed to pull profiles:", e); }
+        } catch (e) {}
 
         try {
             const { data: sData } = await supabase.from('stories').select('*');
             if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
-        } catch (e) { console.warn("Failed to pull stories:", e); }
+        } catch (e) {}
 
         try {
             const { data: gData } = await supabase.from('growth_data').select('*');
             if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        } catch (e) { console.warn("Failed to pull growth data:", e); }
+        } catch (e) {}
 
         try {
             const { data: rData } = await supabase.from('reminders').select('*');
             if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        } catch (e) { console.warn("Failed to pull reminders:", e); }
+        } catch (e) {}
 
         try {
             const { data: mData } = await supabase.from('memories').select('*');
@@ -312,7 +291,7 @@ export const syncData = async () => {
                     return { ...m, imageUrls, synced: 1, is_deleted: 0 };
                 }));
             }
-        } catch (e) { console.warn("Failed to pull memories:", e); }
+        } catch (e) {}
 
         return { success: errors.length === 0 };
     } catch (err: any) {
@@ -356,7 +335,6 @@ const createDeleteHandler = (tableName: string, supabaseTable: string, fileClean
             return { success: true };
         } catch (error) {
             await db.table(tableName).update(id, { is_deleted: 1, synced: 0 });
-            console.error(`Direct delete from ${tableName} failed, marked for sync:`, error);
             return { success: false, error };
         }
     };
@@ -401,9 +379,7 @@ export const DataService = {
                         await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
                     }
                 }
-            } catch (e) {
-                console.warn("Could not clear app data directory", e);
-            }
+            } catch (e) {}
         }
     },
 
@@ -414,7 +390,7 @@ export const DataService = {
         const mems = await query.sortBy('date');
         return mems.reverse();
     },
-    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: 0, is_deleted: 0 })),
+    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: memory.synced || 0, is_deleted: 0 })),
     deleteMemory: createDeleteHandler('memories', 'memories', memoryFileCleanup),
 
     getStories: async (childId?: string) => {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, getImageSrc } from '../lib/db';
+import { DataService, getImageSrc, uploadFileToSupabase } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -70,6 +70,7 @@ interface AddMemoryProps {
   editMemory: Memory | null;
   onSaveComplete: () => void;
   onCancel: () => void;
+  session?: any;
 }
 const FormField = ({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children?: React.ReactNode }) => (
   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
@@ -86,7 +87,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   activeProfileId, 
   editMemory, 
   onSaveComplete,
-  onCancel 
+  onCancel,
+  session
 }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -208,9 +210,22 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (!formState.title || formState.imageUrls.length === 0 || !activeProfileId) return;
 
     setIsSaving(true);
+    const memoryId = editMemory ? editMemory.id : crypto.randomUUID();
+    
     try {
-        // Convert any dataUrls (previews) to actual files before saving to DB
-        const finalImageUrls = await Promise.all(formState.imageUrls.map(async (url) => {
+        const finalImageUrls = await Promise.all(formState.imageUrls.map(async (url, index) => {
+            // If online and session is active, upload directly to cloud
+            if (session?.user?.id && navigator.onLine && url.startsWith('data:')) {
+                const blob = await (await fetch(url)).blob();
+                try {
+                  return await uploadFileToSupabase(blob, session.user.id, activeProfileId, 'memories', memoryId, index);
+                } catch (e) {
+                  console.warn("Cloud upload failed during save, falling back to local storage", e);
+                  return await saveImageToFile(url);
+                }
+            }
+            
+            // Otherwise save to local file system (if native) or keep dataUrl
             if (url.startsWith('data:')) {
                 return await saveImageToFile(url);
             }
@@ -218,19 +233,21 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
         }));
 
         const memory: Memory = {
-            id: editMemory ? editMemory.id : crypto.randomUUID(), 
+            id: memoryId, 
             childId: activeProfileId, 
             title: formState.title, 
             description: formState.desc, 
             date: formState.date, 
             imageUrls: finalImageUrls, 
-            tags: formState.tags
+            tags: formState.tags,
+            // If all URLs are cloud URLs, mark as synced
+            synced: finalImageUrls.every(url => url.startsWith('http')) ? 1 : 0
         };
         await DataService.addMemory(memory);
         onSaveComplete();
     } catch (error) { 
         console.error("Save failed", error); 
-        alert("Failed to save memory locally.");
+        alert("Failed to save memory.");
     } finally { 
         setIsSaving(false); 
     }
@@ -241,9 +258,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (urlToRemove.startsWith('file://')) {
         try {
             await Filesystem.deleteFile({ path: urlToRemove });
-        } catch (e) {
-            console.warn(`Could not delete file: ${urlToRemove}`, e);
-        }
+        } catch (e) {}
     }
     setFormState(prev => ({...prev, imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)}));
   };
