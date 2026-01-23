@@ -116,13 +116,23 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   }, [editMemory]);
 
   const saveImageToFile = async (dataUrl: string): Promise<string> => {
-      const fileName = `${new Date().getTime()}.jpeg`;
-      const savedFile = await Filesystem.writeFile({
-          path: fileName,
-          data: dataUrl,
-          directory: Directory.Data
-      });
-      return savedFile.uri;
+      // Only use Capacitor Filesystem if running as a native app
+      if (!Capacitor.isNativePlatform()) {
+          return dataUrl;
+      }
+
+      try {
+          const fileName = `moments_${new Date().getTime()}_${Math.random().toString(36).substring(7)}.jpeg`;
+          const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: dataUrl,
+              directory: Directory.Data
+          });
+          return savedFile.uri;
+      } catch (err) {
+          console.error("Failed to save image to filesystem, falling back to data URL", err);
+          return dataUrl;
+      }
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,8 +143,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
         const newDataUrls = await Promise.all(Array.from(files).map(async (file) => {
             return await resizeImage(file as File);
         }));
-        // Store dataUrls directly for previewing. 
-        // We will only call saveImageToFile when the user clicks 'Save'.
         setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newDataUrls] }));
       } catch (error) { 
         console.error("Image processing failed", error); 
@@ -230,7 +238,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
   const removeImage = async (indexToRemove: number) => {
     const urlToRemove = formState.imageUrls[indexToRemove];
-    // Only attempt cleanup if it's a permanent file. If it's a dataUrl, we don't need to delete anything.
     if (urlToRemove.startsWith('file://')) {
         try {
             await Filesystem.deleteFile({ path: urlToRemove });
@@ -254,7 +261,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                <div className="grid grid-cols-3 gap-3">
                   {formState.imageUrls.map((url, index) => (
                       <div key={index} className="relative aspect-square group">
-                          {/* getImageSrc will handle both data: URLs and file:// URLs correctly */}
                           <img src={getImageSrc(url)} className="w-full h-full object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
                           <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1.5 bg-rose-500 text-white rounded-full shadow-lg transition-transform hover:scale-110 active:scale-90">
                               <X className="w-3.5 h-3.5"/>

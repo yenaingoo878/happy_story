@@ -20,9 +20,23 @@ const db = new Dexie(DB_NAME) as LittleMomentsDB;
 
 export const getImageSrc = (src?: string) => {
     if (!src) return undefined;
-    if (src.startsWith('file://') && Capacitor.isNativePlatform()) {
-        return Capacitor.convertFileSrc(src);
+    
+    // If it's already a data URL (base64) or a web URL (http/https), return as is
+    if (src.startsWith('data:') || src.startsWith('http')) {
+        return src;
     }
+
+    // If it's a file system URI, handle it based on platform
+    if (src.startsWith('file://')) {
+        if (Capacitor.isNativePlatform()) {
+            return Capacitor.convertFileSrc(src);
+        } else {
+            // Browsers block file:// access, so if we ended up with one on web,
+            // we have a data corruption issue or pathing error.
+            return undefined;
+        }
+    }
+    
     return src;
 };
 
