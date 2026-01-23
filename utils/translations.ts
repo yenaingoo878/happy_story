@@ -1,3 +1,4 @@
+
 import { Language } from '../types';
 
 export const translations = {
@@ -125,7 +126,10 @@ export const translations = {
   // Onboarding
   welcome_onboarding_title: { en: "Welcome to Little Moments", mm: "Little Moments မှ ကြိုဆိုပါ၏" },
   welcome_onboarding_msg: { en: "Let's start by creating a profile for your child to save their precious memories.", mm: "သင့်ကလေး၏ အဖိုးတန်အမှတ်တရများကို သိမ်းဆည်းရန်အတွက် ပရိုဖိုင်တစ်ခု ပြုလုပ်လိုက်ကြရအောင်။" },
-  create_first_profile: { en: "Create Profile", mm: "ပရိုဖိုင် ပြုလုပ်မည်" },
+  create_first_profile: { en: "Get Started", mm: "ပရိုဖိုင် ပြုလုပ်မည်" },
+  cancel_setup: { en: "Log Out", mm: "အကောင့်ထွက်မည်" },
+  onboarding_setup_title: { en: "Child Setup", mm: "ကလေးအချက်အလက် ဖြည့်သွင်းပါ" },
+  onboarding_setup_desc: { en: "Please provide basic information about your child.", mm: "သင့်ကလေး၏ အခြေခံအချက်အလက်များကို ဖြည့်သွင်းပေးပါ။" },
 
   // New Profile Fields
   child_name_label: { en: "Child's Name", mm: "ကလေးအမည်" },

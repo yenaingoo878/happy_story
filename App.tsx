@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -208,15 +207,20 @@ function App() {
     } catch (e) { console.error("Failed to refresh data:", e); }
   };
 
-  const handleCreateFirstProfile = async () => {
-    const defaultName = getTranslation(language, 'default_child_name');
-    const defaultProfile: ChildProfile = { 
+  const handleCreateFirstProfile = async (childData: Partial<ChildProfile>) => {
+    const newProfile: ChildProfile = { 
         id: crypto.randomUUID(), 
-        name: defaultName, 
-        dob: new Date().toISOString().split('T')[0], 
-        gender: 'boy' 
+        name: childData.name || getTranslation(language, 'default_child_name'), 
+        dob: childData.dob || new Date().toISOString().split('T')[0], 
+        gender: childData.gender || 'boy',
+        birthTime: childData.birthTime,
+        bloodType: childData.bloodType,
+        hospitalName: childData.hospitalName,
+        birthLocation: childData.birthLocation,
+        country: childData.country,
+        synced: 0
     };
-    await DataService.saveProfile(defaultProfile);
+    await DataService.saveProfile(newProfile);
     await refreshData();
   };
 
@@ -377,8 +381,8 @@ function App() {
 
   if (profiles.length === 0) {
       return (
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} />
+          <Suspense fallback={<div className="min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 flex"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} onLogout={handleLogout} />
           </Suspense>
       );
   }
@@ -509,81 +513,162 @@ function App() {
     }
   };
 
-  const SyncProgressBar = () => {
-    if (syncState.status === 'idle' || (syncState.status === 'syncing' && syncState.total === 0)) return null;
-    const isSyncing = syncState.status === 'syncing';
-    const isSuccess = syncState.status === 'success';
-    let text, Icon, iconColorClass, bgColorClass;
-    if (isSyncing) { text = `${t('sync_now')}...`; Icon = Loader2; iconColorClass = 'text-sky-500 animate-spin'; bgColorClass = 'bg-sky-500/10'; } 
-    else if (isSuccess) { text = `${t('sync_now')} Complete!`; Icon = CheckCircle2; iconColorClass = 'text-emerald-500'; bgColorClass = 'bg-emerald-500/10'; } 
-    else { text = `${t('sync_now')} Failed!`; Icon = X; iconColorClass = 'text-rose-500'; bgColorClass = 'bg-rose-500/10'; }
-    return (
-        <div className="p-3 animate-fade-in">
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4">
-                <div className={`w-10 h-10 ${bgColorClass} rounded-xl flex items-center justify-center shadow-inner shrink-0`}><Icon className={`w-5 h-5 ${iconColorClass}`} /></div>
-                <div className="flex-1 min-w-0"><p className="text-sm font-black text-slate-800 dark:text-white truncate">{text}</p></div>
-            </div>
-        </div>
-    );
-  };
-
+  // Main layout return
   return (
-    <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
-      {/* SUCCESS NOTIFICATION - TOP CENTER POSITIONED */}
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-slate-50'} transition-colors duration-500 font-sans pb-24`}>
+      {/* Success Message Toaster */}
       {successMessage && (
-        <div className="fixed top-6 left-0 right-0 z-[999999] flex justify-center pointer-events-none px-4">
-          <div className="bg-slate-900/90 dark:bg-emerald-600/90 backdrop-blur-xl text-white px-6 py-3.5 rounded-full shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)] flex items-center gap-3 border border-white/10 animate-slide-up pointer-events-auto">
-            <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-[11px] font-black uppercase tracking-[0.15em] whitespace-nowrap">{successMessage}</span>
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] animate-fade-in">
+          <div className="bg-slate-900 dark:bg-primary text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/10">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="text-xs font-black uppercase tracking-widest">{successMessage}</span>
           </div>
         </div>
       )}
 
-      <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[99] pointer-events-none animate-fade-in">
-          {uploadProgress > -1 && (<div className="p-3"><div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4"><div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">{uploadProgress < 100 ? (<Loader2 className="w-5 h-5 animate-spin" />) : (<CheckCircle2 className="w-5 h-5" />)}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center mb-1"><p className="text-xs font-black text-slate-800 dark:text-white truncate">{uploadProgress < 100 ? t('uploading') : t('profile_saved')}</p><p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p></div><div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner"><div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div></div></div></div></div>)}
-          <SyncProgressBar />
-      </div>
-      <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"><img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight leading-none">Little Moments</h1></div>
-          <nav className="flex-1 space-y-1">{tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'bg-primary/10 text-primary font-black shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}><tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/><span className="text-sm">{t(tab.label)}</span></button>); })}</nav>
-      </aside>
-      <main className="flex-1 px-4 sm:px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
-      {showPasscodeModal && (<div className="fixed inset-0 z-[200] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div><h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3><p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">{passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p><form onSubmit={handlePasscodeSubmit} className="space-y-8"><input autoFocus type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} value={passcodeInput} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 4); setPasscodeInput(val); if (passcodeError) setPasscodeError(false);}} className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner" placeholder="••••" /><div className="flex flex-col gap-2"><button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>{t('confirm')}</button>{passcodeMode !== 'UNLOCK' && (<button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">{t('cancel_btn')}</button>)}</div></form></div></div>)}
-      {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} /></Suspense>)}
-      {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} /></Suspense>)}
-      {cloudPhoto && (
-        <Suspense fallback={null}>
+      {/* Sync Progress Bar */}
+      {syncState.status === 'syncing' && (
+        <div className="fixed top-0 left-0 right-0 z-[101] h-1.5 bg-slate-100 dark:bg-slate-800">
+          <div 
+            className="h-full bg-sky-500 transition-all duration-500" 
+            style={{ width: `${syncState.progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <main className="container mx-auto px-4 pt-6 md:pt-12">
+        {renderContent()}
+      </main>
+
+      {/* Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border-t border-slate-100 dark:border-slate-700 p-4 pb-8 md:pb-6 z-40 flex justify-around items-center">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === tab.id ? 'text-primary scale-105' : 'text-slate-400'}`}
+          >
+            <tab.icon className="w-6 h-6" />
+            <span className="text-[9px] font-black uppercase tracking-widest">{t(tab.label)}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Global Modals */}
+      <Suspense fallback={null}>
+        {selectedMemory && (
+          <MemoryDetailModal 
+            memory={selectedMemory} 
+            language={language} 
+            onClose={() => setSelectedMemory(null)} 
+          />
+        )}
+        
+        {selectedStory && (
+          <StoryDetailModal 
+            story={selectedStory} 
+            language={language} 
+            onClose={() => setSelectedStory(null)} 
+            onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))}
+          />
+        )}
+
+        {cloudPhoto && (
           <CloudPhotoModal 
             url={cloudPhoto.url} 
             data={null} 
             isLoading={false} 
             language={language} 
             onClose={() => setCloudPhoto(null)} 
-            onDelete={() => requestDeleteConfirmation(async () => { 
-              if(session?.user?.id && activeProfileId) { 
-                const result = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name); 
-                if (result.success) {
-                  setCloudPhoto(null); 
-                  setCloudRefreshTrigger(prev => prev + 1);
-                  return true; 
-                } else {
-                  alert(language === 'mm' ? `Cloud မှ ပုံကို ဖျက်၍မရပါ- ${result.error}` : `Failed to delete cloud photo: ${result.error}`);
-                  return false;
-                }
+            onDelete={() => {
+              if (session?.user?.id && cloudPhoto) {
+                requestDeleteConfirmation(async () => {
+                  const res = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name);
+                  if (res.success) {
+                      setCloudPhoto(null);
+                      setCloudRefreshTrigger(prev => prev + 1);
+                  }
+                  return res.success;
+                });
               }
-              return false;
-            })} 
+            }} 
           />
-        </Suspense>
-      )}
-      {showConfirmModal && (<div className="fixed inset-0 z-[200000] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div><h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p><div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/30 active:scale-95 transition-all">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-all">{t('cancel_btn')}</button></div></div></div>)}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
-        {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 active:scale-95 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-black animate-fade-in">{t(tab.label)}</span>}</button>); })}
-      </nav>
+        )}
+
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-700">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('delete_title')}</h3>
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8">{t('confirm_delete')}</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-500 font-bold rounded-2xl uppercase tracking-widest text-xs">{t('cancel_btn')}</button>
+                <button onClick={executeDelete} className="flex-1 py-4 bg-rose-500 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">{t('delete')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPasscodeModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
+            <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] max-w-sm w-full shadow-2xl text-center">
+              <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto mb-8">
+                <Lock className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
+                {passcodeMode === 'UNLOCK' ? t('enter_passcode') : 
+                 passcodeMode === 'SETUP' ? t('create_passcode') : 
+                 passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') :
+                 passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}
+              </h3>
+              <p className="text-xs font-bold text-slate-400 mb-10 uppercase tracking-widest">
+                {passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}
+              </p>
+              
+              <form onSubmit={handlePasscodeSubmit} className="flex flex-col gap-8">
+                <div className="flex justify-center gap-3">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className={`w-4 h-4 rounded-full ${passcodeInput.length > i ? 'bg-primary scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                  ))}
+                </div>
+                <input 
+                  type="password" 
+                  inputMode="numeric" 
+                  pattern="[0-9]*" 
+                  maxLength={4} 
+                  autoFocus 
+                  value={passcodeInput} 
+                  onChange={(e) => setPasscodeInput(e.target.value.replace(/[^0-9]/g, ''))} 
+                  className="absolute opacity-0 pointer-events-none" 
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'DEL'].map((num) => (
+                    <button 
+                      key={num} 
+                      type="button" 
+                      onClick={() => {
+                        if (num === 'C') setPasscodeInput('');
+                        else if (num === 'DEL') setPasscodeInput(prev => prev.slice(0, -1));
+                        else if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num);
+                      }}
+                      className="w-full aspect-square flex items-center justify-center text-xl font-black rounded-3xl bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white"
+                    >
+                      {num === 'DEL' ? <Delete className="w-5 h-5" /> : num}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setShowPasscodeModal(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest mt-4">{t('cancel_btn')}</button>
+              </form>
+            </div>
+          </div>
+        )}
+      </Suspense>
     </div>
   );
 }
 
+// FIX: Export the App component as default.
 export default App;
