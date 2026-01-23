@@ -29,42 +29,159 @@ export const getImageSrc = (src?: string) => {
 };
 
 // Database Schema Definitions
-db.version(6).stores({
-  memories: 'id, childId, date, synced',
-  stories: 'id, childId, date, synced',
-  growth: 'id, childId, month, synced',
-  profiles: 'id, name, synced',
-  reminders: 'id, date, synced',
-  app_settings: 'key'
-});
-
-db.version(7).stores({
-  memories: 'id, [childId+is_deleted], date, synced',
-  stories: 'id, [childId+is_deleted], date, synced',
-  growth: 'id, [childId+is_deleted], month, synced',
-  profiles: 'id, name, synced, is_deleted',
-  reminders: 'id, date, synced, is_deleted',
-  app_settings: 'key'
-}).upgrade(tx => {
-  const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
-  return Promise.all(tables.map(tableName => 
-    tx.table(tableName).toCollection().modify(item => {
-      if (item.is_deleted === undefined) {
-        item.is_deleted = 0;
-      }
-    })
-  ));
-});
-
 db.version(8).stores({
   memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
   profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+  app_settings: 'key'
 });
 
 export { db };
+
+/**
+ * Helper to map local fields to Supabase columns.
+ * UPDATED: Using camelCase (childId, imageUrl) for standard columns as the error PGRST204 
+ * suggests child_id is missing in the user's schema cache.
+ */
+const mapToSupabase = (tableName: string, item: any, userId: string) => {
+    const { synced, is_deleted, ...data } = item;
+    const basePayload = { user_id: userId };
+
+    if (tableName === 'memories') {
+        return {
+            ...basePayload,
+            id: data.id,
+            childId: data.childId, // Switched from child_id
+            title: data.title,
+            description: data.description,
+            date: data.date,
+            tags: data.tags || [],
+            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null) // Switched from image_url
+        };
+    }
+    
+    if (tableName === 'stories') {
+        return {
+            ...basePayload,
+            id: data.id,
+            childId: data.childId, // Switched from child_id
+            title: data.title,
+            content: data.content,
+            date: data.date
+        };
+    }
+    
+    if (tableName === 'growth_data') {
+        return {
+            ...basePayload,
+            id: data.id,
+            childId: data.childId, // Switched from child_id
+            month: data.month,
+            height: data.height,
+            weight: data.weight
+        };
+    }
+    
+    if (tableName === 'child_profile') {
+        return {
+            ...basePayload,
+            id: data.id,
+            name: data.name,
+            dob: data.dob,
+            gender: data.gender,
+            profileImage: data.profileImage, // Switched from profile_image
+            birthTime: data.birthTime,
+            bloodType: data.bloodType,
+            hospitalName: data.hospitalName,
+            birthLocation: data.birthLocation,
+            country: data.country
+        };
+    }
+
+    if (tableName === 'reminders') {
+        return {
+            ...basePayload,
+            id: data.id,
+            title: data.title,
+            date: data.date,
+            type: data.type
+        };
+    }
+    
+    return { ...basePayload, ...data };
+};
+
+/**
+ * Helper to map Supabase columns back to local camelCase.
+ * Handles both snake_case and camelCase to be resilient.
+ */
+const mapFromSupabase = (tableName: string, item: any) => {
+    const getField = (obj: any, camel: string, snake: string) => obj[camel] !== undefined ? obj[camel] : obj[snake];
+
+    if (tableName === 'memories') {
+        const imageUrl = getField(item, 'imageUrl', 'image_url');
+        return {
+            ...item,
+            id: item.id,
+            childId: getField(item, 'childId', 'child_id'),
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            tags: item.tags || [],
+            imageUrl: imageUrl,
+            imageUrls: imageUrl ? [imageUrl] : (item.imageUrls || []),
+            synced: 1,
+            is_deleted: 0
+        };
+    }
+    
+    if (tableName === 'stories') {
+        return {
+            ...item,
+            id: item.id,
+            childId: getField(item, 'childId', 'child_id'),
+            title: item.title,
+            content: item.content,
+            date: item.date,
+            synced: 1,
+            is_deleted: 0
+        };
+    }
+    
+    if (tableName === 'growth_data') {
+        return {
+            ...item,
+            id: item.id,
+            childId: getField(item, 'childId', 'child_id'),
+            month: item.month,
+            height: item.height,
+            weight: item.weight,
+            synced: 1,
+            is_deleted: 0
+        };
+    }
+    
+    if (tableName === 'child_profile') {
+        return {
+            ...item,
+            id: item.id,
+            name: item.name,
+            dob: item.dob,
+            gender: item.gender,
+            profileImage: getField(item, 'profileImage', 'profile_image'),
+            birthTime: getField(item, 'birthTime', 'birth_time'),
+            bloodType: getField(item, 'bloodType', 'blood_type'),
+            hospitalName: getField(item, 'hospitalName', 'hospital_name'),
+            birthLocation: getField(item, 'birthLocation', 'birth_location'),
+            synced: 1,
+            is_deleted: 0
+        };
+    }
+    
+    return { ...item, synced: 1, is_deleted: 0 };
+};
 
 export const resetDatabase = async () => {
     try {
@@ -73,28 +190,18 @@ export const resetDatabase = async () => {
         window.location.reload();
     } catch (err) {
         console.error("Failed to delete database:", err);
-        alert("Could not reset app. Please clear browser storage manually.");
     }
 };
 
 export const initDB = async () => {
   try {
-      if (!window.indexedDB) {
-          throw new Error("Your browser does not support local storage (IndexedDB).");
-      }
-      if (!db.isOpen()) {
-        await db.open();
-      }
+      if (!window.indexedDB) throw new Error("IndexedDB not supported");
+      if (!db.isOpen()) await db.open();
       return { success: true };
   } catch (err: any) {
-      console.error("Dexie Open Error Details:", err);
-      return { success: false, error: err.message || 'Could not initialize database.', errorName: err.name };
+      console.error("Dexie Open Error:", err);
+      return { success: false, error: err.message };
   }
-};
-
-const cleanForSync = (doc: any) => {
-    const { synced, is_deleted, ...rest } = doc;
-    return rest;
 };
 
 export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
@@ -118,11 +225,6 @@ export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: stri
     }
 
     const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-    if (!data.publicUrl) {
-        uploadManager.error();
-        throw new Error("Failed to get public URL.");
-    }
-    
     uploadManager.progress(100, displayName);
     uploadManager.finish();
     return data.publicUrl;
@@ -143,9 +245,7 @@ const syncDeletions = async () => {
             const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
             for (const item of itemsToDelete) {
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
-                if (!error) {
-                    await db.table(tableName).delete(item.id);
-                }
+                if (!error) await db.table(tableName).delete(item.id);
             }
         } catch (e) {
             console.warn(`Deletion sync failed for table ${tableName}:`, e);
@@ -174,16 +274,18 @@ export const syncData = async () => {
         
         let errors: string[] = [];
 
+        // Push Stories
         for (const s of unsyncedStories) {
-            const { error } = await supabase.from('stories').upsert(cleanForSync(s));
+            const payload = mapToSupabase('stories', s, userId);
+            const { error } = await supabase.from('stories').upsert(payload);
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            else errors.push(`Story ${s.id}: ${error.message}`);
         }
 
+        // Push Memories
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
-                // If native and has local files, upload them
                 if (Capacitor.isNativePlatform() && memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://'))) {
                     const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
                         if (url.startsWith('file://')) {
@@ -196,30 +298,26 @@ export const syncData = async () => {
                     await db.memories.update(mem.id, { imageUrls: newUrls });
                     memoryToSync.imageUrls = newUrls;
                 }
-                
-                const supabasePayload: any = { ...cleanForSync(memoryToSync) };
-                // Map array to single column for standard DB if needed, or keep array if supported
-                if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
-                    supabasePayload.imageUrl = supabasePayload.imageUrls[0];
-                }
-                // Try to keep imageUrls if the DB supports JSON/Text array
-                // For safety with unknown schema, we ensure imageUrl is set.
-                
-                const { error } = await supabase.from('memories').upsert(supabasePayload);
+                const payload = mapToSupabase('memories', memoryToSync, userId);
+                const { error } = await supabase.from('memories').upsert(payload);
                 if (error) throw error;
                 await db.memories.update(mem.id, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
-                errors.push(error.message);
+                console.error("Memory Push Error:", error);
+                errors.push(`Memory ${mem.id}: ${error.message}`);
             }
         }
 
+        // Push Growth
         for (const g of unsyncedGrowth) {
-            const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
+            const payload = mapToSupabase('growth_data', g, userId);
+            const { error } = await supabase.from('growth_data').upsert(payload);
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            else errors.push(`Growth ${g.id}: ${error.message}`);
         }
 
+        // Push Profiles
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
@@ -230,19 +328,22 @@ export const syncData = async () => {
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
-                const { error } = await supabase.from('child_profile').upsert(cleanForSync(profileToSync));
+                const payload = mapToSupabase('child_profile', profileToSync, userId);
+                const { error } = await supabase.from('child_profile').upsert(payload);
                 if (error) throw error;
                 await db.profiles.update(p.id!, { synced: 1 });
                 syncManager.itemCompleted();
             } catch (error: any) {
-                errors.push(error.message);
+                errors.push(`Profile ${p.id}: ${error.message}`);
             }
         }
 
+        // Push Reminders
         for (const r of unsyncedReminders) {
-            const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
+            const payload = mapToSupabase('reminders', r, userId);
+            const { error } = await supabase.from('reminders').upsert(payload);
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(error.message);
+            else errors.push(`Reminder ${r.id}: ${error.message}`);
         }
 
         if (totalToSync > 0) {
@@ -250,40 +351,27 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pulling updates from cloud to local
+        // Pull updates from cloud for the current user
         try {
-            const { data: pData } = await supabase.from('child_profile').select('*');
-            if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
-        } catch (e) {}
-
-        try {
-            const { data: sData } = await supabase.from('stories').select('*');
-            if (sData) await db.stories.bulkPut(sData.map(s => ({ ...s, synced: 1, is_deleted: 0 })));
-        } catch (e) {}
-
-        try {
-            const { data: gData } = await supabase.from('growth_data').select('*');
-            if (gData) await db.growth.bulkPut(gData.map(g => ({ ...g, synced: 1, is_deleted: 0 })));
-        } catch (e) {}
-
-        try {
-            const { data: rData } = await supabase.from('reminders').select('*');
+            const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);
+            if (pData) await db.profiles.bulkPut(pData.map(p => mapFromSupabase('child_profile', p)));
+            
+            const { data: sData } = await supabase.from('stories').select('*').eq('user_id', userId);
+            if (sData) await db.stories.bulkPut(sData.map(s => mapFromSupabase('stories', s)));
+            
+            const { data: gData } = await supabase.from('growth_data').select('*').eq('user_id', userId);
+            if (gData) await db.growth.bulkPut(gData.map(g => mapFromSupabase('growth_data', g)));
+            
+            const { data: rData } = await supabase.from('reminders').select('*').eq('user_id', userId);
             if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-        } catch (e) {}
-
-        try {
-            const { data: mData } = await supabase.from('memories').select('*');
+            
+            const { data: mData } = await supabase.from('memories').select('*').eq('user_id', userId);
             if (mData) {
-                await db.memories.bulkPut(mData.map(m => {
-                    // Reconstruct imageUrls array from imageUrl or existing imageUrls
-                    let imageUrls = m.imageUrls;
-                    if (!imageUrls) {
-                        imageUrls = m.imageUrl ? [m.imageUrl] : [];
-                    }
-                    return { ...m, imageUrls, synced: 1, is_deleted: 0 };
-                }));
+                await db.memories.bulkPut(mData.map(m => mapFromSupabase('memories', m)));
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Error pulling cloud data:", e);
+        }
 
         return { success: errors.length === 0 };
     } catch (err: any) {
@@ -314,7 +402,7 @@ const createDeleteHandler = (tableName: string, supabaseTable: string, fileClean
     return async (id: string): Promise<{ success: boolean; error?: any }> => {
         try {
             if (Capacitor.isNativePlatform() && fileCleanup) {
-                await fileCleanup(id).catch(e => console.warn("File cleanup failed during deletion:", e));
+                await fileCleanup(id).catch(e => console.warn("File cleanup failed:", e));
             }
             if (isSupabaseConfigured() && navigator.onLine) {
                 const { error } = await supabase.from(supabaseTable).delete().eq('id', id);
@@ -335,18 +423,14 @@ const memoryFileCleanup = async (id: string) => {
     const memory = await db.memories.get(id);
     if (memory?.imageUrls) {
         for (const url of memory.imageUrls) {
-            if (url.startsWith('file://')) {
-                await Filesystem.deleteFile({ path: url });
-            }
+            if (url.startsWith('file://')) await Filesystem.deleteFile({ path: url });
         }
     }
 };
 
 const profileFileCleanup = async (id: string) => {
     const profile = await db.profiles.get(id);
-    if (profile?.profileImage?.startsWith('file://')) {
-        await Filesystem.deleteFile({ path: profile.profileImage });
-    }
+    if (profile?.profileImage?.startsWith('file://')) await Filesystem.deleteFile({ path: profile.profileImage });
 };
 
 export const DataService = {
@@ -365,9 +449,7 @@ export const DataService = {
             try {
                 const { files } = await Filesystem.readdir({ path: '', directory: Directory.Data });
                 for (const file of files) {
-                    if (file.name.endsWith('.jpeg')) {
-                        await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
-                    }
+                    if (file.name.endsWith('.jpeg')) await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
                 }
             } catch (e) {}
         }
@@ -378,7 +460,7 @@ export const DataService = {
         const mems = await query.sortBy('date');
         return mems.reverse();
     },
-    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: memory.synced || 0, is_deleted: 0 })),
+    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: 0, is_deleted: 0 })),
     deleteMemory: createDeleteHandler('memories', 'memories', memoryFileCleanup),
     getStories: async (childId?: string) => {
         const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);
