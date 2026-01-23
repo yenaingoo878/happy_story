@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
@@ -42,6 +43,10 @@ function App() {
   const [deleteCallback, setDeleteCallback] = useState<(() => Promise<boolean | any>) | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  const [uploadProgress, setUploadProgress] = useState(-1);
+  const [syncState, setSyncState] = useState<any>({ status: 'idle', progress: 0, total: 0, completed: 0 });
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [memories, setMemories] = useState<Memory[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [profiles, setProfiles] = useState<ChildProfile[]>([]);
@@ -57,17 +62,13 @@ function App() {
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => localStorage.getItem('reminders_enabled') !== 'false');
   const [showBirthdayBanner, setShowBirthdayBanner] = useState(true);
 
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'mm');
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
+  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
-  const [uploadProgress, setUploadProgress] = useState(-1);
-  const [syncState, setSyncState] = useState({ status: 'idle', progress: 0, total: 0, completed: 0 });
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const triggerSuccess = (messageKey: keyof typeof translations) => {
-    setSuccessMessage(t(messageKey));
-    setTimeout(() => setSuccessMessage(null), 2500);
+  const triggerSuccess = (key: keyof typeof translations) => {
+    setSuccessMessage(t(key));
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   useEffect(() => {
@@ -261,7 +262,6 @@ function App() {
     if (!deleteCallback) return;
     try {
       const result = await deleteCallback();
-      // If the callback explicitly returns false, it means deletion failed and we shouldn't show success toast
       if (result !== false) {
         triggerSuccess('delete_success');
         await refreshData();
@@ -526,11 +526,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-slate-900 flex flex-col md:flex-row font-sans selection:bg-primary/30 overflow-hidden transition-colors duration-300">
+      {/* SUCCESS NOTIFICATION - TOP CENTER POSITIONED */}
       {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] animate-fade-in pointer-events-none">
-          <div className="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-white/20"><CheckCircle2 className="w-5 h-5" /><span className="text-xs font-black uppercase tracking-widest">{successMessage}</span></div>
+        <div className="fixed top-6 left-0 right-0 z-[999999] flex justify-center pointer-events-none px-4">
+          <div className="bg-slate-900/90 dark:bg-emerald-600/90 backdrop-blur-xl text-white px-6 py-3.5 rounded-full shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)] flex items-center gap-3 border border-white/10 animate-slide-up pointer-events-auto">
+            <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[11px] font-black uppercase tracking-[0.15em] whitespace-nowrap">{successMessage}</span>
+          </div>
         </div>
       )}
+
       <div className="fixed top-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[99] pointer-events-none animate-fade-in">
           {uploadProgress > -1 && (<div className="p-3"><div className="max-w-md mx-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-2xl p-3 flex items-center gap-4"><div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0">{uploadProgress < 100 ? (<Loader2 className="w-5 h-5 animate-spin" />) : (<CheckCircle2 className="w-5 h-5" />)}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-center mb-1"><p className="text-xs font-black text-slate-800 dark:text-white truncate">{uploadProgress < 100 ? t('uploading') : t('profile_saved')}</p><p className="text-xs font-black text-primary">{Math.round(uploadProgress)}%</p></div><div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 shadow-inner"><div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div></div></div></div></div>)}
           <SyncProgressBar />
@@ -557,10 +564,10 @@ function App() {
                 if (result.success) {
                   setCloudPhoto(null); 
                   setCloudRefreshTrigger(prev => prev + 1);
-                  return true; // Signal success to trigger toast
+                  return true; 
                 } else {
                   alert(language === 'mm' ? `Cloud မှ ပုံကို ဖျက်၍မရပါ- ${result.error}` : `Failed to delete cloud photo: ${result.error}`);
-                  return false; // Signal failure to prevent toast
+                  return false;
                 }
               }
               return false;
