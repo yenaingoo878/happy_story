@@ -49,6 +49,7 @@ function App() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [loadingStatus, setLoadingStatus] = useState('');
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
 
@@ -99,7 +100,13 @@ function App() {
           try {
             setIsInitialLoading(true);
             setLoadingStatus(language === 'mm' ? 'ဒေတာဘေ့စ်ကို ပြင်ဆင်နေသည်...' : 'Preparing database...');
-            await initDB();
+            
+            const dbInitResult = await initDB();
+            if (!dbInitResult.success) {
+                setDbError(dbInitResult.error || 'Database Initialization Failed');
+                setIsInitialLoading(false);
+                return;
+            }
             
             const localProfiles = await DataService.getProfiles();
             
@@ -135,6 +142,7 @@ function App() {
             }
           } catch (err) {
             console.error("Critical error during setup:", err);
+            setDbError('Critical Setup Error');
             setIsInitialLoading(false);
           }
         };
@@ -299,6 +307,32 @@ function App() {
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
+  // Database Error Screen
+  if (dbError) {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-8">
+            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-rose-500/10 text-rose-500">
+                <AlertTriangle className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest">{language === 'mm' ? 'ဒေတာဘေ့စ် အမှားရှိနေပါသည်' : 'Database Error'}</h2>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 max-w-sm mb-8 shadow-sm">
+                <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-4">{dbError}</p>
+                <div className="text-xs text-slate-400 dark:text-slate-500 text-left space-y-2">
+                    <p>• {language === 'mm' ? 'Incognito Mode ကို ပိတ်ပြီး ပြန်ဖွင့်ကြည့်ပါ။' : 'Make sure you are NOT in Incognito mode.'}</p>
+                    <p>• {language === 'mm' ? 'ဖုန်းမှ Storage နေရာလွတ် ရှိမရှိ စစ်ဆေးပါ။' : 'Check if your device storage is full.'}</p>
+                    <p>• {language === 'mm' ? 'Browser ကို Refresh လုပ်ကြည့်ပါ။' : 'Try refreshing the browser.'}</p>
+                </div>
+            </div>
+            <button 
+                onClick={() => window.location.reload()} 
+                className="px-12 py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all"
+            >
+                {language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}
+            </button>
+        </div>
+    );
+  }
+
   if (isInitialLoading) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">

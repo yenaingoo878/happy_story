@@ -25,6 +25,7 @@ export const getImageSrc = (src?: string) => {
     return src;
 };
 
+// Database Schema Definitions
 db.version(6).stores({
   memories: 'id, childId, date, synced',
   stories: 'id, childId, date, synced',
@@ -69,8 +70,25 @@ export const initDB = async () => {
       }
       return { success: true };
   } catch (err: any) {
-      console.error("Failed to open db:", err);
-      return { success: false, error: err.message || 'Unknown DB Error' };
+      console.error("Dexie Open Error Details:", {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      
+      // Handle common IndexedDB issues
+      let friendlyMessage = 'Unknown DB Error';
+      if (err.name === 'SecurityError') {
+        friendlyMessage = 'Privacy settings or Incognito mode is blocking the database.';
+      } else if (err.name === 'QuotaExceededError') {
+        friendlyMessage = 'Device storage is full.';
+      } else if (err.name === 'VersionError') {
+        friendlyMessage = 'Database version conflict. Please refresh or clear site data.';
+      } else {
+        friendlyMessage = err.message || 'Could not initialize database.';
+      }
+      
+      return { success: false, error: friendlyMessage, errorName: err.name };
   }
 };
 
