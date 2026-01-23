@@ -1,13 +1,28 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const getEnv = (key: string) => {
+/**
+ * Safely retrieves environment variables from various possible sources.
+ */
+const getEnv = (key: string): string | undefined => {
   const viteKey = `VITE_${key}`;
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
+  
+  // 1. Try Vite's import.meta.env
+  try {
     // @ts-ignore
-    return import.meta.env[viteKey] || import.meta.env[key] || undefined;
-  }
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      return import.meta.env[viteKey] || import.meta.env[key];
+    }
+  } catch (e) {}
+
+  // 2. Try Node-style process.env
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[viteKey] || process.env[key];
+    }
+  } catch (e) {}
+
   return undefined;
 };
 

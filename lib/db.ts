@@ -1,7 +1,7 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { isR2Configured, uploadFileToR2, deleteFileFromR2 } from './r2Client';
+import { isR2Configured, uploadFileToR2, deleteFileFromR2, listObjectsFromR2 } from './r2Client';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
@@ -501,10 +501,13 @@ export const DataService = {
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
     getCloudPhotos: async (userId: string, childId: string) => {
         if (isR2Configured()) {
-            // NOTE: Cloudflare R2 listing from browser is complex due to CORS/Security.
-            // Usually, we'd use a Worker to proxy the list request. 
-            // For now, we return empty or use a specific implementation if R2 public listing is enabled.
-            return []; 
+            try {
+                // Fetch from Cloudflare R2
+                return await listObjectsFromR2(`${userId}/${childId}/memories/`);
+            } catch (e) {
+                console.error("Failed to list R2 objects:", e);
+                return [];
+            }
         }
         if (isSupabaseConfigured()) {
             const { data, error } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
