@@ -56,7 +56,9 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            imageUrl: (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null)
+            // Keep imageUrl for legacy/single-preview, but send the full array for multi-photo support
+            imageUrl: (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null),
+            imageUrls: item.imageUrls || []
         };
     }
     
