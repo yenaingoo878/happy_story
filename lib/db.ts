@@ -13,7 +13,6 @@ export type LittleMomentsDB = Dexie & {
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
   app_settings: Table<AppSetting>;
-  cloud_photo_cache: Table<{ url: string; userId: string; base64data: string; timestamp: number }>;
 };
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
@@ -62,12 +61,6 @@ db.version(8).stores({
   profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
 });
-
-// Version 9: Add table for cloud photo caching
-db.version(9).stores({
-  cloud_photo_cache: 'url, userId, timestamp'
-});
-
 
 export { db };
 
@@ -246,7 +239,7 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pull remote changes - Each fetch is independent and safe
+        // Pull remote changes
         try {
             const { data: pData } = await supabase.from('child_profile').select('*');
             if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
@@ -348,13 +341,12 @@ export const DataService = {
     saveSetting: async (key: string, value: any) => await db.app_settings.put({ key, value }),
     removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
-        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders, db.cloud_photo_cache], async () => {
+        await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
             await db.memories.clear();
             await db.stories.clear();
             await db.growth.clear();
             await db.profiles.clear();
             await db.reminders.clear();
-            await db.cloud_photo_cache.clear();
         });
 
         if (Capacitor.isNativePlatform()) {
@@ -402,94 +394,4 @@ export const DataService = {
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
-
-    getCloudPhotos: async (userId: string, childId: string): Promise<string[]> => {
-        if (!navigator.onLine || !isSupabaseConfigured() || !userId || !childId) {
-            return [];
-        }
-        
-        try {
-            const memoriesPath = `${userId}/${childId}/memories`;
-            const profilePath = `${userId}/${childId}/profile`;
-            const urls: string[] = [];
-
-            const { data: memoriesList, error: memoriesError } = await supabase.storage.from('images').list(memoriesPath);
-            if (memoriesError && memoriesError.message !== 'The resource was not found') {
-                console.error(`Supabase storage error listing memories at path ${memoriesPath}:`, memoriesError);
-            }
-
-            const { data: profileList, error: profileError } = await supabase.storage.from('images').list(profilePath);
-            if (profileError && profileError.message !== 'The resource was not found') {
-                console.error(`Supabase storage error listing profile photos at path ${profilePath}:`, profileError);
-            }
-            
-            if (memoriesList) {
-                for (const file of memoriesList) {
-                    if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${memoriesPath}/${file.name}`);
-                        if (data.publicUrl) urls.push(data.publicUrl);
-                    }
-                }
-            }
-            
-            if (profileList) {
-                for (const file of profileList) {
-                    if (file.name !== '.emptyFolderPlaceholder') {
-                        const { data } = supabase.storage.from('images').getPublicUrl(`${profilePath}/${file.name}`);
-                        if (data.publicUrl) urls.push(data.publicUrl);
-                    }
-                }
-            }
-            
-            return urls;
-        } catch (error) {
-            console.error("Failed to fetch cloud photos due to an unexpected error:", error);
-            return [];
-        }
-    },
-    
-    deleteCloudPhoto: async (photoUrl: string): Promise<{ success: boolean; error?: any }> => {
-        if (!isSupabaseConfigured()) return { success: false, error: new Error("Supabase not configured.") };
-        try {
-            const url = new URL(photoUrl);
-            const pathSegments = url.pathname.split('/');
-            const bucketName = 'images';
-            
-            const bucketIndex = pathSegments.findIndex(segment => segment === bucketName);
-    
-            if (bucketIndex === -1) {
-                throw new Error(`Invalid Supabase storage URL: bucket '${bucketName}' not found in path: ${url.pathname}`);
-            }
-    
-            const filePath = pathSegments.slice(bucketIndex + 1).join('/');
-    
-            if (!filePath) {
-                 throw new Error("Could not extract file path from URL.");
-            }
-            
-            const { error } = await supabase.storage.from(bucketName).remove([filePath]);
-    
-            if (error) {
-                console.error("Supabase storage delete error:", error);
-                throw error;
-            }
-    
-            await DataService.deleteCachedPhoto(photoUrl);
-            
-            return { success: true };
-        } catch (error: any) {
-            console.error("Failed to delete cloud photo:", error);
-            return { success: false, error };
-        }
-    },
-
-    getCachedPhoto: async (url: string) => {
-        return await db.cloud_photo_cache.get(url);
-    },
-    cachePhoto: async (url: string, userId: string, base64data: string) => {
-        await db.cloud_photo_cache.put({ url, userId, base64data, timestamp: Date.now() });
-    },
-    deleteCachedPhoto: async (url: string) => {
-        await db.cloud_photo_cache.delete(url);
-    }
 };
