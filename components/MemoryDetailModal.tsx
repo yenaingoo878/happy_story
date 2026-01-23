@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Memory, Language } from '../types';
 import { X, Calendar, Tag, Loader2, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
@@ -61,7 +62,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 w-screen h-[100dvh] overflow-hidden">
+    <div className="fixed inset-0 z-[500000] flex items-center justify-center p-4 w-screen h-[100dvh] overflow-hidden">
       {/* Immersive Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-950/90 backdrop-blur-[60px] transition-opacity duration-500 animate-fade-in" 
@@ -69,7 +70,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       />
       
       {/* Premium Module Box */}
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-[92vw] md:max-w-lg h-[88dvh] rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] animate-zoom-in flex flex-col z-[10000] border border-white/20 dark:border-slate-800">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-[92vw] md:max-w-lg h-[88dvh] rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] animate-zoom-in flex flex-col z-[500001] border border-white/20 dark:border-slate-800">
         
         {/* Media Canvas Area - Dominant 72% Height */}
         <div className="relative h-[72%] shrink-0 bg-slate-950 flex items-center justify-center overflow-hidden">

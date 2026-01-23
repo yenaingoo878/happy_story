@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Story, Language } from '../types';
 import { X, Calendar, BookOpen, Trash2 } from 'lucide-react';
@@ -24,9 +25,9 @@ export const StoryDetailModal: React.FC<StoryDetailModalProps> = ({ story, langu
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[500000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" onClick={onClose} />
-      <div className="relative bg-[#FCFBF4] dark:bg-slate-900 w-full max-w-md md:max-w-2xl rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[101]">
+      <div className="relative bg-[#FCFBF4] dark:bg-slate-900 w-full max-w-md md:max-w-2xl rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[500001]">
         
         <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-200 backdrop-blur-md">
           <X className="w-5 h-5" />

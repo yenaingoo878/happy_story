@@ -58,7 +58,10 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             description: data.description,
             date: data.date,
             tags: data.tags || [],
-            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null)
+            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null),
+            // We store the full array as JSON in the database if the column exists, 
+            // otherwise the single imageUrl fallback is used.
+            imageUrls: data.imageUrls || []
         };
     }
     
@@ -121,6 +124,7 @@ const mapFromSupabase = (tableName: string, item: any) => {
 
     if (tableName === 'memories') {
         const imageUrl = getField(item, 'imageUrl', 'image_url');
+        const imageUrls = getField(item, 'imageUrls', 'image_urls');
         return {
             ...item,
             id: item.id,
@@ -130,7 +134,7 @@ const mapFromSupabase = (tableName: string, item: any) => {
             date: item.date,
             tags: item.tags || [],
             imageUrl: imageUrl,
-            imageUrls: imageUrl ? [imageUrl] : (item.imageUrls || []),
+            imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
             synced: 1,
             is_deleted: 0
         };
@@ -204,7 +208,8 @@ export const initDB = async () => {
 };
 
 /**
- * Uploads a file to the configured cloud storage (Cloudflare R2 preferred).
+ * Uploads a file to the configured cloud storage.
+ * Prioritizes Cloudflare R2 for all photo storage as requested.
  */
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -217,16 +222,16 @@ export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string,
     try {
         let publicUrl = '';
         if (isR2Configured()) {
-            // Priority 1: Cloudflare R2
+            // Absolute Priority: Cloudflare R2
             publicUrl = await uploadFileToR2(fileOrBlob, filePath);
         } else if (isSupabaseConfigured()) {
-            // Priority 2: Supabase Storage (Fallback)
+            // Fallback: Supabase Storage (Only if R2 is not configured)
             const { error } = await supabase.storage.from('images').upload(filePath, fileOrBlob, { cacheControl: '3600', upsert: true });
             if (error) throw error;
             const { data } = supabase.storage.from('images').getPublicUrl(filePath);
             publicUrl = data.publicUrl;
         } else {
-            throw new Error("No cloud storage configured.");
+            throw new Error("No cloud storage configured. Please set up R2 or Supabase.");
         }
 
         uploadManager.progress(100, displayName);
@@ -291,7 +296,7 @@ export const syncData = async () => {
             else errors.push(`Story ${s.id}: ${error.message}`);
         }
 
-        // Push Memories
+        // Push Memories (Images to R2/Cloud)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -305,6 +310,7 @@ export const syncData = async () => {
                             } else {
                                 blob = await(await fetch(url)).blob();
                             }
+                            // This will use R2 as priority
                             return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
@@ -331,7 +337,7 @@ export const syncData = async () => {
             else errors.push(`Growth ${g.id}: ${error.message}`);
         }
 
-        // Push Profiles
+        // Push Profiles (Images to R2/Cloud)
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
@@ -343,6 +349,7 @@ export const syncData = async () => {
                     } else {
                         blob = await(await fetch(profileToSync.profileImage)).blob();
                     }
+                    // Use R2 as priority
                     const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
@@ -502,7 +509,7 @@ export const DataService = {
     getCloudPhotos: async (userId: string, childId: string) => {
         if (isR2Configured()) {
             try {
-                // Fetch from Cloudflare R2
+                // Absolute Priority: Fetch from Cloudflare R2
                 return await listObjectsFromR2(`${userId}/${childId}/memories/`);
             } catch (e) {
                 console.error("Failed to list R2 objects:", e);

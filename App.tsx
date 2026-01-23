@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus } from 'lucide-react';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -516,12 +517,12 @@ function App() {
   // Main layout return
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-slate-50'} transition-colors duration-500 font-sans pb-24`}>
-      {/* Success Message Toaster */}
+      {/* Premium Success Notification - Centered at top of screen with highest priority */}
       {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] animate-fade-in">
-          <div className="bg-slate-900 dark:bg-primary text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/10">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="text-xs font-black uppercase tracking-widest">{successMessage}</span>
+        <div className="fixed top-8 inset-x-0 z-[1000000] flex justify-center pointer-events-none px-4 animate-fade-in">
+          <div className="bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-[0_15px_45px_rgba(16,185,129,0.4)] flex items-center gap-3 border border-emerald-400/30 backdrop-blur-md">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{successMessage}</span>
           </div>
         </div>
       )}
@@ -541,18 +542,32 @@ function App() {
         {renderContent()}
       </main>
 
-      {/* Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border-t border-slate-100 dark:border-slate-700 p-4 pb-8 md:pb-6 z-40 flex justify-around items-center">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === tab.id ? 'text-primary scale-105' : 'text-slate-400'}`}
-          >
-            <tab.icon className="w-6 h-6" />
-            <span className="text-[9px] font-black uppercase tracking-widest">{t(tab.label)}</span>
-          </button>
-        ))}
+      {/* Original Design Navigation Bar */}
+      <nav className="fixed bottom-6 left-6 right-6 h-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex justify-around items-center px-4 z-40 transition-all duration-300">
+        {tabs.map((tab, idx) => {
+          if (tab.id === TabView.ADD_MEMORY) {
+            return (
+              <div key={tab.id} className="relative -top-10">
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-18 h-18 rounded-full flex items-center justify-center transition-all duration-500 active:scale-90 shadow-2xl ${activeTab === tab.id ? 'bg-primary scale-110 shadow-primary/40' : 'bg-slate-900 dark:bg-primary shadow-slate-900/30'}`}
+                >
+                  <Plus className="w-8 h-8 text-white" />
+                </button>
+              </div>
+            );
+          }
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'text-primary scale-110' : 'text-slate-400 hover:text-slate-500'}`}
+            >
+              <tab.icon className={`w-6 h-6 ${activeTab === tab.id ? 'fill-primary/10' : ''}`} />
+              <span className="text-[9px] font-black uppercase tracking-widest">{t(tab.label)}</span>
+            </button>
+          );
+        })}
       </nav>
 
       {/* Global Modals */}
@@ -597,7 +612,7 @@ function App() {
         )}
 
         {showConfirmModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-700">
               <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6">
                 <Trash2 className="w-8 h-8" />
@@ -613,7 +628,7 @@ function App() {
         )}
 
         {showPasscodeModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
+          <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
             <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] max-w-sm w-full shadow-2xl text-center">
               <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto mb-8">
                 <Lock className="w-10 h-10" />
@@ -670,5 +685,4 @@ function App() {
   );
 }
 
-// FIX: Export the App component as default.
 export default App;
