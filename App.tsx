@@ -36,7 +36,6 @@ function App() {
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
-  // FIX: Renamed passcodeInput to passcodeError as it is a boolean tracking error state.
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
   const [passcodeInputStr, setPasscodeInputStr] = useState('');
@@ -399,7 +398,7 @@ function App() {
     switch (activeTab) {
       case TabView.HOME:
         return (
-          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
+          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-6xl mx-auto">
             {remindersEnabled && (
                <div className="space-y-3">
                   {bStatus === 'TODAY' && showBirthdayBanner && (
@@ -477,7 +476,7 @@ function App() {
         );
       default:
         return (
-            <div className="pb-32 md:pb-8 animate-fade-in max-w-7xl mx-auto">
+            <div className="pb-32 md:pb-8 animate-fade-in max-w-6xl mx-auto">
               <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
                 {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />}
                 {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await refreshData(); triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
@@ -520,7 +519,7 @@ function App() {
       
       {/* Premium Successful Notification */}
       {successMessage && (
-        <div className="fixed top-8 inset-x-0 z-[2000000] flex justify-center pointer-events-none px-4 animate-fade-in lg:left-72">
+        <div className="fixed top-8 inset-x-0 z-[2000000] flex justify-center pointer-events-none px-4 animate-fade-in lg:left-80">
           <div className="bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-[0_15px_45px_rgba(16,185,129,0.4)] flex items-center gap-3 border border-emerald-400/30 backdrop-blur-md">
             <CheckCircle2 className="w-5 h-5" />
             <span className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{successMessage}</span>
@@ -530,7 +529,7 @@ function App() {
 
       {/* Sync Progress Bar */}
       {syncState.status === 'syncing' && (
-        <div className="fixed top-0 left-0 right-0 z-[101] h-1.5 bg-slate-100 dark:bg-slate-800 lg:left-72">
+        <div className="fixed top-0 left-0 right-0 z-[101] h-1.5 bg-slate-100 dark:bg-slate-800 lg:left-80">
           <div 
             className="h-full bg-sky-500 transition-all duration-500" 
             style={{ width: `${syncState.progress}%` }}
@@ -538,22 +537,22 @@ function App() {
         </div>
       )}
 
-      {/* Desktop Sidebar Navigation */}
-      <aside className="hidden lg:flex flex-col w-72 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-40 overflow-hidden">
+      {/* Desktop Sidebar Navigation - REDUCED WIDTH w-64 */}
+      <aside className="hidden lg:flex flex-col w-64 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-40 overflow-hidden">
         {/* Brand Header */}
         <div className="p-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
-             <img src="/logo.png" className="w-8 h-8 object-contain" alt="Logo"/>
+          <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
+             <img src="/logo.png" className="w-7 h-7 object-contain" alt="Logo"/>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">Little Moments</h2>
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1.5 block">Precious Journey</span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-black text-slate-800 dark:text-white leading-none truncate">Little Moments</h2>
+            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1.5 block">Precious Journey</span>
           </div>
         </div>
 
         {/* Profile Card Summary */}
-        <div className="mx-6 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-3xl border border-slate-100/50 dark:border-slate-700 flex items-center gap-3.5 mb-8">
-           <div className="w-12 h-12 rounded-[18px] overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm shrink-0">
+        <div className="mx-5 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-3xl border border-slate-100/50 dark:border-slate-700 flex items-center gap-3.5 mb-8">
+           <div className="w-11 h-11 rounded-[16px] overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm shrink-0">
              {activeProfile.profileImage ? (
                <img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" />
              ) : (
@@ -561,22 +560,22 @@ function App() {
              )}
            </div>
            <div className="min-w-0">
-              <h3 className="font-black text-slate-800 dark:text-white text-sm truncate leading-none mb-1">{activeProfile.name}</h3>
-              <p className="text-[9px] font-black text-primary uppercase tracking-widest">{activeProfile.dob}</p>
+              <h3 className="font-black text-slate-800 dark:text-white text-xs truncate leading-none mb-1">{activeProfile.name}</h3>
+              <p className="text-[8px] font-black text-primary uppercase tracking-widest">{activeProfile.dob}</p>
            </div>
         </div>
 
         {/* Navigation Vertical List */}
-        <div className="flex-1 px-4 space-y-2 overflow-y-auto no-scrollbar">
+        <div className="flex-1 px-4 space-y-1.5 overflow-y-auto no-scrollbar">
           {navItems.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-[24px] transition-all duration-300 group ${activeTab === tab.id ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-[22px] transition-all duration-300 group ${activeTab === tab.id ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
             >
-              <tab.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
-              <span className="text-[11px] font-black uppercase tracking-widest">{t(tab.label)}</span>
-              {activeTab === tab.id && <ChevronRight className="ml-auto w-4 h-4 opacity-50" />}
+              <tab.icon className={`w-4.5 h-4.5 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
+              <span className="text-[10px] font-black uppercase tracking-widest">{t(tab.label)}</span>
+              {activeTab === tab.id && <ChevronRight className="ml-auto w-3.5 h-3.5 opacity-50" />}
             </button>
           ))}
         </div>
@@ -585,16 +584,16 @@ function App() {
         <div className="p-6 pt-4 mt-auto">
            <button 
              onClick={handleLogout}
-             className="w-full py-4 flex items-center justify-center gap-3 text-rose-500 bg-rose-50/50 dark:bg-rose-900/10 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all hover:bg-rose-500 hover:text-white"
+             className="w-full py-3.5 flex items-center justify-center gap-3 text-rose-500 bg-rose-50/50 dark:bg-rose-900/10 rounded-[22px] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500 hover:text-white"
            >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
               {t('logout')}
            </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 container mx-auto px-4 pt-6 md:pt-12 transition-all duration-500">
+      {/* Main Content Area - lg:ml-80 creates the visual gap from Sidebar (w-64) */}
+      <main className="flex-1 lg:ml-80 container mx-auto px-4 pt-6 md:pt-12 transition-all duration-500">
         {renderContent()}
       </main>
 
