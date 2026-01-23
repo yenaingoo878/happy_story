@@ -26,6 +26,7 @@ function App() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [cloudPhoto, setCloudPhoto] = useState<{ url: string; name: string } | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [cloudRefreshTrigger, setCloudRefreshTrigger] = useState(0);
   
   const [session, setSession] = useState<any>(null);
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
@@ -38,7 +39,7 @@ function App() {
   const [passcodeError, setPasscodeError] = useState(false);
   const [passcodeMode, setPasscodeMode] = useState<'UNLOCK' | 'SETUP' | 'CHANGE_VERIFY' | 'CHANGE_NEW' | 'REMOVE'>('UNLOCK');
 
-  const [deleteCallback, setDeleteCallback] = useState<(() => Promise<any>) | null>(null);
+  const [deleteCallback, setDeleteCallback] = useState<(() => Promise<boolean | any>) | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -90,11 +91,9 @@ function App() {
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
     
-    // Improved auth session handling
     supabase.auth.getSession().then(({ data, error }: any) => {
       if (error) {
-        console.warn("Auth session error (possibly stale refresh token):", error);
-        // If the refresh token is invalid, sign out to clear storage
+        console.warn("Auth session error:", error);
         supabase.auth.signOut();
         setSession(null);
       } else {
@@ -107,12 +106,7 @@ function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-          // Force refresh session state
-          setSession(session);
-      } else {
-          setSession(session);
-      }
+      setSession(session);
       setAuthLoading(false);
     });
     return () => subscription.unsubscribe();
@@ -181,7 +175,6 @@ function App() {
         }
     };
     const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -259,7 +252,7 @@ function App() {
       triggerSuccess('profile_saved');
   };
 
-  const requestDeleteConfirmation = (onConfirm: () => Promise<any>) => {
+  const requestDeleteConfirmation = (onConfirm: () => Promise<boolean | any>) => {
       setDeleteCallback(() => onConfirm);
       setShowConfirmModal(true);
   };
@@ -267,9 +260,12 @@ function App() {
   const executeDelete = async () => {
     if (!deleteCallback) return;
     try {
-      await deleteCallback();
-      triggerSuccess('delete_success');
-      await refreshData();
+      const result = await deleteCallback();
+      // If the callback explicitly returns false, it means deletion failed and we shouldn't show success toast
+      if (result !== false) {
+        triggerSuccess('delete_success');
+        await refreshData();
+      }
     } catch (e) {
       console.error("Deletion failed:", e);
       alert(t('delete_error_fallback'));
@@ -501,6 +497,7 @@ function App() {
                     onSaveSuccess={() => triggerSuccess('profile_saved')}
                     session={session}
                     onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
+                    cloudRefreshTrigger={cloudRefreshTrigger}
                   />
                 )}
               </Suspense>
@@ -546,7 +543,31 @@ function App() {
       {showPasscodeModal && (<div className="fixed inset-0 z-[200] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/75 backdrop-blur-xl animate-fade-in" onClick={() => passcodeMode !== 'UNLOCK' && setShowPasscodeModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-[280px] rounded-[48px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner"><ShieldCheck className="w-8 h-8"/></div><h3 className="text-lg font-black mb-1 text-slate-800 dark:text-white uppercase tracking-widest leading-tight">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3><p className="text-slate-400 text-[10px] font-black mb-8 uppercase tracking-[0.2em] h-4">{passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p><form onSubmit={handlePasscodeSubmit} className="space-y-8"><input autoFocus type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} value={passcodeInput} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 4); setPasscodeInput(val); if (passcodeError) setPasscodeError(false);}} className="w-full text-center text-4xl tracking-[0.6em] font-black bg-slate-50 dark:bg-slate-900/50 py-5 rounded-3xl outline-none focus:ring-4 focus:ring-primary/20 transition-all border-none placeholder-slate-200 dark:placeholder-slate-800 shadow-inner" placeholder="••••" /><div className="flex flex-col gap-2"><button type="submit" disabled={passcodeInput.length < 4} className={`w-full py-4.5 rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs transition-all active:scale-95 ${passcodeInput.length === 4 ? 'bg-primary text-white shadow-primary/30' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}>{t('confirm')}</button>{passcodeMode !== 'UNLOCK' && (<button type="button" onClick={() => setShowPasscodeModal(false)} className="w-full py-3 text-slate-400 text-[10px] font-black uppercase tracking-widest active:scale-90">{t('cancel_btn')}</button>)}</div></form></div></div>)}
       {selectedMemory && (<Suspense fallback={null}><MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} /></Suspense>)}
       {selectedStory && (<Suspense fallback={null}><StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} /></Suspense>)}
-      {cloudPhoto && (<Suspense fallback={null}><CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={() => requestDeleteConfirmation(async () => { if(session?.user?.id && activeProfileId) { await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name); setCloudPhoto(null); } })} /></Suspense>)}
+      {cloudPhoto && (
+        <Suspense fallback={null}>
+          <CloudPhotoModal 
+            url={cloudPhoto.url} 
+            data={null} 
+            isLoading={false} 
+            language={language} 
+            onClose={() => setCloudPhoto(null)} 
+            onDelete={() => requestDeleteConfirmation(async () => { 
+              if(session?.user?.id && activeProfileId) { 
+                const result = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name); 
+                if (result.success) {
+                  setCloudPhoto(null); 
+                  setCloudRefreshTrigger(prev => prev + 1);
+                  return true; // Signal success to trigger toast
+                } else {
+                  alert(language === 'mm' ? `Cloud မှ ပုံကို ဖျက်၍မရပါ- ${result.error}` : `Failed to delete cloud photo: ${result.error}`);
+                  return false; // Signal failure to prevent toast
+                }
+              }
+              return false;
+            })} 
+          />
+        </Suspense>
+      )}
       {showConfirmModal && (<div className="fixed inset-0 z-[200000] flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}/><div className="relative bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 shadow-2xl animate-zoom-in text-center border border-white/20"><div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="w-10 h-10 text-rose-500"/></div><h3 className="text-2xl font-bold mb-2 text-slate-800 dark:text-white">{t('delete_title')}</h3><p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">{t('confirm_delete')}</p><div className="flex flex-col gap-3"><button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/30 active:scale-95 transition-all">{t('confirm')}</button><button onClick={() => setShowConfirmModal(false)} className="w-full py-4 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-2xl font-bold active:scale-95 transition-all">{t('cancel_btn')}</button></div></div></div>)}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-[32px] p-2 flex items-center gap-1 z-50 w-[92%] md:hidden transition-all duration-300">
         {tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center h-14 rounded-3xl transition-all duration-500 active:scale-95 ${isActive ? 'flex-[2.5] bg-slate-800 dark:bg-primary text-white shadow-lg' : 'flex-1 text-slate-400'}`}><tab.icon className={`w-6 h-6 transition-all duration-300 ${isActive ? 'scale-110 stroke-[2.5px]' : 'scale-100 stroke-[2px]'}`}/>{isActive && <span className="ml-2 text-xs font-black animate-fade-in">{t(tab.label)}</span>}</button>); })}

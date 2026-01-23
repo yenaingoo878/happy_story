@@ -68,6 +68,7 @@ interface SettingsProps {
   onSaveSuccess: () => void;
   session: any;
   onViewCloudPhoto?: (url: string, name: string) => void;
+  cloudRefreshTrigger?: number;
 }
 
 const resizeImage = (file: File, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
@@ -99,7 +100,8 @@ export const Settings: React.FC<SettingsProps> = ({
   remindersList = [], onDeleteReminder, onSaveReminder,
   onSaveSuccess,
   session,
-  onViewCloudPhoto
+  onViewCloudPhoto,
+  cloudRefreshTrigger = 0
 }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD'>(initialView || 'MAIN');
@@ -180,7 +182,7 @@ export const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view]);
+  useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
 
   const handleSaveGrowth = async () => {
       if (editingGrowth.month && editingGrowth.height && editingGrowth.weight && activeProfileId) {

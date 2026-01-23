@@ -42,8 +42,6 @@ export { db };
 
 /**
  * Helper to map local fields to Supabase columns.
- * UPDATED: Using camelCase (childId, imageUrl) for standard columns as the error PGRST204 
- * suggests child_id is missing in the user's schema cache.
  */
 const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const { synced, is_deleted, ...data } = item;
@@ -53,12 +51,12 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
         return {
             ...basePayload,
             id: data.id,
-            childId: data.childId, // Switched from child_id
+            childId: data.childId,
             title: data.title,
             description: data.description,
             date: data.date,
             tags: data.tags || [],
-            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null) // Switched from image_url
+            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null)
         };
     }
     
@@ -66,7 +64,7 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
         return {
             ...basePayload,
             id: data.id,
-            childId: data.childId, // Switched from child_id
+            childId: data.childId,
             title: data.title,
             content: data.content,
             date: data.date
@@ -77,7 +75,7 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
         return {
             ...basePayload,
             id: data.id,
-            childId: data.childId, // Switched from child_id
+            childId: data.childId,
             month: data.month,
             height: data.height,
             weight: data.weight
@@ -91,7 +89,7 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             name: data.name,
             dob: data.dob,
             gender: data.gender,
-            profileImage: data.profileImage, // Switched from profile_image
+            profileImage: data.profileImage,
             birthTime: data.birthTime,
             bloodType: data.bloodType,
             hospitalName: data.hospitalName,
@@ -115,7 +113,6 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
 
 /**
  * Helper to map Supabase columns back to local camelCase.
- * Handles both snake_case and camelCase to be resilient.
  */
 const mapFromSupabase = (tableName: string, item: any) => {
     const getField = (obj: any, camel: string, snake: string) => obj[camel] !== undefined ? obj[camel] : obj[snake];
@@ -492,7 +489,35 @@ export const DataService = {
         });
     },
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
-        if (!isSupabaseConfigured()) return;
-        await supabase.storage.from('images').remove([`${userId}/${childId}/memories/${fileName}`]);
+        if (!isSupabaseConfigured()) return { success: false, error: 'Supabase not configured' };
+        
+        // Use the absolute path relative to the bucket root
+        const filePath = `${userId}/${childId}/memories/${fileName}`;
+        
+        try {
+            const { data, error } = await supabase.storage
+                .from('images')
+                .remove([filePath]);
+                
+            if (error) {
+                console.error("Cloud Photo Removal Error:", error);
+                return { success: false, error: error.message };
+            }
+            
+            // Supabase returns an array of metadata for deleted files. 
+            // If the array is empty, usually means the file didn't exist OR permission denied.
+            if (data && data.length > 0) {
+                return { success: true };
+            } else {
+                // If it returns an empty array, it might be an RLS issue or path mismatch.
+                return { 
+                    success: false, 
+                    error: 'Permission Denied or File Not Found. Please check your Supabase Storage Policies (RLS) and ensure DELETE permission is allowed for the authenticated role.' 
+                };
+            }
+        } catch (e: any) {
+            console.error("Exception during cloud photo removal:", e);
+            return { success: false, error: e.message || 'Unknown network error' };
+        }
     }
 };
