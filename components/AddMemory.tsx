@@ -1,8 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, getImageSrc, uploadFileToSupabase } from '../lib/db';
+import { DataService, getImageSrc, uploadFileToCloud } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -217,7 +218,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             if (session?.user?.id && navigator.onLine && url.startsWith('data:')) {
                 const blob = await (await fetch(url)).blob();
                 try {
-                  return await uploadFileToSupabase(blob, session.user.id, activeProfileId, 'memories', memoryId, index);
+                  return await uploadFileToCloud(blob, session.user.id, activeProfileId, 'memories', memoryId, index);
                 } catch (e) {
                   console.warn("Cloud upload failed during save, falling back to local storage", e);
                   return await saveImageToFile(url);
@@ -238,9 +239,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             date: formState.date, 
             imageUrls: finalImageUrls, 
             tags: formState.tags,
-            // CRITICAL: Always set synced to 0 here. 
-            // Even if files are in cloud storage, the database row itself 
-            // needs to be pushed to Supabase by the background sync process.
             synced: 0 
         };
         await DataService.addMemory(memory);

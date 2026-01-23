@@ -3,7 +3,7 @@ export type Language = 'en' | 'mm';
 export type Theme = 'light' | 'dark';
 
 export interface AppSetting {
-  key: string; // e.g., 'geminiApiKey'
+  key: string; 
   value: any;
 }
 
@@ -13,11 +13,11 @@ export interface Memory {
   title: string;
   date: string;
   description: string;
-  imageUrl?: string; // For backward compatibility with old single-image memories
+  imageUrl?: string; 
   imageUrls: string[];
   tags: string[];
   synced?: number; 
-  is_deleted?: number; // 0 = false, 1 = true
+  is_deleted?: number; 
 }
 
 export interface Story {
@@ -34,8 +34,8 @@ export interface GrowthData {
   id?: string;
   childId: string;
   month: number;
-  height: number; // cm
-  weight: number; // kg
+  height: number; 
+  weight: number; 
   synced?: number;
   is_deleted?: number;
 }
@@ -48,6 +48,7 @@ export interface ChildProfile {
   birthTime?: string;
   hospitalName?: string;
   birthLocation?: string;
+  city?: string;
   country?: string;
   nationality?: string;
   fatherName?: string;
@@ -70,12 +71,6 @@ export interface Reminder {
   type: 'birthday' | 'event' | 'medical';
   synced?: number;
   is_deleted?: number;
-}
-
-export interface StoryState {
-  isLoading: boolean;
-  content: string;
-  error: string | null;
 }
 
 export enum TabView {

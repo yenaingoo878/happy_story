@@ -1,5 +1,7 @@
+
 import Dexie, { Table } from 'dexie';
-import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { isR2Configured, uploadFileToR2, deleteFileFromR2 } from './r2Client';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
@@ -201,7 +203,10 @@ export const initDB = async () => {
   }
 };
 
-export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
+/**
+ * Uploads a file to the configured cloud storage (Cloudflare R2 preferred).
+ */
+export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
     const displayName = fileOrBlob instanceof File ? fileOrBlob.name : `image_${imageIndex}.jpg`;
     
@@ -209,22 +214,28 @@ export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: stri
     const fileName = `${itemId}_${imageIndex}_${Date.now()}.${fileNameSuffix}`;
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
-    const { error } = await supabase.storage
-        .from('images')
-        .upload(filePath, fileOrBlob, {
-            cacheControl: '3600',
-            upsert: true
-        });
+    try {
+        let publicUrl = '';
+        if (isR2Configured()) {
+            // Priority 1: Cloudflare R2
+            publicUrl = await uploadFileToR2(fileOrBlob, filePath);
+        } else if (isSupabaseConfigured()) {
+            // Priority 2: Supabase Storage (Fallback)
+            const { error } = await supabase.storage.from('images').upload(filePath, fileOrBlob, { cacheControl: '3600', upsert: true });
+            if (error) throw error;
+            const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+            publicUrl = data.publicUrl;
+        } else {
+            throw new Error("No cloud storage configured.");
+        }
 
-    if (error) {
+        uploadManager.progress(100, displayName);
+        uploadManager.finish();
+        return publicUrl;
+    } catch (error) {
         uploadManager.error();
         throw error;
     }
-
-    const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-    uploadManager.progress(100, displayName);
-    uploadManager.finish();
-    return data.publicUrl;
 };
 
 const syncDeletions = async () => {
@@ -241,6 +252,7 @@ const syncDeletions = async () => {
         try {
             const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
             for (const item of itemsToDelete) {
+                // Remove from Supabase DB
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
                 if (!error) await db.table(tableName).delete(item.id);
             }
@@ -283,12 +295,17 @@ export const syncData = async () => {
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
-                if (Capacitor.isNativePlatform() && memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://'))) {
+                if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
                     const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
-                        if (url.startsWith('file://')) {
-                            const fileData = await Filesystem.readFile({ path: url });
-                            const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                            return await uploadFileToSupabase(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
+                        if (url.startsWith('file://') || url.startsWith('data:')) {
+                            let blob;
+                            if (url.startsWith('file://')) {
+                                const fileData = await Filesystem.readFile({ path: url });
+                                blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                            } else {
+                                blob = await(await fetch(url)).blob();
+                            }
+                            return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
                     }));
@@ -318,10 +335,15 @@ export const syncData = async () => {
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
-                if (Capacitor.isNativePlatform() && profileToSync.profileImage && profileToSync.profileImage.startsWith('file://')) {
-                    const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                    const blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    const newUrl = await uploadFileToSupabase(blob, userId, p.id!, 'profile', p.id!, 0);
+                if (profileToSync.profileImage && (profileToSync.profileImage.startsWith('file://') || profileToSync.profileImage.startsWith('data:'))) {
+                    let blob;
+                    if (profileToSync.profileImage.startsWith('file://')) {
+                        const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                        blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                    } else {
+                        blob = await(await fetch(profileToSync.profileImage)).blob();
+                    }
+                    const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
                 }
@@ -478,43 +500,38 @@ export const DataService = {
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
     getCloudPhotos: async (userId: string, childId: string) => {
-        if (!isSupabaseConfigured()) return [];
-        const { data, error } = await supabase.storage
-            .from('images')
-            .list(`${userId}/${childId}/memories`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
-        if (error || !data) return [];
-        return data.map(file => {
-            const { data: urlData } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
-            return { id: file.id, name: file.name, url: urlData.publicUrl, created_at: file.created_at };
-        });
+        if (isR2Configured()) {
+            // NOTE: Cloudflare R2 listing from browser is complex due to CORS/Security.
+            // Usually, we'd use a Worker to proxy the list request. 
+            // For now, we return empty or use a specific implementation if R2 public listing is enabled.
+            return []; 
+        }
+        if (isSupabaseConfigured()) {
+            const { data, error } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+            if (error || !data) return [];
+            return data.map(file => {
+                const { data: urlData } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
+                return { id: file.id, name: file.name, url: urlData.publicUrl, created_at: file.created_at };
+            });
+        }
+        return [];
     },
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
-        if (!isSupabaseConfigured()) return { success: false, error: 'Supabase not configured' };
-        
-        // Use the absolute path relative to the bucket root
         const filePath = `${userId}/${childId}/memories/${fileName}`;
         
         try {
-            const { data, error } = await supabase.storage
-                .from('images')
-                .remove([filePath]);
-                
-            if (error) {
-                console.error("Cloud Photo Removal Error:", error);
-                return { success: false, error: error.message };
+            if (isR2Configured()) {
+                await deleteFileFromR2(filePath);
+                return { success: true };
             }
             
-            // Supabase returns an array of metadata for deleted files. 
-            // If the array is empty, usually means the file didn't exist OR permission denied.
-            if (data && data.length > 0) {
-                return { success: true };
-            } else {
-                // If it returns an empty array, it might be an RLS issue or path mismatch.
-                return { 
-                    success: false, 
-                    error: 'Permission Denied or File Not Found. Please check your Supabase Storage Policies (RLS) and ensure DELETE permission is allowed for the authenticated role.' 
-                };
+            if (isSupabaseConfigured()) {
+                const { data, error } = await supabase.storage.from('images').remove([filePath]);
+                if (error) throw error;
+                return { success: data && data.length > 0 };
             }
+            
+            return { success: false, error: 'Storage not configured' };
         } catch (e: any) {
             console.error("Exception during cloud photo removal:", e);
             return { success: false, error: e.message || 'Unknown network error' };

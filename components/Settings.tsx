@@ -3,10 +3,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, 
   ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, 
-  HardDrive, Clock, User, ShieldCheck, ChevronLeft, Plus, 
+  HardDrive, Clock, User, ShieldCheck, ChevronLeft, ChevronRight, Plus, 
   Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
   BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, FileText, UserPlus, ChevronRight, KeyRound, Sparkles, Eye, EyeOff, Camera, Search
+  Calendar, Heart, Droplets, Camera, Search, Eye, EyeOff
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
@@ -16,7 +16,7 @@ import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
-const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step, onRightIconClick }: any) => (
+const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
      <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 group-focus-within:text-primary transition-colors shrink-0 shadow-inner mt-0.5">
         <Icon className="w-4 h-4" />
@@ -26,20 +26,15 @@ const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placehold
         <div className="flex items-center">
             {type === 'select' ? (
                <div className="relative flex items-center w-full">
-                 <select id={id} value={value} onChange={onChange} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 appearance-none h-6 text-left outline-none">
+                 <select id={id} value={value} onChange={onChange} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-white focus:ring-0 appearance-none h-6 text-left outline-none">
                     {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                  </select>
                  <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
                </div>
             ) : multiline ? (
-               <textarea id={id} value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 min-h-[60px] resize-none text-left outline-none" />
+               <textarea id={id} value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-white focus:ring-0 min-h-[60px] resize-none text-left outline-none" />
             ) : (
-               <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} step={step} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-slate-100 focus:ring-0 h-6 text-left outline-none" />
-            )}
-            {onRightIconClick && (
-                <button type="button" onClick={onRightIconClick} className="ml-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
-                    {type === 'password' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+               <input id={id} type={type} value={value} onChange={onChange} placeholder={placeholder} step={step} className="w-full bg-transparent border-none p-0 text-[15px] font-black text-slate-800 dark:text-white focus:ring-0 h-6 text-left outline-none" />
             )}
         </div>
      </div>
@@ -222,7 +217,22 @@ export const Settings: React.FC<SettingsProps> = ({
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-4 pt-4 pb-4 overflow-y-auto max-h-[70vh] no-scrollbar">
                  <div className="flex flex-col items-center mb-4"><div className="relative group w-24 h-24"><div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center">{isProcessingProfileImage ? (<Loader2 className="w-8 h-8 text-primary animate-spin" />) : editingProfile.profileImage ? (<img src={getImageSrc(editingProfile.profileImage)} className="w-full h-full object-cover" alt="Profile" />) : (<Baby className="w-10 h-10 text-slate-400" />)}</div>{editingProfile.profileImage && !isProcessingProfileImage && (<button type="button" onClick={handleRemoveImage} className="absolute top-0 right-0 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"><X className="w-3 h-3" /></button>)}</div><div className="flex gap-3 mt-4">{Capacitor.isNativePlatform() ? (<button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><Camera className="w-3.5 h-3.5" />{t('take_photo')}</button>) : (<button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><ImageIcon className="w-3.5 h-3.5" />{t('upload_photo')}</button>)}</div><input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} /></div>
-                <div className="space-y-3"><IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} /><div className="grid grid-cols-2 gap-3"><IOSInput label={t('child_dob')} icon={Calendar} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} /><IOSInput label={t('birth_time')} icon={Clock} type="time" value={editingProfile.birthTime || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} /></div><div className="grid grid-cols-2 gap-3"><IOSInput label={t('gender_label')} icon={Baby} type="select" options={[{ value: 'boy', label: t('boy') }, { value: 'girl', label: t('girl') }]} value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} /><IOSInput label={t('blood_type')} icon={ShieldCheck} type="select" options={[{ value: '', label: 'Select' }, { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' }, { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' }, { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' }, { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' }]} value={editingProfile.bloodType || ''} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} /></div><IOSInput label={t('hospital_name')} icon={Building2} value={editingProfile.hospitalName || ''} placeholder={t('hospital_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} /><div className="grid grid-cols-2 gap-3"><IOSInput label={t('city_label')} icon={MapPin} value={editingProfile.birthLocation || ''} placeholder={t('location_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, birthLocation: e.target.value})} /><IOSInput label={t('country_label')} icon={Globe} value={editingProfile.country || ''} placeholder={t('country_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} /></div></div>
+                <div className="space-y-3">
+                  <IOSInput label={t('child_name_label')} icon={User} value={editingProfile.name} onChange={(e: any) => setEditingProfile({...editingProfile, name: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput label={t('child_dob')} icon={Calendar} type="date" value={editingProfile.dob} onChange={(e: any) => setEditingProfile({...editingProfile, dob: e.target.value})} />
+                    <IOSInput label={t('birth_time')} icon={Clock} type="time" value={editingProfile.birthTime || ''} onChange={(e: any) => setEditingProfile({...editingProfile, birthTime: e.target.value})} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput label={t('gender_label')} icon={Baby} type="select" options={[{ value: 'boy', label: t('boy') }, { value: 'girl', label: t('girl') }]} value={editingProfile.gender} onChange={(e: any) => setEditingProfile({...editingProfile, gender: e.target.value})} />
+                    <IOSInput label={t('blood_type')} icon={Droplets} type="select" options={[{ value: '', label: 'Select' }, { value: 'A+', label: 'A+' }, { value: 'A-', label: 'A-' }, { value: 'B+', label: 'B+' }, { value: 'B-', label: 'B-' }, { value: 'AB+', label: 'AB+' }, { value: 'AB-', label: 'AB-' }, { value: 'O+', label: 'O+' }, { value: 'O-', label: 'O-' }]} value={editingProfile.bloodType || ''} onChange={(e: any) => setEditingProfile({...editingProfile, bloodType: e.target.value})} />
+                  </div>
+                  <IOSInput label={t('hospital_name')} icon={Building2} value={editingProfile.hospitalName || ''} placeholder={t('hospital_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, hospitalName: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <IOSInput label={t('city_label')} icon={MapPin} value={editingProfile.birthLocation || editingProfile.city || ''} placeholder={t('location_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, birthLocation: e.target.value, city: e.target.value})} />
+                    <IOSInput label={t('country_label')} icon={Globe} value={editingProfile.country || ''} placeholder={t('country_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} />
+                  </div>
+                </div>
                 <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3"><button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 py-4 bg-primary text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-primary/20">{isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}{t('save_changes')}</button><button onClick={() => { if(editingProfile.id) { onDeleteProfile(editingProfile.id); setShowProfileDetails(false); } }} disabled={isSavingProfile || profiles.length <= 1} className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl active:scale-95 flex items-center justify-center disabled:opacity-40 border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"><Trash2 className="w-5 h-5" /></button></div>
               </div>
             )}
@@ -318,7 +328,6 @@ export const Settings: React.FC<SettingsProps> = ({
             <div className="grid gap-3">
               {memories.map(m => (
                 <div key={m.id} className="bg-white dark:bg-slate-800 p-2 sm:p-3 rounded-[24px] sm:rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all overflow-hidden">
-                  {/* Left part: Image + Title/Date */}
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 overflow-hidden">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                       {m.imageUrls && m.imageUrls.length > 0 ? (
@@ -327,7 +336,6 @@ export const Settings: React.FC<SettingsProps> = ({
                         <ImageIcon className="w-8 h-8 text-slate-300" />
                       )}
                     </div>
-                    {/* Middle: Title and Date - Strict truncation container */}
                     <div className="min-w-0 text-left flex-1 overflow-hidden flex flex-col">
                       <h4 className="font-black text-slate-800 dark:text-white text-sm truncate block whitespace-nowrap leading-none mb-1.5 w-full pr-1">
                         {m.title}
@@ -337,7 +345,6 @@ export const Settings: React.FC<SettingsProps> = ({
                       </p>
                     </div>
                   </div>
-                  {/* Right part: Action Buttons - Locked and Unshrinkable */}
                   <div className="flex gap-0 sm:gap-1 shrink-0 ml-1">
                     <button onClick={() => onEditMemory(m)} className="p-2 sm:p-3 text-slate-400 hover:text-primary transition-colors active:scale-90 flex items-center justify-center shrink-0">
                       <Pencil className="w-4.5 h-4.5" />
