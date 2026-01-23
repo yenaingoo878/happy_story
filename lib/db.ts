@@ -44,8 +44,6 @@ export { db };
 
 /**
  * Helper to map local fields to Supabase columns.
- * MANDATORY: Must match the column names in the Supabase schema cache exactly.
- * The user requested: childid -> childId, imageurl -> imageUrl, imageUrls -> imageUrl
  */
 const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const basePayload = { user_id: userId, id: item.id };
@@ -58,7 +56,6 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            // Use singular 'imageUrl' as 'imageUrls' is missing in DB schema.
             imageUrl: (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null)
         };
     }
@@ -112,7 +109,6 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
 
 /**
  * Helper to map Supabase columns back to local camelCase.
- * Robustly handles multiple naming conventions from the DB.
  */
 const mapFromSupabase = (tableName: string, item: any) => {
     const getField = (obj: any, keys: string[]) => {
@@ -209,7 +205,6 @@ export const initDB = async () => {
 
 /**
  * Uploads a file to the configured cloud storage.
- * Mandatory Priority: Cloudflare R2 for all photo storage.
  */
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -222,10 +217,8 @@ export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string,
     try {
         let publicUrl = '';
         if (isR2Configured()) {
-            // Absolute Priority: Cloudflare R2
             publicUrl = await uploadFileToR2(fileOrBlob, filePath);
         } else if (isSupabaseConfigured()) {
-            // Fallback: Supabase Storage
             const { error } = await supabase.storage.from('images').upload(filePath, fileOrBlob, { cacheControl: '3600', upsert: true });
             if (error) throw error;
             const { data } = supabase.storage.from('images').getPublicUrl(filePath);
@@ -418,9 +411,11 @@ const createActionHandler = <T,>(localAction: (arg: T) => Promise<any>) => {
 const createDeleteHandler = (tableName: string, supabaseTable: string, fileCleanup?: (id: string) => Promise<void>) => {
     return async (id: string): Promise<{ success: boolean; error?: any }> => {
         try {
-            if (Capacitor.isNativePlatform() && fileCleanup) {
+            // Updated: Execute cleanup on all platforms to handle cloud file deletion
+            if (fileCleanup) {
                 await fileCleanup(id).catch(e => console.warn("File cleanup failed:", e));
             }
+            
             if (isSupabaseConfigured() && navigator.onLine) {
                 const { error } = await supabase.from(supabaseTable).delete().eq('id', id);
                 if (error) throw error;
@@ -436,18 +431,66 @@ const createDeleteHandler = (tableName: string, supabaseTable: string, fileClean
     };
 };
 
+/**
+ * Cleanup logic for memory images - both local and cloud.
+ */
 const memoryFileCleanup = async (id: string) => {
     const memory = await db.memories.get(id);
-    if (memory?.imageUrls) {
+    if (!memory) return;
+
+    // We need user ID for cloud path reconstruction
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+
+    if (memory.imageUrls) {
         for (const url of memory.imageUrls) {
-            if (url.startsWith('file://')) await Filesystem.deleteFile({ path: url });
+            // 1. Local Filesystem cleanup (Native only)
+            if (url.startsWith('file://')) {
+                try { await Filesystem.deleteFile({ path: url }); } catch(e) {}
+            }
+            
+            // 2. Cloud Storage cleanup (All platforms)
+            // Checks if it's a Supabase or R2 URL
+            const isCloudUrl = url.includes('supabase.co') || (isR2Configured() && url.startsWith('http'));
+            
+            if (isCloudUrl && userId && memory.childId) {
+                try {
+                    // Extract filename from the URL (last segment)
+                    const fileName = url.split('/').pop();
+                    if (fileName) {
+                        await DataService.deleteCloudPhoto(userId, memory.childId, fileName);
+                    }
+                } catch (e) {
+                    console.warn("Could not delete cloud photo during cleanup:", e);
+                }
+            }
         }
     }
 };
 
 const profileFileCleanup = async (id: string) => {
     const profile = await db.profiles.get(id);
-    if (profile?.profileImage?.startsWith('file://')) await Filesystem.deleteFile({ path: profile.profileImage });
+    if (!profile) return;
+
+    if (profile.profileImage?.startsWith('file://')) {
+        try { await Filesystem.deleteFile({ path: profile.profileImage }); } catch(e) {}
+    }
+    
+    // Cloud profile image cleanup if necessary
+    const isCloudUrl = profile.profileImage?.includes('supabase.co') || (isR2Configured() && profile.profileImage?.startsWith('http'));
+    if (isCloudUrl) {
+        const { data } = await supabase.auth.getSession();
+        const userId = data.session?.user?.id;
+        const fileName = profile.profileImage?.split('/').pop();
+        if (userId && profile.id && fileName) {
+            // For profile images, the path tag used was 'profile'
+            const filePath = `${userId}/${profile.id}/profile/${fileName}`;
+            try {
+                if (isR2Configured()) await deleteFileFromR2(filePath);
+                else await supabase.storage.from('images').remove([filePath]);
+            } catch(e) {}
+        }
+    }
 };
 
 export const DataService = {
