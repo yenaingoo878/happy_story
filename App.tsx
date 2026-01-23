@@ -49,6 +49,7 @@ function App() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [loadingStatus, setLoadingStatus] = useState('');
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null);
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => localStorage.getItem('reminders_enabled') !== 'false');
@@ -97,29 +98,39 @@ function App() {
         const initialLoad = async () => {
           try {
             setIsInitialLoading(true);
+            setLoadingStatus(language === 'mm' ? 'ဒေတာဘေ့စ်ကို ပြင်ဆင်နေသည်...' : 'Preparing database...');
             await initDB();
+            
             const localProfiles = await DataService.getProfiles();
+            
+            // If user has a session but no local data, this is likely a first login on a new device.
+            // We must force a sync from cloud first.
+            if (session && localProfiles.length === 0 && navigator.onLine && isSupabaseConfigured()) {
+                setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရှာဖွေနေပါသည်...' : 'Checking for cloud backups...');
+                await syncData();
+                const refreshedProfiles = await DataService.getProfiles();
+                if (refreshedProfiles.length > 0) {
+                    setProfiles(refreshedProfiles);
+                    const firstId = refreshedProfiles[0].id!;
+                    setActiveProfileId(firstId);
+                    await loadChildData(firstId);
+                    setIsInitialLoading(false);
+                    return;
+                }
+            }
+
             if (localProfiles.length > 0) {
               setProfiles(localProfiles);
               const firstId = localProfiles[0].id!;
               setActiveProfileId(firstId);
-              const mems = await DataService.getMemories(firstId);
-              const strs = await DataService.getStories(firstId);
-              const growth = await DataService.getGrowth(firstId);
-              const rems = await DataService.getReminders();
-              setMemories(mems); 
-              setStories(strs); 
-              setGrowthData(growth); 
-              setReminders(rems);
+              await loadChildData(firstId);
               setIsInitialLoading(false);
+              
+              // Background sync if online
               if (navigator.onLine && session && isSupabaseConfigured()) {
                   syncData().then(() => refreshData()).catch(e => console.warn("Background sync failed:", e));
               }
             } else {
-              if (navigator.onLine && session && isSupabaseConfigured()) {
-                  await syncData().catch(e => console.warn("First sync failed:", e));
-                  await refreshData();
-              }
               setIsInitialLoading(false);
             }
           } catch (err) {
@@ -131,7 +142,7 @@ function App() {
     } else {
         setIsInitialLoading(false);
     }
-  }, [session, isGuestMode]);
+  }, [session, isGuestMode, language]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -290,9 +301,13 @@ function App() {
   
   if (isInitialLoading) {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center">
-            <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
-            <p className="font-bold text-slate-500 dark:text-slate-400">{t('syncing_data')}</p>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
+            <div className="relative mb-8">
+               <div className="w-20 h-20 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
+               <Sparkles className="w-8 h-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('syncing_data')}</h2>
+            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 max-w-xs">{loadingStatus || t('welcome_subtitle')}</p>
         </div>
     );
   }
