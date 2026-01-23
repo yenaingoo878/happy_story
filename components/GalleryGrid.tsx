@@ -3,6 +3,7 @@ import { Memory, Language } from '../types';
 import { Image as ImageIcon, Search, Cloud, HardDrive, Loader2, X, Trash2, CheckSquare, Square, ThumbsUp, ZoomIn, Maximize, Download } from 'lucide-react';
 import { getTranslation, translations } from '../utils/translations';
 import { DataService, blobToBase64, getImageSrc } from '../lib/db';
+import { CloudPhotoModal } from './CloudPhotoModal';
 
 interface GalleryGridProps {
   memories: Memory[];
@@ -34,11 +35,14 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
   useEffect(() => {
     if (previewState.url) {
       document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
     } else {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     }
     return () => {
       document.body.style.overflow = '';
+      document.body.style.touchAction = '';
     };
   }, [previewState.url]);
 
@@ -153,73 +157,22 @@ export const GalleryGrid: React.FC<GalleryGridProps> = ({ memories, language, on
 
        {isSelectMode && selectedPhotos.length > 0 && (<div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-4 animate-slide-up"><button onClick={handleDeleteSelected} className="w-full flex items-center justify-center gap-3 py-5 bg-rose-500 text-white rounded-2xl shadow-2xl shadow-rose-500/30 font-black uppercase tracking-widest text-sm active:scale-95 transition-transform"><Trash2 className="w-5 h-5"/>{t('delete')} ({selectedPhotos.length})</button></div>)}
        
-       {previewState.url && (
-         <div className="fixed inset-0 z-[1000] bg-black overflow-hidden animate-fade-in touch-none flex flex-col items-center justify-center h-screen w-screen">
-           {/* Pure Background Overlay */}
-           <div className="absolute inset-0 z-0 bg-black" onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} />
-           
-           {/* Top Header Controls - Fixed to top of viewport */}
-           <div className="absolute top-0 left-0 right-0 z-[1010] p-6 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent">
-             <button 
-                onClick={() => setPreviewState({ url: null, data: null, isLoading: false })} 
-                className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-90"
-             >
-               <X className="w-6 h-6" />
-             </button>
-             
-             <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const link = document.createElement('a');
-                  link.href = previewState.data || previewState.url || '';
-                  link.download = `CloudPhoto_${Date.now()}.jpg`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-90"
-              >
-                <Download className="w-5 h-5" />
-              </button>
-           </div>
-
-           {/* Main Image Content - Centered in viewport */}
-           <div className="relative z-[1005] w-full h-full flex items-center justify-center p-4">
-              {previewState.isLoading ? (
-                <div className="flex flex-col items-center gap-5">
-                  <div className="w-16 h-16 border-4 border-white/10 border-t-white rounded-full animate-spin"></div>
-                  <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.3em]">{language === 'mm' ? 'ပုံဖော်နေသည်...' : 'Loading HD...'}</p>
-                </div>
-              ) : (
-                <img 
-                  src={previewState.data || previewState.url || ''} 
-                  className="max-w-full max-h-full object-contain animate-zoom-in shadow-2xl" 
-                  alt="Full Screen Preview" 
-                />
-              )}
-           </div>
-
-           {/* Bottom Actions - Fixed to bottom of viewport */}
-           <div className="absolute bottom-0 left-0 right-0 z-[1010] p-10 flex justify-center bg-gradient-to-t from-black/70 to-transparent">
-             <button 
-               onClick={(e) => { 
-                 e.stopPropagation(); 
-                 requestDeleteConfirmation(async () => { 
-                   if(previewState.url) { 
-                     await DataService.deleteCloudPhoto(previewState.url); 
-                     setPreviewState({ url: null, data: null, isLoading: false }); 
-                     await fetchCloudPhotos(); 
-                   } 
-                 }); 
-               }} 
-               className="px-10 py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-[2rem] flex items-center gap-3 font-black text-xs uppercase tracking-[0.2em] active:scale-95 transition-all shadow-2xl shadow-rose-500/40 border border-white/10"
-             >
-               <Trash2 className="w-4.5 h-4.5" />
-               {t('delete')}
-             </button>
-           </div>
-         </div>
-       )}
+       <CloudPhotoModal 
+         url={previewState.url}
+         data={previewState.data}
+         isLoading={previewState.isLoading}
+         language={language}
+         onClose={() => setPreviewState({ url: null, data: null, isLoading: false })}
+         onDelete={() => {
+            requestDeleteConfirmation(async () => { 
+                if(previewState.url) { 
+                   await DataService.deleteCloudPhoto(previewState.url); 
+                   setPreviewState({ url: null, data: null, isLoading: false }); 
+                   await fetchCloudPhotos(); 
+                } 
+             });
+         }}
+       />
     </div>
   );
 };
