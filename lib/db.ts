@@ -49,8 +49,8 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const basePayload = { user_id: userId, id: item.id };
 
     if (tableName === 'memories') {
-        // Ensure we always have the primary preview image for single-image clients
-        const primaryImage = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null);
+        const urls = item.imageUrls || (item.imageUrl ? [item.imageUrl] : []);
+        const serializedValue = urls.length > 0 ? JSON.stringify(urls) : null;
         
         return {
             ...basePayload,
@@ -59,8 +59,7 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            imageUrl: primaryImage,
-            imageUrls: item.imageUrls || (primaryImage ? [primaryImage] : [])
+            imageUrl: serializedValue
         };
     }
     
@@ -123,13 +122,21 @@ const mapFromSupabase = (tableName: string, item: any) => {
     };
 
     if (tableName === 'memories') {
-        const imageUrl = getField(item, ['imageUrl', 'imageurl', 'image_url']);
-        const imageUrls = getField(item, ['imageUrls', 'imageurls', 'image_urls']);
-        
-        // Normalize: Ensure imageUrls array always exists and reflects the images
-        const normalizedUrls = Array.isArray(imageUrls) && imageUrls.length > 0 
-            ? imageUrls 
-            : (imageUrl ? [imageUrl] : []);
+        const rawImageUrl = getField(item, ['imageUrl', 'imageurl', 'image_url']);
+        let normalizedUrls: string[] = [];
+
+        if (rawImageUrl && rawImageUrl.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(rawImageUrl);
+                if (Array.isArray(parsed)) {
+                    normalizedUrls = parsed;
+                }
+            } catch (e) {
+                normalizedUrls = [rawImageUrl];
+            }
+        } else if (rawImageUrl) {
+            normalizedUrls = [rawImageUrl];
+        }
 
         return {
             ...item,
@@ -139,7 +146,7 @@ const mapFromSupabase = (tableName: string, item: any) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            imageUrl: imageUrl || (normalizedUrls.length > 0 ? normalizedUrls[0] : null),
+            imageUrl: normalizedUrls.length > 0 ? normalizedUrls[0] : null,
             imageUrls: normalizedUrls,
             synced: 1,
             is_deleted: 0
@@ -214,9 +221,13 @@ export const initDB = async () => {
 };
 
 /**
- * Uploads a file to the configured cloud storage.
+ * Uploads a file specifically to Cloudflare R2 Storage.
  */
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
+    if (!isR2Configured()) {
+        throw new Error("R2 Cloud Storage is not configured. Please check your environment variables.");
+    }
+    
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
     const displayName = fileOrBlob instanceof File ? fileOrBlob.name : `image_${imageIndex}.jpg`;
     
@@ -225,18 +236,7 @@ export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string,
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
     try {
-        let publicUrl = '';
-        if (isR2Configured()) {
-            publicUrl = await uploadFileToR2(fileOrBlob, filePath);
-        } else if (isSupabaseConfigured()) {
-            const { error } = await supabase.storage.from('images').upload(filePath, fileOrBlob, { cacheControl: '3600', upsert: true });
-            if (error) throw error;
-            const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-            publicUrl = data.publicUrl;
-        } else {
-            throw new Error("No cloud storage configured.");
-        }
-
+        const publicUrl = await uploadFileToR2(fileOrBlob, filePath);
         uploadManager.progress(100, displayName);
         uploadManager.finish();
         return publicUrl;
@@ -424,7 +424,6 @@ const createActionHandler = <T,>(localAction: (arg: T) => Promise<any>) => {
 const createDeleteHandler = (tableName: string, supabaseTable: string, fileCleanup?: (id: string) => Promise<void>) => {
     return async (id: string): Promise<{ success: boolean; error?: any }> => {
         try {
-            // Updated: Execute cleanup on all platforms to handle cloud file deletion
             if (fileCleanup) {
                 await fileCleanup(id).catch(e => console.warn("File cleanup failed:", e));
             }
@@ -445,13 +444,12 @@ const createDeleteHandler = (tableName: string, supabaseTable: string, fileClean
 };
 
 /**
- * Cleanup logic for memory images - both local and cloud.
+ * Cleanup logic for memory images - both local and R2 cloud.
  */
 const memoryFileCleanup = async (id: string) => {
     const memory = await db.memories.get(id);
     if (!memory) return;
 
-    // We need user ID for cloud path reconstruction
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user?.id;
 
@@ -461,24 +459,20 @@ const memoryFileCleanup = async (id: string) => {
 
     if (urlsToCleanup.length > 0) {
         for (const url of urlsToCleanup) {
-            // 1. Local Filesystem cleanup (Native only)
             if (url.startsWith('file://')) {
                 try { await Filesystem.deleteFile({ path: url }); } catch(e) {}
             }
             
-            // 2. Cloud Storage cleanup (All platforms)
-            // Checks if it's a Supabase or R2 URL
-            const isCloudUrl = url.includes('supabase.co') || (isR2Configured() && url.startsWith('http'));
+            const isCloudUrl = url.startsWith('http');
             
-            if (isCloudUrl && userId && memory.childId) {
+            if (isCloudUrl && isR2Configured() && userId && memory.childId) {
                 try {
-                    // Extract filename from the URL (last segment)
                     const fileName = url.split('/').pop();
                     if (fileName) {
                         await DataService.deleteCloudPhoto(userId, memory.childId, fileName);
                     }
                 } catch (e) {
-                    console.warn("Could not delete cloud photo during cleanup:", e);
+                    console.warn("Could not delete R2 photo during cleanup:", e);
                 }
             }
         }
@@ -493,18 +487,15 @@ const profileFileCleanup = async (id: string) => {
         try { await Filesystem.deleteFile({ path: profile.profileImage }); } catch(e) {}
     }
     
-    // Cloud profile image cleanup if necessary
-    const isCloudUrl = profile.profileImage?.includes('supabase.co') || (isR2Configured() && profile.profileImage?.startsWith('http'));
-    if (isCloudUrl) {
+    const isCloudUrl = profile.profileImage?.startsWith('http');
+    if (isCloudUrl && isR2Configured()) {
         const { data } = await supabase.auth.getSession();
         const userId = data.session?.user?.id;
         const fileName = profile.profileImage?.split('/').pop();
         if (userId && profile.id && fileName) {
-            // For profile images, the path tag used was 'profile'
             const filePath = `${userId}/${profile.id}/profile/${fileName}`;
             try {
-                if (isR2Configured()) await deleteFileFromR2(filePath);
-                else await supabase.storage.from('images').remove([filePath]);
+                await deleteFileFromR2(filePath);
             } catch(e) {}
         }
     }
@@ -535,7 +526,6 @@ export const DataService = {
     getMemories: async (childId?: string) => {
         const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
         const mems = await query.sortBy('date');
-        // Normalize memory objects to ensure imageUrls exists
         return mems.reverse().map(m => {
             const normalizedUrls = Array.isArray(m.imageUrls) && m.imageUrls.length > 0 
                 ? m.imageUrls 
@@ -548,7 +538,6 @@ export const DataService = {
         });
     },
     addMemory: createActionHandler(async (memory: Memory) => {
-        // Ensure both fields are set for local storage
         const primary = (memory.imageUrls && memory.imageUrls.length > 0) ? memory.imageUrls[0] : (memory.imageUrl || undefined);
         return db.memories.put({ 
             ...memory, 
@@ -578,39 +567,26 @@ export const DataService = {
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
     getCloudPhotos: async (userId: string, childId: string) => {
-        if (isR2Configured()) {
-            try {
-                return await listObjectsFromR2(`${userId}/${childId}/memories/`);
-            } catch (e) {
-                console.error("Failed to list R2 objects:", e);
-                return [];
-            }
+        if (!isR2Configured()) {
+            console.warn("R2 Cloud Storage not configured. Listing skipped.");
+            return [];
         }
-        if (isSupabaseConfigured()) {
-            const { data, error } = await supabase.storage.from('images').list(`${userId}/${childId}/memories`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
-            if (error || !data) return [];
-            return data.map(file => {
-                const { data: urlData } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
-                return { id: file.id, name: file.name, url: urlData.publicUrl, created_at: file.created_at };
-            });
+        try {
+            return await listObjectsFromR2(`${userId}/${childId}/memories/`);
+        } catch (e) {
+            console.error("Failed to list R2 objects:", e);
+            return [];
         }
-        return [];
     },
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
+        if (!isR2Configured()) return { success: false, error: 'R2 storage not configured' };
+        
         const filePath = `${userId}/${childId}/memories/${fileName}`;
         try {
-            if (isR2Configured()) {
-                await deleteFileFromR2(filePath);
-                return { success: true };
-            }
-            if (isSupabaseConfigured()) {
-                const { data, error } = await supabase.storage.from('images').remove([filePath]);
-                if (error) throw error;
-                return { success: data && data.length > 0 };
-            }
-            return { success: false, error: 'Storage not configured' };
+            await deleteFileFromR2(filePath);
+            return { success: true };
         } catch (e: any) {
-            console.error("Exception during cloud photo removal:", e);
+            console.error("Exception during R2 cloud photo removal:", e);
             return { success: false, error: e.message || 'Unknown network error' };
         }
     }
