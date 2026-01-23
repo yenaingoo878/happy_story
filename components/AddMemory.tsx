@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
@@ -131,13 +130,16 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     if (files && files.length > 0) {
       setIsProcessing(true); 
       try {
-        const newImageUris = await Promise.all(Array.from(files).map(async (file) => {
-            // FIX: Explicitly cast 'file' as 'File' to resolve 'unknown' type issues in environments where inference is weak.
-            const resizedDataUrl = await resizeImage(file as File);
-            return await saveImageToFile(resizedDataUrl);
+        const newDataUrls = await Promise.all(Array.from(files).map(async (file) => {
+            return await resizeImage(file as File);
         }));
-        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newImageUris] }));
-      } catch (error) { console.error("Image processing failed", error); alert("Failed to process images."); }
+        // Store dataUrls directly for previewing. 
+        // We will only call saveImageToFile when the user clicks 'Save'.
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...newDataUrls] }));
+      } catch (error) { 
+        console.error("Image processing failed", error); 
+        alert("Failed to process images."); 
+      }
       finally {
         setIsProcessing(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -163,22 +165,17 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
       
       const image = await CapacitorCamera.getPhoto({ quality: 90, allowEditing: false, resultType: CameraResultType.DataUrl });
       if (image.dataUrl) {
-        // FIX: Explicitly cast 'image.dataUrl' to 'string' to resolve type assignment issues.
         const resizedDataUrl = await resizeImage(image.dataUrl as string);
-        const fileUri = await saveImageToFile(resizedDataUrl);
-        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, fileUri] }));
+        setFormState(prev => ({ ...prev, imageUrls: [...prev.imageUrls, resizedDataUrl] }));
       }
     } catch (error) {
       console.error("Failed to take photo", error);
-
-      // FIX: Safely handle 'error' which is 'unknown' in current TypeScript catching logic.
       let isCancellation = false;
       if (error instanceof Error) {
         isCancellation = error.message.toLowerCase().includes('cancelled');
       } else if (typeof error === 'string') {
         isCancellation = error.toLowerCase().includes('cancelled');
       }
-
       if (!isCancellation) {
         alert(language === 'mm' ? "ဓာတ်ပုံရိုက်မရပါ။" : "Failed to take photo.");
       }
@@ -204,9 +201,22 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
     setIsSaving(true);
     try {
+        // Convert any dataUrls (previews) to actual files before saving to DB
+        const finalImageUrls = await Promise.all(formState.imageUrls.map(async (url) => {
+            if (url.startsWith('data:')) {
+                return await saveImageToFile(url);
+            }
+            return url;
+        }));
+
         const memory: Memory = {
-            id: editMemory ? editMemory.id : crypto.randomUUID(), childId: activeProfileId, title: formState.title, 
-            description: formState.desc, date: formState.date, imageUrls: formState.imageUrls, tags: formState.tags
+            id: editMemory ? editMemory.id : crypto.randomUUID(), 
+            childId: activeProfileId, 
+            title: formState.title, 
+            description: formState.desc, 
+            date: formState.date, 
+            imageUrls: finalImageUrls, 
+            tags: formState.tags
         };
         await DataService.addMemory(memory);
         onSaveComplete();
@@ -220,6 +230,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
   const removeImage = async (indexToRemove: number) => {
     const urlToRemove = formState.imageUrls[indexToRemove];
+    // Only attempt cleanup if it's a permanent file. If it's a dataUrl, we don't need to delete anything.
     if (urlToRemove.startsWith('file://')) {
         try {
             await Filesystem.deleteFile({ path: urlToRemove });
@@ -243,6 +254,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                <div className="grid grid-cols-3 gap-3">
                   {formState.imageUrls.map((url, index) => (
                       <div key={index} className="relative aspect-square group">
+                          {/* getImageSrc will handle both data: URLs and file:// URLs correctly */}
                           <img src={getImageSrc(url)} className="w-full h-full object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
                           <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-1.5 bg-rose-500 text-white rounded-full shadow-lg transition-transform hover:scale-110 active:scale-90">
                               <X className="w-3.5 h-3.5"/>
