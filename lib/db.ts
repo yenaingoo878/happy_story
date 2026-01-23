@@ -17,13 +17,12 @@ export type LittleMomentsDB = Dexie & {
 
 const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
 
-// Helper to convert file URIs to displayable sources for the webview
 export const getImageSrc = (src?: string) => {
     if (!src) return undefined;
     if (src.startsWith('file://') && Capacitor.isNativePlatform()) {
         return Capacitor.convertFileSrc(src);
     }
-    return src; // Works for http, data:, and blob: URLs
+    return src;
 };
 
 db.version(6).stores({
@@ -53,7 +52,6 @@ db.version(7).stores({
   ));
 });
 
-// Version 8: Add compound indexes for sync performance
 db.version(8).stores({
   memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
@@ -159,14 +157,12 @@ export const syncData = async () => {
         
         let errors: string[] = [];
 
-        // Sync Stories
         for (const s of unsyncedStories) {
             const { error } = await supabase.from('stories').upsert(cleanForSync(s));
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
 
-        // Sync Memories (Upload images if needed)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -199,14 +195,12 @@ export const syncData = async () => {
             }
         }
 
-        // Sync Growth
         for (const g of unsyncedGrowth) {
             const { error } = await supabase.from('growth_data').upsert(cleanForSync(g));
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
             else errors.push(error.message);
         }
 
-        // Sync Profiles (Upload image if needed)
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
@@ -227,7 +221,6 @@ export const syncData = async () => {
             }
         }
 
-        // Sync Reminders
         for (const r of unsyncedReminders) {
             const { error } = await supabase.from('reminders').upsert(cleanForSync(r));
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
@@ -239,7 +232,6 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pull remote changes
         try {
             const { data: pData } = await supabase.from('child_profile').select('*');
             if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
@@ -394,4 +386,21 @@ export const DataService = {
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
+
+    getCloudPhotos: async (userId: string, childId: string) => {
+        if (!isSupabaseConfigured()) return [];
+        const { data, error } = await supabase.storage
+            .from('images')
+            .list(`${userId}/${childId}/memories`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+        if (error || !data) return [];
+        return data.map(file => {
+            const { data: urlData } = supabase.storage.from('images').getPublicUrl(`${userId}/${childId}/memories/${file.name}`);
+            return { id: file.id, name: file.name, url: urlData.publicUrl, created_at: file.created_at };
+        });
+    },
+
+    deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
+        if (!isSupabaseConfigured()) return;
+        await supabase.storage.from('images').remove([`${userId}/${childId}/memories/${fileName}`]);
+    }
 };
