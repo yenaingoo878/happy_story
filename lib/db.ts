@@ -15,7 +15,8 @@ export type LittleMomentsDB = Dexie & {
   app_settings: Table<AppSetting>;
 };
 
-const db = new Dexie('LittleMomentsDB') as LittleMomentsDB;
+const DB_NAME = 'LittleMomentsDB';
+const db = new Dexie(DB_NAME) as LittleMomentsDB;
 
 export const getImageSrc = (src?: string) => {
     if (!src) return undefined;
@@ -63,8 +64,26 @@ db.version(8).stores({
 
 export { db };
 
+/**
+ * Resets the entire local database. Use only as a last resort.
+ */
+export const resetDatabase = async () => {
+    try {
+        await db.delete();
+        localStorage.clear();
+        window.location.reload();
+    } catch (err) {
+        console.error("Failed to delete database:", err);
+        alert("Could not reset app. Please clear browser storage manually.");
+    }
+};
+
 export const initDB = async () => {
   try {
+      if (!window.indexedDB) {
+          throw new Error("Your browser does not support local storage (IndexedDB).");
+      }
+      
       if (!db.isOpen()) {
         await db.open();
       }
@@ -73,17 +92,18 @@ export const initDB = async () => {
       console.error("Dexie Open Error Details:", {
         name: err.name,
         message: err.message,
-        stack: err.stack
+        inner: err.inner
       });
       
-      // Handle common IndexedDB issues
       let friendlyMessage = 'Unknown DB Error';
-      if (err.name === 'SecurityError') {
+      if (err.name === 'SecurityError' || err.message?.includes('SecurityError')) {
         friendlyMessage = 'Privacy settings or Incognito mode is blocking the database.';
       } else if (err.name === 'QuotaExceededError') {
         friendlyMessage = 'Device storage is full.';
       } else if (err.name === 'VersionError') {
-        friendlyMessage = 'Database version conflict. Please refresh or clear site data.';
+        friendlyMessage = 'Database version conflict. Please try resetting the app.';
+      } else if (err.name === 'NoSuchDatabaseError') {
+          friendlyMessage = 'Database not found. Refreshing might help.';
       } else {
         friendlyMessage = err.message || 'Could not initialize database.';
       }

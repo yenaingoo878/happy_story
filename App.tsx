@@ -14,7 +14,7 @@ const CloudPhotoModal = React.lazy(() => import('./components/CloudPhotoModal').
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData, getImageSrc } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc, resetDatabase } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -282,7 +282,7 @@ function App() {
       const timer = setTimeout(() => validatePasscode(passcodeInput), 150);
       return () => clearTimeout(timer);
     }
-  }, [passcodeInput]);
+  }, [passcode, passcodeMode, passcodeInput]);
 
   const handlePasscodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,12 +323,24 @@ function App() {
                     <p>• {language === 'mm' ? 'Browser ကို Refresh လုပ်ကြည့်ပါ။' : 'Try refreshing the browser.'}</p>
                 </div>
             </div>
-            <button 
-                onClick={() => window.location.reload()} 
-                className="px-12 py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all"
-            >
-                {language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}
-            </button>
+            <div className="flex flex-col gap-4 w-full max-w-xs">
+                <button 
+                    onClick={() => window.location.reload()} 
+                    className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all"
+                >
+                    {language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}
+                </button>
+                <button 
+                    onClick={() => {
+                        if (confirm(language === 'mm' ? "App ကို Reset လုပ်မှာ သေချာပါသလား? Local data များအားလုံး ပျက်သွားပါမည်။" : "Are you sure? This will wipe all local data and reset the app.")) {
+                            resetDatabase();
+                        }
+                    }} 
+                    className="w-full py-3 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                >
+                    {language === 'mm' ? 'App ကို Reset လုပ်မည် (Wipe Data)' : 'Reset App (Wipe Data)'}
+                </button>
+            </div>
         </div>
     );
   }
@@ -506,7 +518,7 @@ function App() {
           <SyncProgressBar />
       </div>
       <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white/95 dark:bg-slate-800/95 border-r border-slate-200 dark:border-slate-700 z-50 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"><img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Little Moments</h1></div>
+          <div className="flex items-center gap-3 mb-10 pl-2"><div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"><img src="/logo.png" className="w-full h-full object-contain" alt="Logo"/></div><h1 className="font-extrabold text-xl text-slate-800 dark:text-white tracking-tight leading-none">Little Moments</h1></div>
           <nav className="flex-1 space-y-1">{tabs.map(tab => { const isActive = activeTab === tab.id; return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'bg-primary/10 text-primary font-black shadow-sm' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-400'}`}><tab.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : ''}`}/><span className="text-sm">{t(tab.label)}</span></button>); })}</nav>
       </aside>
       <main className="flex-1 px-4 sm:px-5 pt-8 min-h-screen md:ml-64 relative overflow-x-hidden">{renderContent()}</main>
