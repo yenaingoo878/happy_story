@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -15,7 +16,7 @@ const CloudPhotoModal = React.lazy(() => import('./components/CloudPhotoModal').
 import { AuthScreen } from './components/AuthScreen';
 import { Memory, TabView, Language, Theme, ChildProfile, GrowthData, Reminder, Story } from './types';
 import { getTranslation, translations } from './utils/translations';
-import { initDB, DataService, syncData, getImageSrc, resetDatabase } from './lib/db';
+import { initDB, DataService, syncData, getImageSrc, resetDatabase, db } from './lib/db';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
@@ -47,12 +48,7 @@ function App() {
   const [syncState, setSyncState] = useState<any>({ status: 'idle', progress: 0, total: 0, completed: 0 });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [stories, setStories] = useState<Story[]>([]);
-  const [profiles, setProfiles] = useState<ChildProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string>(''); 
-  const [growthData, setGrowthData] = useState<GrowthData[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -65,6 +61,13 @@ function App() {
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
   const t = (key: keyof typeof translations) => getTranslation(language, key);
+
+  // Real-time local data using Dexie LiveQuery
+  const profiles = useLiveQuery(() => DataService.getProfiles(), []) || [];
+  const memories = useLiveQuery(() => DataService.getMemories(activeProfileId), [activeProfileId]) || [];
+  const stories = useLiveQuery(() => DataService.getStories(activeProfileId), [activeProfileId]) || [];
+  const growthData = useLiveQuery(() => DataService.getGrowth(activeProfileId), [activeProfileId]) || [];
+  const reminders = useLiveQuery(() => DataService.getReminders(), []) || [];
 
   const triggerSuccess = (key: keyof typeof translations) => {
     setSuccessMessage(t(key));
@@ -89,6 +92,7 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Auth Initialization
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
     
@@ -113,6 +117,33 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Set Active Profile ID automatically
+  useEffect(() => {
+    if (profiles.length > 0 && !activeProfileId) {
+        setActiveProfileId(profiles[0].id!);
+    }
+  }, [profiles, activeProfileId]);
+
+  // Real-time Database Sync from Supabase
+  useEffect(() => {
+    if (!session?.user?.id || !isSupabaseConfigured()) return;
+
+    // Listen to changes across all tables for the current user
+    const channel = supabase
+        .channel('db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+            console.log('Server-side change detected, syncing...', payload);
+            // Trigger background sync to pull latest changes into local DB
+            syncData().catch(err => console.error("Realtime sync pull failed:", err));
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+  }, [session]);
+
+  // Initial Load and DB Setup
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
@@ -127,35 +158,13 @@ function App() {
                 return;
             }
             
-            const localProfiles = await DataService.getProfiles();
-            
-            if (session && localProfiles.length === 0 && navigator.onLine && isSupabaseConfigured()) {
-                setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရှာဖွေနေပါသည်...' : 'Checking for cloud backups...');
+            // Background sync on app start
+            if (navigator.onLine && session && isSupabaseConfigured()) {
+                setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Fetching cloud data...');
                 await syncData();
-                const refreshedProfiles = await DataService.getProfiles();
-                if (refreshedProfiles.length > 0) {
-                    setProfiles(refreshedProfiles);
-                    const firstId = refreshedProfiles[0].id!;
-                    setActiveProfileId(firstId);
-                    await loadChildData(firstId);
-                    setIsInitialLoading(false);
-                    return;
-                }
             }
-
-            if (localProfiles.length > 0) {
-              setProfiles(localProfiles);
-              const firstId = localProfiles[0].id!;
-              setActiveProfileId(firstId);
-              await loadChildData(firstId);
-              setIsInitialLoading(false);
-              
-              if (navigator.onLine && session && isSupabaseConfigured()) {
-                  syncData().then(() => refreshData()).catch(e => console.warn("Background sync failed:", e));
-              }
-            } else {
-              setIsInitialLoading(false);
-            }
+            
+            setIsInitialLoading(false);
           } catch (err) {
             console.error("Critical error during setup:", err);
             setDbError('Critical Setup Error');
@@ -172,7 +181,7 @@ function App() {
     const handleOnline = () => {
         setIsOnline(true);
         if (session && isSupabaseConfigured()) {
-            syncData().then(() => { refreshData(); }).catch(e => console.warn("Sync failed when coming online:", e));
+            syncData().catch(e => console.warn("Sync failed when coming online:", e));
         }
     };
     const handleOffline = () => setIsOnline(false);
@@ -185,28 +194,6 @@ function App() {
   }, [session]);
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
-
-  const loadChildData = async (childId: string) => {
-      const mems = await DataService.getMemories(childId);
-      const strs = await DataService.getStories(childId);
-      const growth = await DataService.getGrowth(childId);
-      const rems = await DataService.getReminders();
-      setMemories(mems); setStories(strs); setGrowthData(growth); setReminders(rems);
-  };
-
-  const refreshData = async () => {
-    try {
-      const fetchedProfiles = await DataService.getProfiles();
-      setProfiles(fetchedProfiles);
-      let targetId = activeProfileId;
-      if (!targetId || !fetchedProfiles.find(p => p.id === targetId)) {
-          targetId = fetchedProfiles.length > 0 ? fetchedProfiles[0].id! : '';
-          setActiveProfileId(targetId);
-      }
-      if (targetId) await loadChildData(targetId);
-      else { setMemories([]); setStories([]); setGrowthData([]); }
-    } catch (e) { console.error("Failed to refresh data:", e); }
-  };
 
   const handleCreateFirstProfile = async (childData: Partial<ChildProfile>) => {
     const newProfile: ChildProfile = { 
@@ -222,19 +209,15 @@ function App() {
         synced: 0
     };
     await DataService.saveProfile(newProfile);
-    await refreshData();
+    setActiveProfileId(newProfile.id!);
   };
 
-  const handleProfileChange = async (id: string) => {
-    setIsLoading(true);
+  const handleProfileChange = (id: string) => {
     setActiveProfileId(id);
-    await loadChildData(id);
-    setIsLoading(false);
   };
 
   const handleGuestLogin = async () => {
     await DataService.clearAllUserData();
-    setProfiles([]); setMemories([]); setStories([]); setGrowthData([]); setReminders([]);
     setActiveTab(TabView.HOME);
     setIsGuestMode(true);
     localStorage.setItem('guest_mode', 'true');
@@ -246,15 +229,14 @@ function App() {
       finally {
         await DataService.clearAllUserData(); 
         localStorage.removeItem('guest_mode');
-        setIsGuestMode(false); setSession(null); setProfiles([]); setMemories([]); setStories([]); 
-        setGrowthData([]); setReminders([]); setActiveTab(TabView.HOME); setIsAppUnlocked(false); 
+        setIsGuestMode(false); setSession(null); 
+        setActiveTab(TabView.HOME); setIsAppUnlocked(false); 
         setShowPasscodeModal(false);
       }
   };
 
   const handleSaveGrowth = async (data: GrowthData) => {
       await DataService.saveGrowth(data);
-      await refreshData();
       triggerSuccess('profile_saved');
   };
 
@@ -269,7 +251,6 @@ function App() {
       const result = await deleteCallback();
       if (result !== false) {
         triggerSuccess('delete_success');
-        await refreshData();
       }
     } catch (e) {
       console.error("Deletion failed:", e);
@@ -395,8 +376,16 @@ function App() {
     const todaysReminders = reminders.filter(r => r.date === todayStr);
     const latestMemory = memories[0];
 
+    // Helper for robust image source selection
+    const getHeroImage = (mem: Memory) => {
+        if (mem.imageUrls && mem.imageUrls.length > 0) return mem.imageUrls[0];
+        if (mem.imageUrl) return mem.imageUrl;
+        return null;
+    };
+
     switch (activeTab) {
       case TabView.HOME:
+        const heroImg = latestMemory ? getHeroImage(latestMemory) : null;
         return (
           <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-6xl mx-auto">
             {remindersEnabled && (
@@ -435,9 +424,9 @@ function App() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="md:col-span-2">
-                  {latestMemory && latestMemory.imageUrls && latestMemory.imageUrls.length > 0 ? (
+                  {latestMemory && heroImg ? (
                       <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
-                        <img src={getImageSrc(latestMemory.imageUrls[0])} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
+                        <img src={getImageSrc(heroImg)} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
                           <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
                           <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
@@ -458,18 +447,21 @@ function App() {
                 <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
               </div>
               <div className="space-y-3">
-                 {memories.slice(0, 4).map(m => (
-                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group overflow-hidden">
-                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-                        {m.imageUrls && m.imageUrls.length > 0 ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
-                       </div>
-                       <div className="flex-1 min-w-0 overflow-hidden text-left">
-                          <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5 w-full pr-2">{m.title}</h4>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
-                       </div>
-                       <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
-                    </div>
-                 ))}
+                 {memories.slice(0, 4).map(m => {
+                    const thumb = getHeroImage(m);
+                    return (
+                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group overflow-hidden">
+                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                          {thumb ? (<img src={getImageSrc(thumb)} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
+                         </div>
+                         <div className="flex-1 min-w-0 overflow-hidden text-left">
+                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5 w-full pr-2">{m.title}</h4>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                         </div>
+                         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
+                      </div>
+                    );
+                 })}
               </div>
             </div>
           </div>
@@ -478,14 +470,14 @@ function App() {
         return (
             <div className="pb-32 md:pb-8 animate-fade-in max-w-6xl mx-auto">
               <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
-                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={async () => { await refreshData(); triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />}
-                {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={async () => { await refreshData(); triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
+                {activeTab === TabView.ADD_MEMORY && <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />}
+                {activeTab === TabView.STORY && <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />}
                 {activeTab === TabView.GROWTH && <div className="max-w-4xl mx-auto"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>}
                 {activeTab === TabView.GALLERY && <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} userId={session?.user?.id} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />}
                 {activeTab === TabView.SETTINGS && (
                   <SettingsComponent 
                     language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
-                    profiles={profiles} activeProfileId={activeProfileId} onProfileChange={handleProfileChange} onRefreshData={refreshData} 
+                    profiles={profiles} activeProfileId={activeProfileId} onProfileChange={handleProfileChange} onRefreshData={async () => { await syncData(); }} 
                     passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }} 
                     onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }} onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }} 
                     onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }} onHideDetails={() => setIsAppUnlocked(false)} 
@@ -501,7 +493,7 @@ function App() {
                     toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }} 
                     remindersList={reminders} 
                     onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))} 
-                    onSaveReminder={async (rem) => { await DataService.saveReminder(rem); await refreshData(); triggerSuccess('profile_saved'); }}
+                    onSaveReminder={async (rem) => { await DataService.saveReminder(rem); triggerSuccess('profile_saved'); }}
                     onSaveSuccess={() => triggerSuccess('profile_saved')}
                     session={session}
                     onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}

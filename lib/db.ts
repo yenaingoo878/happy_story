@@ -49,6 +49,9 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const basePayload = { user_id: userId, id: item.id };
 
     if (tableName === 'memories') {
+        // Ensure we always have the primary preview image for single-image clients
+        const primaryImage = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null);
+        
         return {
             ...basePayload,
             childId: item.childId, 
@@ -56,9 +59,8 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            // Keep imageUrl for legacy/single-preview, but send the full array for multi-photo support
-            imageUrl: (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null),
-            imageUrls: item.imageUrls || []
+            imageUrl: primaryImage,
+            imageUrls: item.imageUrls || (primaryImage ? [primaryImage] : [])
         };
     }
     
@@ -123,6 +125,12 @@ const mapFromSupabase = (tableName: string, item: any) => {
     if (tableName === 'memories') {
         const imageUrl = getField(item, ['imageUrl', 'imageurl', 'image_url']);
         const imageUrls = getField(item, ['imageUrls', 'imageurls', 'image_urls']);
+        
+        // Normalize: Ensure imageUrls array always exists and reflects the images
+        const normalizedUrls = Array.isArray(imageUrls) && imageUrls.length > 0 
+            ? imageUrls 
+            : (imageUrl ? [imageUrl] : []);
+
         return {
             ...item,
             id: item.id,
@@ -131,8 +139,8 @@ const mapFromSupabase = (tableName: string, item: any) => {
             description: item.description,
             date: item.date,
             tags: item.tags || [],
-            imageUrl: imageUrl,
-            imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
+            imageUrl: imageUrl || (normalizedUrls.length > 0 ? normalizedUrls[0] : null),
+            imageUrls: normalizedUrls,
             synced: 1,
             is_deleted: 0
         };
@@ -292,8 +300,10 @@ export const syncData = async () => {
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
-                if (memoryToSync.imageUrls && memoryToSync.imageUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
-                    const newUrls = await Promise.all(memoryToSync.imageUrls.map(async (url, index) => {
+                const currentUrls = memoryToSync.imageUrls || (memoryToSync.imageUrl ? [memoryToSync.imageUrl] : []);
+                
+                if (currentUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
+                    const newUrls = await Promise.all(currentUrls.map(async (url, index) => {
                         if (url.startsWith('file://') || url.startsWith('data:')) {
                             let blob;
                             if (url.startsWith('file://')) {
@@ -306,8 +316,9 @@ export const syncData = async () => {
                         }
                         return url;
                     }));
-                    await db.memories.update(mem.id, { imageUrls: newUrls });
+                    await db.memories.update(mem.id, { imageUrls: newUrls, imageUrl: newUrls[0] });
                     memoryToSync.imageUrls = newUrls;
+                    memoryToSync.imageUrl = newUrls[0];
                 }
                 const payload = mapToSupabase('memories', memoryToSync, userId);
                 const { error } = await supabase.from('memories').upsert(payload);
@@ -444,8 +455,12 @@ const memoryFileCleanup = async (id: string) => {
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user?.id;
 
-    if (memory.imageUrls) {
-        for (const url of memory.imageUrls) {
+    const urlsToCleanup = Array.isArray(memory.imageUrls) && memory.imageUrls.length > 0 
+        ? memory.imageUrls 
+        : (memory.imageUrl ? [memory.imageUrl] : []);
+
+    if (urlsToCleanup.length > 0) {
+        for (const url of urlsToCleanup) {
             // 1. Local Filesystem cleanup (Native only)
             if (url.startsWith('file://')) {
                 try { await Filesystem.deleteFile({ path: url }); } catch(e) {}
@@ -520,9 +535,29 @@ export const DataService = {
     getMemories: async (childId?: string) => {
         const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
         const mems = await query.sortBy('date');
-        return mems.reverse();
+        // Normalize memory objects to ensure imageUrls exists
+        return mems.reverse().map(m => {
+            const normalizedUrls = Array.isArray(m.imageUrls) && m.imageUrls.length > 0 
+                ? m.imageUrls 
+                : (m.imageUrl ? [m.imageUrl] : []);
+            return {
+                ...m,
+                imageUrls: normalizedUrls,
+                imageUrl: m.imageUrl || (normalizedUrls.length > 0 ? normalizedUrls[0] : undefined)
+            };
+        });
     },
-    addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: 0, is_deleted: 0 })),
+    addMemory: createActionHandler(async (memory: Memory) => {
+        // Ensure both fields are set for local storage
+        const primary = (memory.imageUrls && memory.imageUrls.length > 0) ? memory.imageUrls[0] : (memory.imageUrl || undefined);
+        return db.memories.put({ 
+            ...memory, 
+            imageUrl: primary,
+            imageUrls: memory.imageUrls || (primary ? [primary] : []),
+            synced: 0, 
+            is_deleted: 0 
+        });
+    }),
     deleteMemory: createDeleteHandler('memories', 'memories', memoryFileCleanup),
     getStories: async (childId?: string) => {
         const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);

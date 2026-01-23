@@ -106,11 +106,16 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
 
   useEffect(() => {
     if (editMemory) {
+        // Fallback for legacy records that only have imageUrl
+        const initialUrls = Array.isArray(editMemory.imageUrls) && editMemory.imageUrls.length > 0 
+            ? editMemory.imageUrls 
+            : (editMemory.imageUrl ? [editMemory.imageUrl] : []);
+
         setFormState({
             title: editMemory.title,
             desc: editMemory.description,
             date: editMemory.date,
-            imageUrls: editMemory.imageUrls || [],
+            imageUrls: initialUrls,
             tags: editMemory.tags || []
         });
     } else {
@@ -237,7 +242,8 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             title: formState.title, 
             description: formState.desc, 
             date: formState.date, 
-            imageUrls: finalImageUrls, 
+            imageUrls: finalImageUrls,
+            imageUrl: finalImageUrls[0], // Maintain imageUrl for legacy support
             tags: formState.tags,
             synced: 0 
         };
