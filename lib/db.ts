@@ -44,91 +44,91 @@ export { db };
 
 /**
  * Helper to map local fields to Supabase columns.
+ * MANDATORY: Must match the column names in the Supabase schema cache exactly.
+ * The user requested: childid -> childId, imageurl -> imageUrl, imageUrls -> imageUrl
  */
 const mapToSupabase = (tableName: string, item: any, userId: string) => {
-    const { synced, is_deleted, ...data } = item;
-    const basePayload = { user_id: userId };
+    const basePayload = { user_id: userId, id: item.id };
 
     if (tableName === 'memories') {
         return {
             ...basePayload,
-            id: data.id,
-            childId: data.childId,
-            title: data.title,
-            description: data.description,
-            date: data.date,
-            tags: data.tags || [],
-            imageUrl: (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.imageUrl || null),
-            // We store the full array as JSON in the database if the column exists, 
-            // otherwise the single imageUrl fallback is used.
-            imageUrls: data.imageUrls || []
+            childId: item.childId, 
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            tags: item.tags || [],
+            // Use singular 'imageUrl' as 'imageUrls' is missing in DB schema.
+            imageUrl: (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls[0] : (item.imageUrl || null)
         };
     }
     
     if (tableName === 'stories') {
         return {
             ...basePayload,
-            id: data.id,
-            childId: data.childId,
-            title: data.title,
-            content: data.content,
-            date: data.date
+            childId: item.childId,
+            title: item.title,
+            content: item.content,
+            date: item.date
         };
     }
     
     if (tableName === 'growth_data') {
         return {
             ...basePayload,
-            id: data.id,
-            childId: data.childId,
-            month: data.month,
-            height: data.height,
-            weight: data.weight
+            childId: item.childId,
+            month: item.month,
+            height: item.height,
+            weight: item.weight
         };
     }
     
     if (tableName === 'child_profile') {
         return {
             ...basePayload,
-            id: data.id,
-            name: data.name,
-            dob: data.dob,
-            gender: data.gender,
-            profileImage: data.profileImage,
-            birthTime: data.birthTime,
-            bloodType: data.bloodType,
-            hospitalName: data.hospitalName,
-            birthLocation: data.birthLocation,
-            country: data.country
+            name: item.name,
+            dob: item.dob,
+            gender: item.gender,
+            profileImage: item.profileImage,
+            birthTime: item.birthTime,
+            bloodType: item.bloodType,
+            hospitalName: item.hospitalName,
+            birthLocation: item.birthLocation,
+            country: item.country
         };
     }
 
     if (tableName === 'reminders') {
         return {
             ...basePayload,
-            id: data.id,
-            title: data.title,
-            date: data.date,
-            type: data.type
+            title: item.title,
+            date: item.date,
+            type: item.type
         };
     }
     
-    return { ...basePayload, ...data };
+    return basePayload;
 };
 
 /**
  * Helper to map Supabase columns back to local camelCase.
+ * Robustly handles multiple naming conventions from the DB.
  */
 const mapFromSupabase = (tableName: string, item: any) => {
-    const getField = (obj: any, camel: string, snake: string) => obj[camel] !== undefined ? obj[camel] : obj[snake];
+    const getField = (obj: any, keys: string[]) => {
+      for (const key of keys) {
+        if (obj[key] !== undefined) return obj[key];
+      }
+      return undefined;
+    };
 
     if (tableName === 'memories') {
-        const imageUrl = getField(item, 'imageUrl', 'image_url');
-        const imageUrls = getField(item, 'imageUrls', 'image_urls');
+        const imageUrl = getField(item, ['imageUrl', 'imageurl', 'image_url']);
+        const imageUrls = getField(item, ['imageUrls', 'imageurls', 'image_urls']);
         return {
             ...item,
             id: item.id,
-            childId: getField(item, 'childId', 'child_id'),
+            childId: getField(item, ['childId', 'childid', 'child_id', 'childID']),
             title: item.title,
             description: item.description,
             date: item.date,
@@ -144,7 +144,7 @@ const mapFromSupabase = (tableName: string, item: any) => {
         return {
             ...item,
             id: item.id,
-            childId: getField(item, 'childId', 'child_id'),
+            childId: getField(item, ['childId', 'childid', 'child_id', 'childID']),
             title: item.title,
             content: item.content,
             date: item.date,
@@ -157,7 +157,7 @@ const mapFromSupabase = (tableName: string, item: any) => {
         return {
             ...item,
             id: item.id,
-            childId: getField(item, 'childId', 'child_id'),
+            childId: getField(item, ['childId', 'childid', 'child_id', 'childID']),
             month: item.month,
             height: item.height,
             weight: item.weight,
@@ -173,11 +173,11 @@ const mapFromSupabase = (tableName: string, item: any) => {
             name: item.name,
             dob: item.dob,
             gender: item.gender,
-            profileImage: getField(item, 'profileImage', 'profile_image'),
-            birthTime: getField(item, 'birthTime', 'birth_time'),
-            bloodType: getField(item, 'bloodType', 'blood_type'),
-            hospitalName: getField(item, 'hospitalName', 'hospital_name'),
-            birthLocation: getField(item, 'birthLocation', 'birth_location'),
+            profileImage: getField(item, ['profileImage', 'profileimage', 'profile_image']),
+            birthTime: getField(item, ['birthTime', 'birthtime', 'birth_time']),
+            bloodType: getField(item, ['bloodType', 'bloodtype', 'blood_type']),
+            hospitalName: getField(item, ['hospitalName', 'hospitalname', 'hospital_name']),
+            birthLocation: getField(item, ['birthLocation', 'birthlocation', 'birth_location']),
             synced: 1,
             is_deleted: 0
         };
@@ -209,7 +209,7 @@ export const initDB = async () => {
 
 /**
  * Uploads a file to the configured cloud storage.
- * Prioritizes Cloudflare R2 for all photo storage as requested.
+ * Mandatory Priority: Cloudflare R2 for all photo storage.
  */
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -225,13 +225,13 @@ export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string,
             // Absolute Priority: Cloudflare R2
             publicUrl = await uploadFileToR2(fileOrBlob, filePath);
         } else if (isSupabaseConfigured()) {
-            // Fallback: Supabase Storage (Only if R2 is not configured)
+            // Fallback: Supabase Storage
             const { error } = await supabase.storage.from('images').upload(filePath, fileOrBlob, { cacheControl: '3600', upsert: true });
             if (error) throw error;
             const { data } = supabase.storage.from('images').getPublicUrl(filePath);
             publicUrl = data.publicUrl;
         } else {
-            throw new Error("No cloud storage configured. Please set up R2 or Supabase.");
+            throw new Error("No cloud storage configured.");
         }
 
         uploadManager.progress(100, displayName);
@@ -257,7 +257,6 @@ const syncDeletions = async () => {
         try {
             const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
             for (const item of itemsToDelete) {
-                // Remove from Supabase DB
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
                 if (!error) await db.table(tableName).delete(item.id);
             }
@@ -288,7 +287,6 @@ export const syncData = async () => {
         
         let errors: string[] = [];
 
-        // Push Stories
         for (const s of unsyncedStories) {
             const payload = mapToSupabase('stories', s, userId);
             const { error } = await supabase.from('stories').upsert(payload);
@@ -296,7 +294,6 @@ export const syncData = async () => {
             else errors.push(`Story ${s.id}: ${error.message}`);
         }
 
-        // Push Memories (Images to R2/Cloud)
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
@@ -310,7 +307,6 @@ export const syncData = async () => {
                             } else {
                                 blob = await(await fetch(url)).blob();
                             }
-                            // This will use R2 as priority
                             return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
@@ -329,7 +325,6 @@ export const syncData = async () => {
             }
         }
 
-        // Push Growth
         for (const g of unsyncedGrowth) {
             const payload = mapToSupabase('growth_data', g, userId);
             const { error } = await supabase.from('growth_data').upsert(payload);
@@ -337,7 +332,6 @@ export const syncData = async () => {
             else errors.push(`Growth ${g.id}: ${error.message}`);
         }
 
-        // Push Profiles (Images to R2/Cloud)
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
@@ -349,7 +343,6 @@ export const syncData = async () => {
                     } else {
                         blob = await(await fetch(profileToSync.profileImage)).blob();
                     }
-                    // Use R2 as priority
                     const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
                     await db.profiles.update(p.id!, { profileImage: newUrl });
                     profileToSync.profileImage = newUrl;
@@ -364,7 +357,6 @@ export const syncData = async () => {
             }
         }
 
-        // Push Reminders
         for (const r of unsyncedReminders) {
             const payload = mapToSupabase('reminders', r, userId);
             const { error } = await supabase.from('reminders').upsert(payload);
@@ -377,7 +369,6 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pull updates from cloud for the current user
         try {
             const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);
             if (pData) await db.profiles.bulkPut(pData.map(p => mapFromSupabase('child_profile', p)));
@@ -509,7 +500,6 @@ export const DataService = {
     getCloudPhotos: async (userId: string, childId: string) => {
         if (isR2Configured()) {
             try {
-                // Absolute Priority: Fetch from Cloudflare R2
                 return await listObjectsFromR2(`${userId}/${childId}/memories/`);
             } catch (e) {
                 console.error("Failed to list R2 objects:", e);
@@ -528,19 +518,16 @@ export const DataService = {
     },
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
         const filePath = `${userId}/${childId}/memories/${fileName}`;
-        
         try {
             if (isR2Configured()) {
                 await deleteFileFromR2(filePath);
                 return { success: true };
             }
-            
             if (isSupabaseConfigured()) {
                 const { data, error } = await supabase.storage.from('images').remove([filePath]);
                 if (error) throw error;
                 return { success: data && data.length > 0 };
             }
-            
             return { success: false, error: 'Storage not configured' };
         } catch (e: any) {
             console.error("Exception during cloud photo removal:", e);

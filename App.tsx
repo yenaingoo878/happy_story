@@ -514,12 +514,11 @@ function App() {
     }
   };
 
-  // Main layout return
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-slate-50'} transition-colors duration-500 font-sans pb-24`}>
-      {/* Premium Success Notification - Centered at top of screen with highest priority */}
+      {/* Premium Successful Notification - Centered at the very top */}
       {successMessage && (
-        <div className="fixed top-8 inset-x-0 z-[1000000] flex justify-center pointer-events-none px-4 animate-fade-in">
+        <div className="fixed top-8 inset-x-0 z-[2000000] flex justify-center pointer-events-none px-4 animate-fade-in">
           <div className="bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-[0_15px_45px_rgba(16,185,129,0.4)] flex items-center gap-3 border border-emerald-400/30 backdrop-blur-md">
             <CheckCircle2 className="w-5 h-5" />
             <span className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{successMessage}</span>
@@ -537,14 +536,12 @@ function App() {
         </div>
       )}
 
-      {/* Main Content Area */}
       <main className="container mx-auto px-4 pt-6 md:pt-12">
         {renderContent()}
       </main>
 
-      {/* Original Design Navigation Bar */}
       <nav className="fixed bottom-6 left-6 right-6 h-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex justify-around items-center px-4 z-40 transition-all duration-300">
-        {tabs.map((tab, idx) => {
+        {tabs.map((tab) => {
           if (tab.id === TabView.ADD_MEMORY) {
             return (
               <div key={tab.id} className="relative -top-10">
@@ -570,53 +567,22 @@ function App() {
         })}
       </nav>
 
-      {/* Global Modals */}
       <Suspense fallback={null}>
-        {selectedMemory && (
-          <MemoryDetailModal 
-            memory={selectedMemory} 
-            language={language} 
-            onClose={() => setSelectedMemory(null)} 
-          />
-        )}
-        
-        {selectedStory && (
-          <StoryDetailModal 
-            story={selectedStory} 
-            language={language} 
-            onClose={() => setSelectedStory(null)} 
-            onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))}
-          />
-        )}
-
-        {cloudPhoto && (
-          <CloudPhotoModal 
-            url={cloudPhoto.url} 
-            data={null} 
-            isLoading={false} 
-            language={language} 
-            onClose={() => setCloudPhoto(null)} 
-            onDelete={() => {
+        {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
+        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
+        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={() => {
               if (session?.user?.id && cloudPhoto) {
                 requestDeleteConfirmation(async () => {
                   const res = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name);
-                  if (res.success) {
-                      setCloudPhoto(null);
-                      setCloudRefreshTrigger(prev => prev + 1);
-                  }
+                  if (res.success) { setCloudPhoto(null); setCloudRefreshTrigger(prev => prev + 1); }
                   return res.success;
                 });
               }
-            }} 
-          />
-        )}
-
+            }} />}
         {showConfirmModal && (
           <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-700">
-              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6">
-                <Trash2 className="w-8 h-8" />
-              </div>
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6"><Trash2 className="w-8 h-8" /></div>
               <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('delete_title')}</h3>
               <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8">{t('confirm_delete')}</p>
               <div className="flex gap-3">
@@ -626,53 +592,20 @@ function App() {
             </div>
           </div>
         )}
-
         {showPasscodeModal && (
           <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-            <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] max-w-sm w-full shadow-2xl text-center">
-              <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto mb-8">
-                <Lock className="w-10 h-10" />
-              </div>
-              <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-2">
-                {passcodeMode === 'UNLOCK' ? t('enter_passcode') : 
-                 passcodeMode === 'SETUP' ? t('create_passcode') : 
-                 passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') :
-                 passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}
-              </h3>
-              <p className="text-xs font-bold text-slate-400 mb-10 uppercase tracking-widest">
-                {passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}
-              </p>
-              
+            <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] max-w-sm w-full shadow-2xl text-center text-slate-800 dark:text-white">
+              <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto mb-8"><Lock className="w-10 h-10" /></div>
+              <h3 className="text-2xl font-black mb-2">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3>
+              <p className="text-xs font-bold text-slate-400 mb-10 uppercase tracking-widest">{passcodeError ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p>
               <form onSubmit={handlePasscodeSubmit} className="flex flex-col gap-8">
                 <div className="flex justify-center gap-3">
-                  {[0, 1, 2, 3].map(i => (
-                    <div key={i} className={`w-4 h-4 rounded-full ${passcodeInput.length > i ? 'bg-primary scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                  ))}
+                  {[0, 1, 2, 3].map(i => <div key={i} className={`w-4 h-4 rounded-full ${passcodeInput.length > i ? 'bg-primary scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />)}
                 </div>
-                <input 
-                  type="password" 
-                  inputMode="numeric" 
-                  pattern="[0-9]*" 
-                  maxLength={4} 
-                  autoFocus 
-                  value={passcodeInput} 
-                  onChange={(e) => setPasscodeInput(e.target.value.replace(/[^0-9]/g, ''))} 
-                  className="absolute opacity-0 pointer-events-none" 
-                />
+                <input type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoFocus value={passcodeInput} onChange={(e) => setPasscodeInput(e.target.value.replace(/[^0-9]/g, ''))} className="absolute opacity-0 pointer-events-none" />
                 <div className="grid grid-cols-3 gap-4">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'DEL'].map((num) => (
-                    <button 
-                      key={num} 
-                      type="button" 
-                      onClick={() => {
-                        if (num === 'C') setPasscodeInput('');
-                        else if (num === 'DEL') setPasscodeInput(prev => prev.slice(0, -1));
-                        else if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num);
-                      }}
-                      className="w-full aspect-square flex items-center justify-center text-xl font-black rounded-3xl bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white"
-                    >
-                      {num === 'DEL' ? <Delete className="w-5 h-5" /> : num}
-                    </button>
+                    <button key={num} type="button" onClick={() => { if (num === 'C') setPasscodeInput(''); else if (num === 'DEL') setPasscodeInput(prev => prev.slice(0, -1)); else if (passcodeInput.length < 4) setPasscodeInput(prev => prev + num); }} className="w-full aspect-square flex items-center justify-center text-xl font-black rounded-3xl bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white">{num === 'DEL' ? <Delete className="w-5 h-5" /> : num}</button>
                   ))}
                 </div>
                 <button type="button" onClick={() => setShowPasscodeModal(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest mt-4">{t('cancel_btn')}</button>
