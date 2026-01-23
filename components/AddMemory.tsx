@@ -118,7 +118,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
   }, [editMemory]);
 
   const saveImageToFile = async (dataUrl: string): Promise<string> => {
-      // Only use Capacitor Filesystem if running as a native app
       if (!Capacitor.isNativePlatform()) {
           return dataUrl;
       }
@@ -214,7 +213,7 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
     
     try {
         const finalImageUrls = await Promise.all(formState.imageUrls.map(async (url, index) => {
-            // If online and session is active, upload directly to cloud
+            // Immediate cloud upload if possible
             if (session?.user?.id && navigator.onLine && url.startsWith('data:')) {
                 const blob = await (await fetch(url)).blob();
                 try {
@@ -225,7 +224,6 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
                 }
             }
             
-            // Otherwise save to local file system (if native) or keep dataUrl
             if (url.startsWith('data:')) {
                 return await saveImageToFile(url);
             }
@@ -240,8 +238,10 @@ export const AddMemory: React.FC<AddMemoryProps> = ({
             date: formState.date, 
             imageUrls: finalImageUrls, 
             tags: formState.tags,
-            // If all URLs are cloud URLs, mark as synced
-            synced: finalImageUrls.every(url => url.startsWith('http')) ? 1 : 0
+            // CRITICAL: Always set synced to 0 here. 
+            // Even if files are in cloud storage, the database row itself 
+            // needs to be pushed to Supabase by the background sync process.
+            synced: 0 
         };
         await DataService.addMemory(memory);
         onSaveComplete();

@@ -20,21 +20,11 @@ const db = new Dexie(DB_NAME) as LittleMomentsDB;
 
 export const getImageSrc = (src?: string) => {
     if (!src) return undefined;
-    
-    // If it's already a data URL (base64) or a web URL (http/https), return as is
-    if (src.startsWith('data:') || src.startsWith('http')) {
-        return src;
-    }
-
-    // If it's a file system URI, handle it based on platform
+    if (src.startsWith('data:') || src.startsWith('http')) return src;
     if (src.startsWith('file://')) {
-        if (Capacitor.isNativePlatform()) {
-            return Capacitor.convertFileSrc(src);
-        } else {
-            return undefined;
-        }
+        if (Capacitor.isNativePlatform()) return Capacitor.convertFileSrc(src);
+        return undefined;
     }
-    
     return src;
 };
 
@@ -92,7 +82,6 @@ export const initDB = async () => {
       if (!window.indexedDB) {
           throw new Error("Your browser does not support local storage (IndexedDB).");
       }
-      
       if (!db.isOpen()) {
         await db.open();
       }
@@ -113,7 +102,6 @@ export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: stri
     const displayName = fileOrBlob instanceof File ? fileOrBlob.name : `image_${imageIndex}.jpg`;
     
     uploadManager.start(displayName);
-    
     const fileName = `${itemId}_${imageIndex}_${Date.now()}.${fileNameSuffix}`;
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
 
@@ -130,7 +118,6 @@ export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: stri
     }
 
     const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-    
     if (!data.publicUrl) {
         uploadManager.error();
         throw new Error("Failed to get public URL.");
@@ -138,7 +125,6 @@ export const uploadFileToSupabase = async (fileOrBlob: File | Blob, userId: stri
     
     uploadManager.progress(100, displayName);
     uploadManager.finish();
-    
     return data.publicUrl;
 };
 
@@ -212,11 +198,13 @@ export const syncData = async () => {
                 }
                 
                 const supabasePayload: any = { ...cleanForSync(memoryToSync) };
+                // Map array to single column for standard DB if needed, or keep array if supported
                 if (supabasePayload.imageUrls && supabasePayload.imageUrls.length > 0) {
                     supabasePayload.imageUrl = supabasePayload.imageUrls[0];
                 }
-                delete supabasePayload.imageUrls;
-
+                // Try to keep imageUrls if the DB supports JSON/Text array
+                // For safety with unknown schema, we ensure imageUrl is set.
+                
                 const { error } = await supabase.from('memories').upsert(supabasePayload);
                 if (error) throw error;
                 await db.memories.update(mem.id, { synced: 1 });
@@ -262,7 +250,7 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
-        // Pulling updates
+        // Pulling updates from cloud to local
         try {
             const { data: pData } = await supabase.from('child_profile').select('*');
             if (pData) await db.profiles.bulkPut(pData.map(p => ({ ...p, synced: 1, is_deleted: 0 })));
@@ -287,7 +275,11 @@ export const syncData = async () => {
             const { data: mData } = await supabase.from('memories').select('*');
             if (mData) {
                 await db.memories.bulkPut(mData.map(m => {
-                    const imageUrls = m.imageUrl ? [m.imageUrl] : [];
+                    // Reconstruct imageUrls array from imageUrl or existing imageUrls
+                    let imageUrls = m.imageUrls;
+                    if (!imageUrls) {
+                        imageUrls = m.imageUrl ? [m.imageUrl] : [];
+                    }
                     return { ...m, imageUrls, synced: 1, is_deleted: 0 };
                 }));
             }
@@ -324,7 +316,6 @@ const createDeleteHandler = (tableName: string, supabaseTable: string, fileClean
             if (Capacitor.isNativePlatform() && fileCleanup) {
                 await fileCleanup(id).catch(e => console.warn("File cleanup failed during deletion:", e));
             }
-
             if (isSupabaseConfigured() && navigator.onLine) {
                 const { error } = await supabase.from(supabaseTable).delete().eq('id', id);
                 if (error) throw error;
@@ -370,7 +361,6 @@ export const DataService = {
             await db.profiles.clear();
             await db.reminders.clear();
         });
-
         if (Capacitor.isNativePlatform()) {
             try {
                 const { files } = await Filesystem.readdir({ path: '', directory: Directory.Data });
@@ -382,9 +372,7 @@ export const DataService = {
             } catch (e) {}
         }
     },
-
     uploadImage: async (file: File) => await blobToBase64(file),
-
     getMemories: async (childId?: string) => {
         const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
         const mems = await query.sortBy('date');
@@ -392,29 +380,24 @@ export const DataService = {
     },
     addMemory: createActionHandler(async (memory: Memory) => db.memories.put({ ...memory, synced: memory.synced || 0, is_deleted: 0 })),
     deleteMemory: createDeleteHandler('memories', 'memories', memoryFileCleanup),
-
     getStories: async (childId?: string) => {
         const query = childId ? db.stories.where({ childId, is_deleted: 0 }) : db.stories.where('is_deleted').equals(0);
         return (await query.sortBy('date')).reverse();
     },
     addStory: createActionHandler(async (story: Story) => db.stories.put({ ...story, synced: 0, is_deleted: 0 })),
     deleteStory: createDeleteHandler('stories', 'stories'),
-
     getGrowth: async (childId?: string) => {
         const query = childId ? db.growth.where({ childId, is_deleted: 0 }) : db.growth.where('is_deleted').equals(0);
         return await query.sortBy('month');
     },
     saveGrowth: createActionHandler(async (data: GrowthData) => db.growth.put({ ...data, synced: 0, is_deleted: 0 })),
     deleteGrowth: createDeleteHandler('growth', 'growth_data'),
-    
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
     saveProfile: createActionHandler(async (profile: ChildProfile) => db.profiles.put({ ...profile, synced: 0, is_deleted: 0 })),
     deleteProfile: createDeleteHandler('profiles', 'child_profile', profileFileCleanup),
-
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: createActionHandler(async (reminder: Reminder) => db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 })),
     deleteReminder: createDeleteHandler('reminders', 'reminders'),
-
     getCloudPhotos: async (userId: string, childId: string) => {
         if (!isSupabaseConfigured()) return [];
         const { data, error } = await supabase.storage
@@ -426,7 +409,6 @@ export const DataService = {
             return { id: file.id, name: file.name, url: urlData.publicUrl, created_at: file.created_at };
         });
     },
-
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
         if (!isSupabaseConfigured()) return;
         await supabase.storage.from('images').remove([`${userId}/${childId}/memories/${fileName}`]);
