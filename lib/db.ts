@@ -375,25 +375,30 @@ export const syncData = async () => {
             else syncManager.finish();
         }
 
+        // Parallel Fetching for Pulling Data
         try {
-            const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);
+            const [
+              { data: pData },
+              { data: sData },
+              { data: gData },
+              { data: rData },
+              { data: mData }
+            ] = await Promise.all([
+                supabase.from('child_profile').select('*').eq('user_id', userId),
+                supabase.from('stories').select('*').eq('user_id', userId),
+                supabase.from('growth_data').select('*').eq('user_id', userId),
+                supabase.from('reminders').select('*').eq('user_id', userId),
+                supabase.from('memories').select('*').eq('user_id', userId)
+            ]);
+
             if (pData) await db.profiles.bulkPut(pData.map(p => mapFromSupabase('child_profile', p)));
-            
-            const { data: sData } = await supabase.from('stories').select('*').eq('user_id', userId);
             if (sData) await db.stories.bulkPut(sData.map(s => mapFromSupabase('stories', s)));
-            
-            const { data: gData } = await supabase.from('growth_data').select('*').eq('user_id', userId);
             if (gData) await db.growth.bulkPut(gData.map(g => mapFromSupabase('growth_data', g)));
-            
-            const { data: rData } = await supabase.from('reminders').select('*').eq('user_id', userId);
             if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
+            if (mData) await db.memories.bulkPut(mData.map(m => mapFromSupabase('memories', m)));
             
-            const { data: mData } = await supabase.from('memories').select('*').eq('user_id', userId);
-            if (mData) {
-                await db.memories.bulkPut(mData.map(m => mapFromSupabase('memories', m)));
-            }
         } catch (e) {
-            console.error("Error pulling cloud data:", e);
+            console.error("Error pulling cloud data in parallel:", e);
         }
 
         return { success: errors.length === 0 };

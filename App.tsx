@@ -143,7 +143,7 @@ function App() {
     };
   }, [session]);
 
-  // Initial Load and DB Setup
+  // Initial Load and DB Setup - Optimized for Speed
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
@@ -158,22 +158,26 @@ function App() {
                 return;
             }
             
-            // Check if full sync has ever completed
+            // Optimistic rendering: Check if we already have local data
+            const localProfileCount = await db.profiles.count();
             const initialSyncDone = localStorage.getItem('initial_sync_done') === 'true';
 
-            // If online and first time session is established, do a full sync
-            if (navigator.onLine && session && isSupabaseConfigured()) {
-                if (!initialSyncDone) {
+            // If we have local data, we can unlock the UI early
+            if (localProfileCount > 0) {
+                setIsInitialLoading(false);
+                // Continue sync in background
+                if (navigator.onLine && session && isSupabaseConfigured()) {
+                  syncData().catch(e => console.warn("Background sync failed:", e));
+                }
+            } else {
+                // If NO local data and logged in, we MUST wait for the first sync
+                if (navigator.onLine && session && isSupabaseConfigured()) {
                     setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Performing initial sync...');
                     await syncData();
                     localStorage.setItem('initial_sync_done', 'true');
-                } else {
-                    // Sync in background if initial sync was already done
-                    syncData().catch(e => console.warn("Background sync failed:", e));
                 }
+                setIsInitialLoading(false);
             }
-            
-            setIsInitialLoading(false);
           } catch (err) {
             console.error("Critical error during setup:", err);
             setDbError('Critical Setup Error');
