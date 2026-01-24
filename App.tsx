@@ -124,19 +124,27 @@ function App() {
     }
   }, [profiles, activeProfileId]);
 
-  // Real-time Database Sync from Supabase
+  // REAL-TIME DATABASE SYNC LISTENER
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
 
     // Listen to changes across all tables for the current user
     const channel = supabase
         .channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-            console.log('Server-side change detected, syncing...', payload);
+        .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public'
+        }, (payload) => {
+            console.log('🔔 Remote database change detected:', payload.table, payload.eventType);
             // Trigger background sync to pull latest changes into local DB
-            syncData().catch(err => console.error("Realtime sync pull failed:", err));
+            // We use a small timeout to let the DB settle and avoid sync loops if possible
+            setTimeout(() => {
+                syncData().catch(err => console.error("Realtime sync pull failed:", err));
+            }, 500);
         })
-        .subscribe();
+        .subscribe((status) => {
+            console.log('🔌 Realtime subscription status:', status);
+        });
 
     return () => {
         supabase.removeChannel(channel);
@@ -536,7 +544,7 @@ function App() {
       <aside className="hidden lg:flex flex-col w-64 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-40 overflow-hidden">
         <div className="p-8 flex items-center gap-4">
           <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
-             <img src="/logo.png" className="w-7 h-7 object-contain" alt="Logo"/>
+             <img src="logo.png" className="w-7 h-7 object-contain" alt="Logo"/>
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-black text-slate-800 dark:text-white leading-none truncate">Little Moments</h2>

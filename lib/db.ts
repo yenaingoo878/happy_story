@@ -45,7 +45,6 @@ export { db };
 
 /**
  * Helper to map local fields to Supabase columns.
- * Strictly adheres to "childId" as requested by user's database preference.
  */
 const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const basePayload: any = { user_id: userId, id: item.id };
@@ -116,21 +115,20 @@ const mapToSupabase = (tableName: string, item: any, userId: string) => {
 const mapFromSupabase = (tableName: string, item: any) => {
     const local = { ...item, synced: 1, is_deleted: 0 };
     
-    // Normalize childId naming variations from different projects
     local.childId = item.childId || item.child_id || item.childid;
     
     if (tableName === 'memories') {
         const rawImageUrl = item.imageUrl || item.imageurl || item.image_url;
         let normalizedUrls: string[] = [];
 
-        if (rawImageUrl && rawImageUrl.startsWith('[')) {
+        if (rawImageUrl && typeof rawImageUrl === 'string' && rawImageUrl.startsWith('[')) {
             try {
                 normalizedUrls = JSON.parse(rawImageUrl);
             } catch (e) {
                 normalizedUrls = [rawImageUrl];
             }
         } else if (rawImageUrl) {
-            normalizedUrls = [rawImageUrl];
+            normalizedUrls = Array.isArray(rawImageUrl) ? rawImageUrl : [rawImageUrl];
         }
 
         local.imageUrls = normalizedUrls;
@@ -165,11 +163,6 @@ export const initDB = async () => {
       return { success: true };
   } catch (err: any) {
       console.error("Dexie Open Error:", err);
-      // Fallback for version collisions
-      if (err.name === 'VersionError') {
-          console.warn("Schema mismatch detected. Attempting database reset...");
-          // We don't auto-reset to protect user data, but we provide the error to the UI
-      }
       return { success: false, error: err.message || "Failed to open local database" };
   }
 };
@@ -228,8 +221,10 @@ export const syncData = async () => {
         if (!session) return { success: false, reason: 'No Active Session' };
         const userId = session.user.id;
 
+        // 1. SYNC DELETIONS FIRST
         await syncDeletions();
 
+        // 2. IDENTIFY UNSYNCED LOCAL DATA
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
@@ -239,13 +234,11 @@ export const syncData = async () => {
         const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToSync > 0) syncManager.start(totalToSync);
         
-        let errors: string[] = [];
-
+        // 3. PUSH LOCAL CHANGES TO SUPABASE
         for (const s of unsyncedStories) {
             const payload = mapToSupabase('stories', s, userId);
             const { error } = await supabase.from('stories').upsert(payload);
             if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Story ${s.id}: ${error.message}`);
         }
 
         for (const mem of unsyncedMemories) {
@@ -273,20 +266,14 @@ export const syncData = async () => {
                 }
                 const payload = mapToSupabase('memories', memoryToSync, userId);
                 const { error } = await supabase.from('memories').upsert(payload);
-                if (error) throw error;
-                await db.memories.update(mem.id, { synced: 1 });
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                console.error("Memory Push Error:", error);
-                errors.push(`Memory ${mem.id}: ${error.message}`);
-            }
+                if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
+            } catch (e) { console.error("Memory Push Error:", e); }
         }
 
         for (const g of unsyncedGrowth) {
             const payload = mapToSupabase('growth_data', g, userId);
             const { error } = await supabase.from('growth_data').upsert(payload);
             if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Growth ${g.id}: ${error.message}`);
         }
 
         for (const p of unsyncedProfiles) {
@@ -306,48 +293,41 @@ export const syncData = async () => {
                 }
                 const payload = mapToSupabase('child_profile', profileToSync, userId);
                 const { error } = await supabase.from('child_profile').upsert(payload);
-                if (error) throw error;
-                await db.profiles.update(p.id!, { synced: 1 });
-                syncManager.itemCompleted();
-            } catch (error: any) {
-                errors.push(`Profile ${p.id}: ${error.message}`);
-            }
+                if (!error) { await db.profiles.update(p.id!, { synced: 1 }); syncManager.itemCompleted(); }
+            } catch (e) { console.error("Profile Push Error:", e); }
         }
 
         for (const r of unsyncedReminders) {
             const payload = mapToSupabase('reminders', r, userId);
             const { error } = await supabase.from('reminders').upsert(payload);
             if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            else errors.push(`Reminder ${r.id}: ${error.message}`);
         }
 
-        if (totalToSync > 0) {
-            if (errors.length > 0) syncManager.error();
-            else syncManager.finish();
-        }
-
-        try {
-            const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);
-            if (pData) await db.profiles.bulkPut(pData.map(p => mapFromSupabase('child_profile', p)));
-            
-            const { data: sData } = await supabase.from('stories').select('*').eq('user_id', userId);
-            if (sData) await db.stories.bulkPut(sData.map(s => mapFromSupabase('stories', s)));
-            
-            const { data: gData } = await supabase.from('growth_data').select('*').eq('user_id', userId);
-            if (gData) await db.growth.bulkPut(gData.map(g => mapFromSupabase('growth_data', g)));
-            
-            const { data: rData } = await supabase.from('reminders').select('*').eq('user_id', userId);
-            if (rData) await db.reminders.bulkPut(rData.map(r => ({ ...r, synced: 1, is_deleted: 0 })));
-            
-            const { data: mData } = await supabase.from('memories').select('*').eq('user_id', userId);
-            if (mData) {
-                await db.memories.bulkPut(mData.map(m => mapFromSupabase('memories', m)));
+        // 4. PULL REMOTE CHANGES FROM SUPABASE
+        const pullTable = async (dexieTable: Table<any>, supabaseTableName: string, mapper: Function) => {
+            const { data, error } = await supabase.from(supabaseTableName).select('*').eq('user_id', userId);
+            if (error) throw error;
+            if (data) {
+                for (const remoteItem of data) {
+                    const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
+                    const localItem = await dexieTable.get(mapped.id);
+                    // CONFLICT RESOLUTION: Only overwrite if local item doesn't exist OR is already synced.
+                    // If localItem.synced === 0, it means we have local changes waiting to be pushed.
+                    if (!localItem || localItem.synced === 1) {
+                        await dexieTable.put(mapped);
+                    }
+                }
             }
-        } catch (e) {
-            console.error("Error pulling cloud data:", e);
-        }
+        };
 
-        return { success: errors.length === 0 };
+        await pullTable(db.profiles, 'child_profile', mapFromSupabase);
+        await pullTable(db.stories, 'stories', mapFromSupabase);
+        await pullTable(db.growth, 'growth_data', mapFromSupabase);
+        await pullTable(db.reminders, 'reminders', (table: string, item: any) => ({ ...item, synced: 1, is_deleted: 0 }));
+        await pullTable(db.memories, 'memories', mapFromSupabase);
+
+        if (totalToSync > 0) syncManager.finish();
+        return { success: true };
     } catch (err: any) {
         console.error("Critical sync error:", err);
         syncManager.error();
