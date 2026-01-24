@@ -6,10 +6,9 @@ import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '.
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
 
 export interface CloudCacheItem {
-  id: string; // unique path or etag
+  id: string; 
   childId: string;
   name: string;
   url: string;
@@ -39,21 +38,45 @@ export const getImageSrc = (src?: string) => {
     return src;
 };
 
-// Version 9 adds cloud_cache table
-db.version(9).stores({
-  memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
-  stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
-  growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
-  profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
+// Version 10: Robust schema with clean indexes
+db.version(10).stores({
+  memories: 'id, childId, date, synced, is_deleted, [childId+is_deleted]',
+  stories: 'id, childId, date, synced, is_deleted, [childId+is_deleted]',
+  growth: 'id, childId, month, synced, is_deleted, [childId+is_deleted]',
+  profiles: 'id, name, synced, is_deleted',
+  reminders: 'id, date, synced, is_deleted',
   app_settings: 'key',
   cloud_cache: 'id, childId'
 });
 
 export { db };
 
-const mapFromSupabase = (tableName: string, item: any) => {
-    return { ...item, synced: 1, is_deleted: 0 };
+/** 
+ * MAPPER: Converts Cloud (snake_case) to Local (camelCase) and vice versa
+ * This is crucial to fix "database error" where fields don't match.
+ */
+const fieldMapper = {
+    toLocal: (item: any) => {
+        const local: any = { ...item, synced: 1, is_deleted: 0 };
+        // Map common fields
+        if (item.child_id) { local.childId = item.child_id; delete local.child_id; }
+        if (item.image_urls) { local.imageUrls = item.image_urls; delete local.image_urls; }
+        if (item.profile_image) { local.profileImage = item.profile_image; delete local.profile_image; }
+        if (item.hospital_name) { local.hospitalName = item.hospital_name; delete local.hospital_name; }
+        if (item.blood_type) { local.bloodType = item.blood_type; delete local.blood_type; }
+        return local;
+    },
+    toCloud: (item: any, userId: string) => {
+        const cloud: any = { ...item, user_id: userId };
+        delete cloud.synced; // Cloud doesn't need this
+        // Map common fields
+        if (item.childId) { cloud.child_id = item.childId; delete cloud.childId; }
+        if (item.imageUrls) { cloud.image_urls = item.imageUrls; delete cloud.imageUrls; }
+        if (item.profileImage) { cloud.profile_image = item.profileImage; delete cloud.profileImage; }
+        if (item.hospitalName) { cloud.hospital_name = item.hospitalName; delete cloud.hospitalName; }
+        if (item.bloodType) { cloud.blood_type = item.bloodType; delete cloud.bloodType; }
+        return cloud;
+    }
 };
 
 export const DataService = {
@@ -88,46 +111,26 @@ export const DataService = {
     },
     deleteReminder: async (id: string) => { await db.reminders.update(id, { is_deleted: 1, synced: 0 }); },
     
-    // CACHE-FIRST CLOUD PHOTOS
     getCloudPhotos: async (userId: string, childId: string, onUpdate?: (photos: any[]) => void) => {
-        // 1. Return cached items immediately for speed
         const cached = await db.cloud_cache.where({ childId }).toArray();
-        if (cached.length > 0 && onUpdate) {
-            onUpdate(cached);
-        }
-
+        if (cached.length > 0 && onUpdate) onUpdate(cached);
         if (!isR2Configured() || !navigator.onLine) return cached;
-
-        // 2. Fetch from R2 in background
         try {
             const freshPhotos = await listObjectsFromR2(`${userId}/${childId}/memories/`);
-            
-            // 3. Update cache
             await db.cloud_cache.where({ childId }).delete();
             const cacheItems: CloudCacheItem[] = freshPhotos.map(p => ({
-                id: p.id || p.url,
-                childId,
-                name: p.name,
-                url: p.url,
-                created_at: p.created_at || new Date().toISOString()
+                id: p.id || p.url, childId, name: p.name, url: p.url, created_at: p.created_at || new Date().toISOString()
             }));
             await db.cloud_cache.bulkPut(cacheItems);
-            
-            // 4. Trigger update callback with fresh data
             if (onUpdate) onUpdate(cacheItems);
             return cacheItems;
-        } catch (e) {
-            console.warn("Background R2 fetch failed", e);
-            return cached;
-        }
+        } catch (e) { return cached; }
     },
 
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
         if (!isR2Configured()) return { success: false };
         try {
-            const path = `${userId}/${childId}/memories/${fileName}`;
-            await deleteFileFromR2(path);
-            // Clean from cache
+            await deleteFileFromR2(`${userId}/${childId}/memories/${fileName}`);
             await db.cloud_cache.where({ name: fileName, childId }).delete();
             return { success: true };
         } catch (e) { return { success: false }; }
@@ -135,13 +138,8 @@ export const DataService = {
 
     clearAllUserData: async () => {
         await Promise.all([
-            db.memories.clear(), 
-            db.stories.clear(), 
-            db.growth.clear(), 
-            db.profiles.clear(), 
-            db.reminders.clear(), 
-            db.app_settings.clear(),
-            db.cloud_cache.clear()
+            db.memories.clear(), db.stories.clear(), db.growth.clear(), 
+            db.profiles.clear(), db.reminders.clear(), db.app_settings.clear(), db.cloud_cache.clear()
         ]);
     }
 };
@@ -160,65 +158,53 @@ export const uploadFileToCloud = async (blob: Blob, userId: string, childId: str
     if (!isR2Configured()) throw new Error("Cloud not configured");
     const path = `${userId}/${childId}/${folder}/${id}_${index}.jpeg`;
     const url = await uploadFileToR2(blob, path);
-    
-    // Add to cache immediately
-    await db.cloud_cache.put({
-        id: path,
-        childId,
-        name: `${id}_${index}.jpeg`,
-        url,
-        created_at: new Date().toISOString()
-    });
-    
+    await db.cloud_cache.put({ id: path, childId, name: `${id}_${index}.jpeg`, url, created_at: new Date().toISOString() });
     return url;
 };
 
+// FULL BIDIRECTIONAL SYNC
 export const syncData = async () => {
     if (!isSupabaseConfigured() || !navigator.onLine) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     const userId = session.user.id;
     
-    syncManager.start(5);
+    syncManager.start(10); // 5 pulls, 5 pushes
+
+    const syncTable = async (tableName: string, dexieTable: Table<any>, supabaseTable: string) => {
+        try {
+            // 1. PULL FROM CLOUD
+            const { data: cloudData } = await supabase.from(supabaseTable).select('*').eq('user_id', userId);
+            if (cloudData) {
+                const localItems = cloudData.map(item => fieldMapper.toLocal(item));
+                await dexieTable.bulkPut(localItems);
+            }
+            syncManager.itemCompleted();
+
+            // 2. PUSH TO CLOUD (items with synced=0)
+            const unsynced = await dexieTable.where({ synced: 0 }).toArray();
+            for (const item of unsynced) {
+                const cloudItem = fieldMapper.toCloud(item, userId);
+                const { error } = await supabase.from(supabaseTable).upsert(cloudItem);
+                if (!error) {
+                    await dexieTable.update(item.id, { synced: 1 });
+                }
+            }
+            syncManager.itemCompleted();
+        } catch (e) {
+            console.warn(`Sync failed for ${tableName}`, e);
+            syncManager.itemCompleted(); syncManager.itemCompleted();
+        }
+    };
+
     try {
-        // Profiles
-        try {
-            const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);
-            if (pData) await db.profiles.bulkPut(pData.map(p => mapFromSupabase('child_profile', p)));
-        } catch (e) { console.warn("Profiles sync error:", e); }
-        syncManager.itemCompleted();
-
-        // Growth
-        try {
-            const { data: gData } = await supabase.from('growth_data').select('*').eq('user_id', userId);
-            if (gData) await db.growth.bulkPut(gData.map(g => mapFromSupabase('growth_data', g)));
-        } catch (e) { console.warn("Growth sync error:", e); }
-        syncManager.itemCompleted();
-
-        // Reminders
-        try {
-            const { data: rData } = await supabase.from('reminders').select('*').eq('user_id', userId);
-            if (rData) await db.reminders.bulkPut(rData.map(r => mapFromSupabase('reminders', r)));
-        } catch (e) { console.warn("Reminders sync error:", e); }
-        syncManager.itemCompleted();
-
-        // Memories
-        try {
-            const { data: mData } = await supabase.from('memories').select('*').eq('user_id', userId);
-            if (mData) await db.memories.bulkPut(mData.map(m => mapFromSupabase('memories', m)));
-        } catch (e) { console.warn("Memories sync error:", e); }
-        syncManager.itemCompleted();
-
-        // Stories
-        try {
-            const { data: sData } = await supabase.from('stories').select('*').eq('user_id', userId);
-            if (sData) await db.stories.bulkPut(sData.map(s => mapFromSupabase('stories', s)));
-        } catch (e) { console.warn("Stories sync error:", e); }
-        syncManager.itemCompleted();
-
+        await syncTable('profiles', db.profiles, 'child_profile');
+        await syncTable('growth', db.growth, 'growth_data');
+        await syncTable('reminders', db.reminders, 'reminders');
+        await syncTable('memories', db.memories, 'memories');
+        await syncTable('stories', db.stories, 'stories');
         syncManager.finish();
     } catch (e) {
-        console.error("Critical Sync Failure:", e);
         syncManager.error();
     }
 };
