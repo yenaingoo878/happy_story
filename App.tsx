@@ -420,6 +420,23 @@ function App() {
                   <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
                   <div className="flex items-center gap-3">
                       <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+                      
+                      {/* INLINE SYNC STATUS ICON NEXT TO DATE */}
+                      {syncState.status !== 'idle' && (
+                        <div className={`flex items-center transition-all duration-500 animate-fade-in ${
+                          syncState.status === 'success' ? 'text-emerald-500' : 
+                          syncState.status === 'error' ? 'text-rose-500' : 
+                          'text-primary'
+                        }`}>
+                           {syncState.status === 'syncing' ? (
+                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                           ) : syncState.status === 'success' ? (
+                             <CheckCircle2 className="w-3.5 h-3.5" />
+                           ) : (
+                             <AlertTriangle className="w-3.5 h-3.5" />
+                           )}
+                        </div>
+                      )}
                   </div>
                </div>
                {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
@@ -519,30 +536,6 @@ function App() {
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
       
-      {/* GLOBAL SYNC STATUS INDICATOR - TOP RIGHT */}
-      {(syncState.status !== 'idle') && (
-        <div className="fixed top-8 right-8 z-[2000000] animate-fade-in pointer-events-none">
-           <div className={`backdrop-blur-xl px-4 py-2.5 rounded-2xl shadow-lg border flex items-center gap-2.5 transition-all duration-500 ${
-             syncState.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
-             syncState.status === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 
-             'bg-sky-500/10 border-sky-500/20 text-sky-500'
-           }`}>
-              {syncState.status === 'syncing' ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : syncState.status === 'success' ? (
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              ) : (
-                <AlertTriangle className="w-3.5 h-3.5" />
-              )}
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                {syncState.status === 'syncing' ? (language === 'mm' ? 'Sync နေသည်' : 'Syncing') : 
-                 syncState.status === 'success' ? (language === 'mm' ? 'သိမ်းပြီး' : 'Updated') : 
-                 (language === 'mm' ? 'အမှားရှိသည်' : 'Sync Error')}
-              </span>
-           </div>
-        </div>
-      )}
-
       <main className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
         <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
            {renderContent()}
@@ -559,7 +552,7 @@ function App() {
         </div>
       )}
 
-      {/* UPLOAD STATUS BAR - FLOATING TOP CENTER (Positions below success if present) */}
+      {/* UPLOAD STATUS BAR - FLOATING TOP CENTER */}
       {uploadProgress >= 0 && (
           <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 z-[1999999] w-full max-w-[280px] px-4 animate-slide-down transition-all duration-500`}>
             <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-slate-100/50 dark:border-slate-700/50">
