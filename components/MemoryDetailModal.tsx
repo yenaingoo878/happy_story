@@ -100,9 +100,9 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       {/* Premium Module Box */}
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-[92vw] md:max-w-lg h-[90dvh] rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] animate-zoom-in flex flex-col z-[500001] border border-white/10 dark:border-slate-800">
         
-        {/* Media Canvas Area - Dominant Height */}
+        {/* Media Canvas Area - Dominant Height with Bottom Rounding */}
         <div 
-          className="relative flex-1 bg-black flex items-center justify-center overflow-hidden touch-none"
+          className="relative flex-1 bg-black flex items-center justify-center overflow-hidden touch-none rounded-b-[48px] shadow-2xl z-20"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -118,7 +118,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
               key={currentIndex}
               src={getImageSrc(memory.imageUrls[currentIndex])} 
               alt={`${memory.title} - ${currentIndex + 1}`}
-              className={`w-full h-full object-contain transition-all duration-500 transform ${isImageLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+              className={`w-full h-full object-cover object-center transition-all duration-500 transform ${isImageLoading ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
               onLoad={() => setIsImageLoading(false)}
             />
           ) : (
@@ -168,27 +168,33 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
           )}
         </div>
 
-        {/* Content Details Area */}
-        <div className="bg-white dark:bg-slate-900 shrink-0">
-          <div className="p-6 md:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                 <div className="w-1.5 h-6 bg-primary rounded-full" />
-                 <h2 className="text-2xl font-black text-slate-800 dark:text-white leading-tight tracking-tight">{memory.title}</h2>
+        {/* Content Details Area - Changed to Flex with Scrolling Body */}
+        <div className="bg-white dark:bg-slate-900 flex flex-col min-h-0 max-h-[45%] md:max-h-[40%]">
+          {/* Sticky Header inside Content Area */}
+          <div className="px-6 py-4 md:px-8 md:py-5 border-b border-slate-50 dark:border-slate-800/50 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                 <div className="w-1 h-5 bg-primary rounded-full shrink-0" />
+                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 leading-tight tracking-tight truncate">
+                   {memory.title}
+                 </h2>
               </div>
-              <div className="flex items-center text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest shrink-0">
-                <Calendar className="w-3.5 h-3.5 mr-1.5" />
+              <div className="flex items-center text-slate-400 dark:text-slate-500 text-[9px] font-black uppercase tracking-widest shrink-0 ml-4">
+                <Calendar className="w-3 h-3 mr-1" />
                 {formatDate(memory.date)}
               </div>
             </div>
+          </div>
 
+          {/* Scrollable Body Container */}
+          <div className="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1">
             <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-[28px] mb-6 border border-slate-100 dark:border-slate-800">
               <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                 {memory.description || 'No description provided.'}
               </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pb-4">
               <div className="flex flex-wrap gap-2">
                 {memory.tags && memory.tags.length > 0 ? (
                   memory.tags.map(tag => (
@@ -201,20 +207,10 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
                 )}
               </div>
               
-              <button className="w-12 h-12 flex items-center justify-center bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[20px] border border-rose-100 dark:border-rose-900/30 active:scale-95 transition-all shadow-sm">
+              <button className="w-12 h-12 flex items-center justify-center bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[20px] border border-rose-100 dark:border-rose-900/30 active:scale-95 transition-all shadow-sm shrink-0">
                 <Heart className="w-5 h-5 fill-rose-500" />
               </button>
             </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="px-6 pb-8 md:px-8 md:pb-8 flex gap-3">
-             <button 
-                onClick={onClose} 
-                className="flex-1 py-4.5 bg-slate-900 dark:bg-primary text-white font-black rounded-[24px] text-[11px] uppercase tracking-[0.2em] active:scale-95 transition-all shadow-xl shadow-slate-900/10 dark:shadow-primary/20"
-             >
-                {language === 'mm' ? 'ပြန်ထွက်မည်' : 'Dismiss'}
-             </button>
           </div>
         </div>
         

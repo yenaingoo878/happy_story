@@ -87,7 +87,7 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
           ) : (
             <img 
               src={data || url} 
-              className="w-full h-full object-contain select-none transition-transform duration-1000 animate-zoom-in" 
+              className="w-full h-full object-cover object-center select-none transition-transform duration-1000 animate-zoom-in" 
               alt="Cloud Memory" 
             />
           )}
@@ -108,36 +108,29 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
                 </div>
              </div>
              
-             <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const link = document.createElement('a');
-                  link.href = data || url;
-                  link.download = `Memorable_Moments_${Date.now()}.jpg`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                className="w-14 h-14 flex items-center justify-center bg-sky-500 text-white rounded-[20px] active:scale-95 transition-all shadow-xl shadow-sky-500/20 border-b-2 border-sky-600 shrink-0"
-             >
-                <Download className="w-6 h-6" />
-             </button>
-          </div>
+             <div className="flex gap-3">
+               <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const link = document.createElement('a');
+                    link.href = data || url;
+                    link.download = `Memorable_Moments_${Date.now()}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="w-14 h-14 flex items-center justify-center bg-sky-500 text-white rounded-[20px] active:scale-95 transition-all shadow-xl shadow-sky-500/20 border-b-2 border-sky-600 shrink-0"
+               >
+                  <Download className="w-6 h-6" />
+               </button>
 
-          <div className="flex gap-3">
-            <button 
-              onClick={onClose} 
-              className="flex-1 py-4.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 font-black rounded-[24px] text-[11px] uppercase tracking-[0.3em] active:scale-95 transition-all border border-slate-200 dark:border-slate-700/50"
-            >
-              {language === 'mm' ? 'ပြန်ထွက်မည်' : 'Dismiss'}
-            </button>
-
-            <button 
-              onClick={(e) => { e.stopPropagation(); onDelete(); }} 
-              className="w-14 h-14 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[24px] flex items-center justify-center shrink-0 active:scale-95 transition-all border border-rose-100 dark:border-rose-900/30"
-            >
-              <Trash2 className="w-6 h-6" />
-            </button>
+               <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                className="w-14 h-14 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[24px] flex items-center justify-center shrink-0 active:scale-95 transition-all border border-rose-100 dark:border-rose-900/30"
+              >
+                <Trash2 className="w-6 h-6" />
+              </button>
+             </div>
           </div>
         </div>
       </div>
