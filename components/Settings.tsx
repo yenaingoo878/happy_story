@@ -50,17 +50,17 @@ const SettingToggle = ({ icon: Icon, label, sublabel, active, onToggle, colorCla
 
 interface SettingsProps {
   language: Language; setLanguage: (lang: Language) => void; theme: Theme; toggleTheme: () => void;
-  profiles: ChildProfile[]; activeProfileId: string; onProfileChange: (id: string) => void; onRefreshData: () => Promise<void>;
+  profiles: ChildProfile[]; activeProfileId: string; onProfileChange: (id: string) => void; onRefreshData: () => Promise<any>;
   passcode: string | null; isDetailsUnlocked: boolean; onUnlockRequest: () => void; onPasscodeSetup: () => void;
   onPasscodeChange: () => void; onPasscodeRemove: () => void; onHideDetails: () => void;
   growthData: GrowthData[]; memories: Memory[]; stories: Story[];
-  onEditMemory: (mem: Memory) => void; onDeleteMemory: (id: string) => void; 
-  onStoryClick: (story: Story) => void; onDeleteStory: (id: string) => void;
-  onDeleteGrowth: (id: string) => void; onSaveGrowth: (growth: GrowthData) => Promise<void>;
-  onDeleteProfile: (id: string) => void;
+  onEditMemory: (mem: Memory) => void; onDeleteMemory: (id: string) => any; 
+  onStoryClick: (story: Story) => void; onDeleteStory: (id: string) => any;
+  onDeleteGrowth: (id: string) => any; onSaveGrowth: (growth: GrowthData) => Promise<any>;
+  onDeleteProfile: (id: string) => any;
   isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD';
-  remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => void;
-  onSaveReminder: (reminder: Reminder) => Promise<void>;
+  remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => any;
+  onSaveReminder: (reminder: Reminder) => Promise<any>;
   onSaveSuccess: () => void;
   session: any;
   onViewCloudPhoto?: (url: string, name: string) => void;
@@ -91,7 +91,7 @@ const resizeImage = (file: File | string, maxWidth = 512, maxHeight = 512, quali
   });
 };
 
-export const Settings: React.FC<SettingsProps> = ({
+const Settings: React.FC<SettingsProps> = ({
   language, setLanguage, theme, toggleTheme,
   profiles, activeProfileId, onProfileChange, onRefreshData,
   passcode, isDetailsUnlocked, onUnlockRequest,
@@ -395,3 +395,5 @@ export const Settings: React.FC<SettingsProps> = ({
     </div>
   );
 };
+
+export default Settings;

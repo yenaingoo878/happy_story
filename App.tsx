@@ -7,7 +7,8 @@ const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(mod
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
 const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(module => ({ default: module.GalleryGrid })));
 const AddMemory = React.lazy(() => import('./components/AddMemory'));
-const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
+// FIX: Settings is a default export, so we use the standard React.lazy import which looks for the 'default' property.
+const SettingsComponent = React.lazy(() => import('./components/Settings'));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
 const Onboarding = React.lazy(() => import('./components/Onboarding').then(module => ({ default: module.Onboarding })));
