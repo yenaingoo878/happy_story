@@ -8,6 +8,14 @@ import { syncManager } from './syncManager';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
+export interface CloudCacheItem {
+  id: string; // unique path or etag
+  childId: string;
+  name: string;
+  url: string;
+  created_at: string;
+}
+
 export type LittleMomentsDB = Dexie & {
   memories: Table<Memory>;
   stories: Table<Story>;
@@ -15,6 +23,7 @@ export type LittleMomentsDB = Dexie & {
   profiles: Table<ChildProfile>;
   reminders: Table<Reminder>;
   app_settings: Table<AppSetting>;
+  cloud_cache: Table<CloudCacheItem>;
 };
 
 const DB_NAME = 'LittleMomentsDB';
@@ -30,13 +39,15 @@ export const getImageSrc = (src?: string) => {
     return src;
 };
 
-db.version(8).stores({
+// Version 9 adds cloud_cache table
+db.version(9).stores({
   memories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   stories: 'id, [childId+is_deleted], date, synced, [is_deleted+synced], [synced+is_deleted]',
   growth: 'id, [childId+is_deleted], month, synced, [is_deleted+synced], [synced+is_deleted]',
   profiles: 'id, name, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
   reminders: 'id, date, synced, is_deleted, [is_deleted+synced], [synced+is_deleted]',
-  app_settings: 'key'
+  app_settings: 'key',
+  cloud_cache: 'id, childId'
 });
 
 export { db };
@@ -76,19 +87,62 @@ export const DataService = {
         await db.reminders.put(reminder);
     },
     deleteReminder: async (id: string) => { await db.reminders.update(id, { is_deleted: 1, synced: 0 }); },
-    getCloudPhotos: async (userId: string, childId: string) => {
-        if (!isR2Configured()) return [];
-        return await listObjectsFromR2(`${userId}/${childId}/memories/`);
+    
+    // CACHE-FIRST CLOUD PHOTOS
+    getCloudPhotos: async (userId: string, childId: string, onUpdate?: (photos: any[]) => void) => {
+        // 1. Return cached items immediately for speed
+        const cached = await db.cloud_cache.where({ childId }).toArray();
+        if (cached.length > 0 && onUpdate) {
+            onUpdate(cached);
+        }
+
+        if (!isR2Configured() || !navigator.onLine) return cached;
+
+        // 2. Fetch from R2 in background
+        try {
+            const freshPhotos = await listObjectsFromR2(`${userId}/${childId}/memories/`);
+            
+            // 3. Update cache
+            await db.cloud_cache.where({ childId }).delete();
+            const cacheItems: CloudCacheItem[] = freshPhotos.map(p => ({
+                id: p.id || p.url,
+                childId,
+                name: p.name,
+                url: p.url,
+                created_at: p.created_at || new Date().toISOString()
+            }));
+            await db.cloud_cache.bulkPut(cacheItems);
+            
+            // 4. Trigger update callback with fresh data
+            if (onUpdate) onUpdate(cacheItems);
+            return cacheItems;
+        } catch (e) {
+            console.warn("Background R2 fetch failed", e);
+            return cached;
+        }
     },
+
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
         if (!isR2Configured()) return { success: false };
         try {
-            await deleteFileFromR2(`${userId}/${childId}/memories/${fileName}`);
+            const path = `${userId}/${childId}/memories/${fileName}`;
+            await deleteFileFromR2(path);
+            // Clean from cache
+            await db.cloud_cache.where({ name: fileName, childId }).delete();
             return { success: true };
         } catch (e) { return { success: false }; }
     },
+
     clearAllUserData: async () => {
-        await Promise.all([db.memories.clear(), db.stories.clear(), db.growth.clear(), db.profiles.clear(), db.reminders.clear(), db.app_settings.clear()]);
+        await Promise.all([
+            db.memories.clear(), 
+            db.stories.clear(), 
+            db.growth.clear(), 
+            db.profiles.clear(), 
+            db.reminders.clear(), 
+            db.app_settings.clear(),
+            db.cloud_cache.clear()
+        ]);
     }
 };
 
@@ -105,7 +159,18 @@ export const resetDatabase = async () => {
 export const uploadFileToCloud = async (blob: Blob, userId: string, childId: string, folder: string, id: string, index: number) => {
     if (!isR2Configured()) throw new Error("Cloud not configured");
     const path = `${userId}/${childId}/${folder}/${id}_${index}.jpeg`;
-    return await uploadFileToR2(blob, path);
+    const url = await uploadFileToR2(blob, path);
+    
+    // Add to cache immediately
+    await db.cloud_cache.put({
+        id: path,
+        childId,
+        name: `${id}_${index}.jpeg`,
+        url,
+        created_at: new Date().toISOString()
+    });
+    
+    return url;
 };
 
 export const syncData = async () => {
@@ -116,8 +181,6 @@ export const syncData = async () => {
     
     syncManager.start(5);
     try {
-        // Safe Sequential Fetching with internal catches for missing tables
-        
         // Profiles
         try {
             const { data: pData } = await supabase.from('child_profile').select('*').eq('user_id', userId);

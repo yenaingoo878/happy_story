@@ -171,9 +171,13 @@ export const Settings: React.FC<SettingsProps> = ({
     if (!session?.user?.id || !activeProfileId) return;
     setIsLoadingCloud(true);
     try {
-      const photos = await DataService.getCloudPhotos(session.user.id, activeProfileId);
-      setCloudPhotos(photos);
-    } finally {
+      // Use the new cache-first approach
+      await DataService.getCloudPhotos(session.user.id, activeProfileId, (photos) => {
+          setCloudPhotos(photos);
+          setIsLoadingCloud(false); // Can stop loading spinner as soon as we have cache
+      });
+    } catch (e) {
+      console.warn("Could not load cloud photos", e);
       setIsLoadingCloud(false);
     }
   };
@@ -286,7 +290,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </p>
           </div>
           
-          {isLoadingCloud ? (
+          {isLoadingCloud && cloudPhotos.length === 0 ? (
              <div className="py-20 flex flex-col items-center gap-4 animate-pulse">
                 <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Connecting to Vault...</p>
@@ -306,6 +310,11 @@ export const Settings: React.FC<SettingsProps> = ({
                    </div>
                  </div>
                ))}
+               {isLoadingCloud && (
+                 <div className="flex items-center justify-center aspect-square bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse">
+                   <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+                 </div>
+               )}
              </div>
           ) : (
             <div className="py-24 text-center opacity-30 flex flex-col items-center gap-4">
