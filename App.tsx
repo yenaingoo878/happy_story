@@ -138,7 +138,9 @@ function App() {
       }, (payload) => {
           // Debounce and trigger sync
           setTimeout(() => {
-              syncData().catch(err => console.debug("Realtime background sync failed", err));
+              if (navigator.onLine) {
+                syncData().catch(err => console.debug("Realtime background sync failed", err));
+              }
           }, 1000);
       });
     });
@@ -532,24 +534,29 @@ function App() {
         </Suspense>
       </main>
 
+      {/* SUCCESS NOTIFICATION - FLOATING TOP CENTER */}
       {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[1000000] animate-slide-up">
-           <div className="bg-emerald-500 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl flex items-center gap-3">
-              <CheckCircle2 className="w-4 h-4" />
-              {successMessage}
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[2000000] animate-slide-down w-full max-w-xs px-4">
+           <div className="bg-emerald-500/90 dark:bg-emerald-600/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-[0_20px_40px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 border border-emerald-400/20">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span className="truncate">{successMessage}</span>
            </div>
         </div>
       )}
 
+      {/* UPLOAD STATUS BAR - FLOATING TOP CENTER (Positions below success if present) */}
       {uploadProgress >= 0 && (
-          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[999999] w-full max-w-xs px-4 animate-slide-up">
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700">
-               <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{t('uploading')}</span>
-                  <span className="text-[10px] font-black text-primary">{Math.round(uploadProgress)}%</span>
+          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 z-[1999999] w-full max-w-[280px] px-4 animate-slide-down transition-all duration-500`}>
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-slate-100/50 dark:border-slate-700/50">
+               <div className="flex items-center justify-between mb-2.5 px-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{t('uploading')}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                    <span className="text-[11px] font-black text-primary">{Math.round(uploadProgress)}%</span>
+                  </div>
                </div>
-               <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+               <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-full bg-primary transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(255,154,162,0.5)]" style={{ width: `${uploadProgress}%` }} />
                </div>
             </div>
           </div>

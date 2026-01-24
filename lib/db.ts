@@ -168,7 +168,8 @@ export const initDB = async () => {
 
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     if (!isR2Configured()) {
-        throw new Error("R2 Cloud Storage is not configured.");
+        console.warn("R2 Cloud Storage is not configured. Returning local object for now.");
+        return ''; // Or handle by not calling this if !isR2Configured
     }
     
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -221,12 +222,12 @@ export const syncData = async () => {
 
     try {
         isSyncing = true;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData.session) {
             isSyncing = false;
             return { success: false, reason: 'No Active Session' };
         }
-        const userId = session.user.id;
+        const userId = sessionData.session.user.id;
 
         // 1. SYNC DELETIONS FIRST
         await syncDeletions();
@@ -243,9 +244,11 @@ export const syncData = async () => {
         
         // 3. PUSH LOCAL CHANGES TO SUPABASE
         for (const s of unsyncedStories) {
-            const payload = mapToSupabase('stories', s, userId);
-            const { error } = await supabase.from('stories').upsert(payload);
-            if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
+            try {
+                const payload = mapToSupabase('stories', s, userId);
+                const { error } = await supabase.from('stories').upsert(payload);
+                if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
+            } catch (e) { console.warn("Story sync push failed:", e); }
         }
 
         for (const mem of unsyncedMemories) {
@@ -253,17 +256,22 @@ export const syncData = async () => {
                 let memoryToSync = { ...mem };
                 const currentUrls = memoryToSync.imageUrls || (memoryToSync.imageUrl ? [memoryToSync.imageUrl] : []);
                 
-                if (currentUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
+                if (isR2Configured() && currentUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
                     const newUrls = await Promise.all(currentUrls.map(async (url, index) => {
                         if (url.startsWith('file://') || url.startsWith('data:')) {
-                            let blob;
-                            if (url.startsWith('file://')) {
-                                const fileData = await Filesystem.readFile({ path: url });
-                                blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                            } else {
-                                blob = await(await fetch(url)).blob();
+                            try {
+                                let blob;
+                                if (url.startsWith('file://')) {
+                                    const fileData = await Filesystem.readFile({ path: url });
+                                    blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                                } else {
+                                    blob = await(await fetch(url)).blob();
+                                }
+                                return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
+                            } catch (e) {
+                                console.warn("Image file processing for cloud failed:", e);
+                                return url;
                             }
-                            return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                         }
                         return url;
                     }));
@@ -271,6 +279,7 @@ export const syncData = async () => {
                     memoryToSync.imageUrls = newUrls;
                     memoryToSync.imageUrl = newUrls[0];
                 }
+                
                 const payload = mapToSupabase('memories', memoryToSync, userId);
                 const { error } = await supabase.from('memories').upsert(payload);
                 if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
@@ -278,25 +287,31 @@ export const syncData = async () => {
         }
 
         for (const g of unsyncedGrowth) {
-            const payload = mapToSupabase('growth_data', g, userId);
-            const { error } = await supabase.from('growth_data').upsert(payload);
-            if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
+            try {
+                const payload = mapToSupabase('growth_data', g, userId);
+                const { error } = await supabase.from('growth_data').upsert(payload);
+                if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
+            } catch (e) { console.warn("Growth sync push failed:", e); }
         }
 
         for (const p of unsyncedProfiles) {
             try {
                 let profileToSync = { ...p };
-                if (profileToSync.profileImage && (profileToSync.profileImage.startsWith('file://') || profileToSync.profileImage.startsWith('data:'))) {
-                    let blob;
-                    if (profileToSync.profileImage.startsWith('file://')) {
-                        const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                        blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                    } else {
-                        blob = await(await fetch(profileToSync.profileImage)).blob();
+                if (isR2Configured() && profileToSync.profileImage && (profileToSync.profileImage.startsWith('file://') || profileToSync.profileImage.startsWith('data:'))) {
+                    try {
+                        let blob;
+                        if (profileToSync.profileImage.startsWith('file://')) {
+                            const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                            blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                        } else {
+                            blob = await(await fetch(profileToSync.profileImage)).blob();
+                        }
+                        const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
+                        await db.profiles.update(p.id!, { profileImage: newUrl });
+                        profileToSync.profileImage = newUrl;
+                    } catch (e) {
+                        console.warn("Profile image cloud upload failed:", e);
                     }
-                    const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
-                    await db.profiles.update(p.id!, { profileImage: newUrl });
-                    profileToSync.profileImage = newUrl;
                 }
                 const payload = mapToSupabase('child_profile', profileToSync, userId);
                 const { error } = await supabase.from('child_profile').upsert(payload);
@@ -305,24 +320,29 @@ export const syncData = async () => {
         }
 
         for (const r of unsyncedReminders) {
-            const payload = mapToSupabase('reminders', r, userId);
-            const { error } = await supabase.from('reminders').upsert(payload);
-            if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
+            try {
+                const payload = mapToSupabase('reminders', r, userId);
+                const { error } = await supabase.from('reminders').upsert(payload);
+                if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
+            } catch (e) { console.warn("Reminder sync push failed:", e); }
         }
 
         // 4. PULL REMOTE CHANGES FROM SUPABASE
         const pullTable = async (dexieTable: Table<any>, supabaseTableName: string, mapper: Function) => {
-            const { data, error } = await supabase.from(supabaseTableName).select('*').eq('user_id', userId);
-            if (error) throw error;
-            if (data) {
-                for (const remoteItem of data) {
-                    const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
-                    const localItem = await dexieTable.get(mapped.id);
-                    // CONFLICT RESOLUTION: Only overwrite if local item doesn't exist OR is already synced.
-                    if (!localItem || localItem.synced === 1) {
-                        await dexieTable.put(mapped);
+            try {
+                const { data, error } = await supabase.from(supabaseTableName).select('*').eq('user_id', userId);
+                if (error) throw error;
+                if (data) {
+                    for (const remoteItem of data) {
+                        const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
+                        const localItem = await dexieTable.get(mapped.id);
+                        if (!localItem || localItem.synced === 1) {
+                            await dexieTable.put(mapped);
+                        }
                     }
                 }
+            } catch (e) {
+                console.warn(`Pull failed for ${supabaseTableName}:`, e);
             }
         };
 
@@ -387,12 +407,16 @@ export const DataService = {
             synced: 0, 
             is_deleted: 0 
         });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return result;
     },
     deleteMemory: async (id: string) => {
         await db.memories.update(id, { is_deleted: 1, synced: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return { success: true };
     },
     getStories: async (childId?: string) => {
@@ -401,12 +425,16 @@ export const DataService = {
     },
     addStory: async (story: Story) => {
         const res = await db.stories.put({ ...story, synced: 0, is_deleted: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return res;
     },
     deleteStory: async (id: string) => {
         await db.stories.update(id, { is_deleted: 1, synced: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return { success: true };
     },
     getGrowth: async (childId?: string) => {
@@ -415,34 +443,46 @@ export const DataService = {
     },
     saveGrowth: async (data: GrowthData) => {
         const res = await db.growth.put({ ...data, synced: 0, is_deleted: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return res;
     },
     deleteGrowth: async (id: string) => {
         await db.growth.update(id, { is_deleted: 1, synced: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return { success: true };
     },
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
     saveProfile: async (profile: ChildProfile) => {
         const res = await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return res;
     },
     deleteProfile: async (id: string) => {
         await db.profiles.update(id, { is_deleted: 1, synced: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return { success: true };
     },
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: async (reminder: Reminder) => {
         const res = await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return res;
     },
     deleteReminder: async (id: string) => {
         await db.reminders.update(id, { is_deleted: 1, synced: 0 });
-        syncData().catch(e => console.warn("Background sync failed", e));
+        if (navigator.onLine) {
+            syncData().catch(e => console.warn("Background sync failed", e));
+        }
         return { success: true };
     },
     getCloudPhotos: async (userId: string, childId: string) => {
