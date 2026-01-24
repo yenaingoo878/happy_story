@@ -149,7 +149,7 @@ function App() {
         const initialLoad = async () => {
           try {
             setIsInitialLoading(true);
-            setLoadingStatus(language === 'mm' ? 'ဒေတာဘေ့စ်ကို ပြင်ဆင်နေသည်...' : 'Preparing database...');
+            setLoadingStatus(language === 'mm' ? 'ပြင်ဆင်နေသည်...' : 'Initializing...');
             
             const dbInitResult = await initDB();
             if (!dbInitResult.success) {
@@ -158,10 +158,19 @@ function App() {
                 return;
             }
             
-            // Background sync on app start
+            // Check if full sync has ever completed
+            const initialSyncDone = localStorage.getItem('initial_sync_done') === 'true';
+
+            // If online and first time session is established, do a full sync
             if (navigator.onLine && session && isSupabaseConfigured()) {
-                setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Fetching cloud data...');
-                await syncData();
+                if (!initialSyncDone) {
+                    setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Performing initial sync...');
+                    await syncData();
+                    localStorage.setItem('initial_sync_done', 'true');
+                } else {
+                    // Sync in background if initial sync was already done
+                    syncData().catch(e => console.warn("Background sync failed:", e));
+                }
             }
             
             setIsInitialLoading(false);
@@ -218,6 +227,7 @@ function App() {
 
   const handleGuestLogin = async () => {
     await DataService.clearAllUserData();
+    localStorage.removeItem('initial_sync_done');
     setActiveTab(TabView.HOME);
     setIsGuestMode(true);
     localStorage.setItem('guest_mode', 'true');
@@ -229,6 +239,7 @@ function App() {
       finally {
         await DataService.clearAllUserData(); 
         localStorage.removeItem('guest_mode');
+        localStorage.removeItem('initial_sync_done');
         setIsGuestMode(false); setSession(null); 
         setActiveTab(TabView.HOME); setIsAppUnlocked(false); 
         setShowPasscodeModal(false);
@@ -336,6 +347,7 @@ function App() {
                 <button 
                     onClick={() => {
                         if (confirm(language === 'mm' ? "App ကို Reset လုပ်မှာ သေချာပါသလား? Local data များအားလုံး ပျက်သွားပါမည်။" : "Are you sure? This will wipe all local data and reset the app.")) {
+                            localStorage.removeItem('initial_sync_done');
                             resetDatabase();
                         }
                     }} 
@@ -361,14 +373,6 @@ function App() {
     );
   }
 
-  if (profiles.length === 0) {
-      return (
-          <Suspense fallback={<div className="min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 flex"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
-              <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} onLogout={handleLogout} />
-          </Suspense>
-      );
-  }
-
   const renderContent = () => {
     if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
     const bStatus = getBirthdayStatus();
@@ -376,7 +380,6 @@ function App() {
     const todaysReminders = reminders.filter(r => r.date === todayStr);
     const latestMemory = memories[0];
 
-    // Helper for robust image source selection
     const getHeroImage = (mem: Memory) => {
         if (mem.imageUrls && mem.imageUrls.length > 0) return mem.imageUrls[0];
         if (mem.imageUrl) return mem.imageUrl;
@@ -529,9 +532,8 @@ function App() {
         </div>
       )}
 
-      {/* Desktop Sidebar Navigation - REDUCED WIDTH w-64 */}
+      {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:flex flex-col w-64 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-40 overflow-hidden">
-        {/* Brand Header */}
         <div className="p-8 flex items-center gap-4">
           <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
              <img src="/logo.png" className="w-7 h-7 object-contain" alt="Logo"/>
@@ -542,7 +544,6 @@ function App() {
           </div>
         </div>
 
-        {/* Profile Card Summary */}
         <div className="mx-5 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-3xl border border-slate-100/50 dark:border-slate-700 flex items-center gap-3.5 mb-8">
            <div className="w-11 h-11 rounded-[16px] overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm shrink-0">
              {activeProfile.profileImage ? (
@@ -557,7 +558,6 @@ function App() {
            </div>
         </div>
 
-        {/* Navigation Vertical List */}
         <div className="flex-1 px-4 space-y-1.5 overflow-y-auto no-scrollbar">
           {navItems.map((tab) => (
             <button
@@ -572,7 +572,6 @@ function App() {
           ))}
         </div>
 
-        {/* Action / Footer Section */}
         <div className="p-6 pt-4 mt-auto">
            <button 
              onClick={handleLogout}
@@ -584,12 +583,10 @@ function App() {
         </div>
       </aside>
 
-      {/* Main Content Area - lg:ml-80 creates the visual gap from Sidebar (w-64) */}
       <main className="flex-1 lg:ml-80 container mx-auto px-4 pt-6 md:pt-12 transition-all duration-500">
         {renderContent()}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (Hidden on LG screens) */}
       <nav className="fixed bottom-6 left-6 right-6 h-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex justify-around items-center px-4 z-40 lg:hidden transition-all duration-300">
         {navItems.map((tab) => {
           if (tab.id === TabView.ADD_MEMORY) {
@@ -617,7 +614,6 @@ function App() {
         })}
       </nav>
 
-      {/* Modals & Overlays */}
       <Suspense fallback={null}>
         {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
         {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
