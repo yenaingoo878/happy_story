@@ -72,7 +72,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
          {/* Brand */}
          <div className="flex flex-col items-center mb-10">
             <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 overflow-hidden p-2">
-                <img src="./public/logo.png" className="w-full h-full object-contain" alt="Logo"/>
+                <img src="logo.png" className="w-full h-full object-contain" alt="Logo" onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}/>
+                <Baby className="w-12 h-12 text-primary" style={{ display: 'none' }} onLoad={(e) => {
+                   // If logo fails, this could be a placeholder logic but keeping it simple
+                }} />
             </div>
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Little Moments</h1>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-60">Precious Memories</p>
