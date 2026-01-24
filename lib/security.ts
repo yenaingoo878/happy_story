@@ -1,11 +1,17 @@
+
 export const initializeAntiInspect = () => {
+  const isDev = () => localStorage.getItem('dev_mode') === 'true';
+
   // Prevent right-click context menu to make it harder to inspect
   document.addEventListener('contextmenu', (e) => {
+    if (isDev()) return;
     e.preventDefault();
   });
 
   // Prevent common keyboard shortcuts for opening developer tools
   document.addEventListener('keydown', (e) => {
+    if (isDev()) return;
+
     // F12
     if (e.key === 'F12') {
       e.preventDefault();
@@ -34,15 +40,14 @@ export const initializeAntiInspect = () => {
   });
 
   // A simple debugger loop makes using the developer tools very difficult.
-  // This is a deterrent, not a foolproof security measure.
   const antiDebug = () => {
+    if (isDev()) return;
     try {
       (function() { return false; }
         ['constructor']('debugger')
         ['call']());
     } catch (e) {
-      // The debugger statement might be caught by the browser's own debugger,
-      // and we don't want to show an error in the console.
+      // The debugger statement might be caught by the browser's own debugger
     }
   };
 

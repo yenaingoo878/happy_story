@@ -6,7 +6,7 @@ import {
   HardDrive, Clock, User, ShieldCheck, ChevronLeft, ChevronRight, Plus, 
   Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
   BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, Droplets, Camera, Search, Eye, EyeOff
+  Calendar, Heart, Droplets, Camera, Search, Eye, EyeOff, Terminal
 } from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
@@ -112,6 +112,7 @@ export const Settings: React.FC<SettingsProps> = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [syncState, setSyncState] = useState({ status: 'idle' });
+  const [devMode, setDevMode] = useState(() => localStorage.getItem('dev_mode') === 'true');
 
   useEffect(() => { syncManager.subscribe(setSyncState); return () => syncManager.unsubscribe(); }, []);
 
@@ -176,6 +177,13 @@ export const Settings: React.FC<SettingsProps> = ({
     } finally {
       setIsLoadingCloud(false);
     }
+  };
+
+  const toggleDevMode = () => {
+    const next = !devMode;
+    setDevMode(next);
+    localStorage.setItem('dev_mode', String(next));
+    window.location.reload(); // Reload to apply security listener changes
   };
 
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
@@ -243,6 +251,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <SettingToggle icon={theme === 'dark' ? Moon : Sun} label={t('theme')} sublabel={theme === 'dark' ? 'Dark Mode On' : 'Light Mode On'} active={theme === 'dark'} onToggle={toggleTheme} colorClass="text-indigo-500" bgClass="bg-indigo-50 dark:bg-indigo-900/20"/>
             <div className="p-5 flex items-center justify-between group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 shadow-sm"><Languages className="w-5 h-5" /></div><div className="text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('language')}</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}</p></div></div><div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-600/50 shadow-inner"><button type="button" onClick={(e) => { e.preventDefault(); setLanguage('mm'); }} className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}>MM</button><button type="button" onClick={(e) => { e.preventDefault(); setLanguage('en'); }} className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}>EN</button></div></div>
             <SettingToggle icon={BellRing} label={t('notifications')} sublabel={remindersEnabled ? 'Enabled' : 'Disabled'} active={remindersEnabled} onToggle={toggleReminders} colorClass="text-amber-500" bgClass="bg-amber-50 dark:bg-amber-900/20"/>
+            <SettingToggle icon={Terminal} label={t('dev_mode')} sublabel={t('dev_mode_desc')} active={devMode} onToggle={toggleDevMode} colorClass="text-emerald-500" bgClass="bg-emerald-50 dark:bg-emerald-900/20"/>
           </section>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">

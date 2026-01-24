@@ -155,11 +155,6 @@ export const translations = {
   location_placeholder: { en: "e.g. Yangon", mm: "ဥပမာ - ရန်ကုန်" },
   country_placeholder: { en: "e.g. Myanmar", mm: "ဥပမာ - မြန်မာ" },
   nationality_placeholder: { en: "e.g. Burmese", mm: "ဥပမာ - မြန်မာ" },
-  father_placeholder: { en: "Father's full name", mm: "ဖခင်အမည်အပြည့်အစုံ" },
-  mother_placeholder: { en: "Mother's full name", mm: "မိခင်အမည်အပြည့်အစုံ" },
-  eye_placeholder: { en: "e.g. Brown", mm: "ဥပမာ - အညိုရောင်" },
-  hair_placeholder: { en: "e.g. Black", mm: "ဥပမာ - အနက်ရောင်" },
-  notes_placeholder: { en: "Any health notes or allergies...", mm: "ကျန်းမာရေးမှတ်စုများ..." },
   
   save_changes: { en: "Save", mm: "သိမ်းဆည်းမည်" },
   profile_saved: { en: "Saved", mm: "သိမ်းပြီး" },
@@ -214,7 +209,11 @@ export const translations = {
   api_key_desc_2: { en: " and add it here. Your key is stored securely on your device only.", mm: " မှ အခမဲ့ ရယူပြီး ဤနေရာတွင် ထည့်သွင်းပါ။ သင်၏ Key ကို သင့်စက်တွင်သာ လုံခြုံစွာ သိမ်းဆည်းထားမည်ဖြစ်သည်။" },
   api_key_label: { en: "Your API Key", mm: "သင်၏ API Key" },
   api_key_placeholder: { en: "Enter your Gemini API Key here", mm: "သင်၏ Gemini API Key ကို ဤနေရာတွင် ထည့်ပါ" },
-  api_key_saved: { en: "API Key Is Set", mm: "API Key ထည့်သွင်းပြီး" }
+  api_key_saved: { en: "API Key Is Set", mm: "API Key ထည့်သွင်းပြီး" },
+
+  // Developer Mode
+  dev_mode: { en: "Developer Mode", mm: "Developer မုဒ်" },
+  dev_mode_desc: { en: "Allow inspect and DevTools", mm: "Inspect နဲ့ DevTools သုံးခွင့်ပြုမည်" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
