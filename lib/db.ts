@@ -31,7 +31,6 @@ export const getImageSrc = (src?: string) => {
 };
 
 // Database Schema Definitions
-// Version 20: High version bump to clear any existing VersionError (n) from previous partially applied schemas
 db.version(20).stores({
   memories: 'id, childId, date, synced, is_deleted',
   stories: 'id, childId, date, synced, is_deleted',
@@ -213,12 +212,20 @@ const syncDeletions = async () => {
     }
 };
 
+// Concurrency lock to prevent overlapping syncs
+let isSyncing = false;
+
 export const syncData = async () => {
+    if (isSyncing) return { success: false, reason: 'Sync already in progress' };
     if (!navigator.onLine || !isSupabaseConfigured()) return { success: false, reason: 'Offline or Unconfigured' };
 
     try {
+        isSyncing = true;
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return { success: false, reason: 'No Active Session' };
+        if (!session) {
+            isSyncing = false;
+            return { success: false, reason: 'No Active Session' };
+        }
         const userId = session.user.id;
 
         // 1. SYNC DELETIONS FIRST
@@ -312,7 +319,6 @@ export const syncData = async () => {
                     const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
                     const localItem = await dexieTable.get(mapped.id);
                     // CONFLICT RESOLUTION: Only overwrite if local item doesn't exist OR is already synced.
-                    // If localItem.synced === 0, it means we have local changes waiting to be pushed.
                     if (!localItem || localItem.synced === 1) {
                         await dexieTable.put(mapped);
                     }
@@ -327,10 +333,12 @@ export const syncData = async () => {
         await pullTable(db.memories, 'memories', mapFromSupabase);
 
         if (totalToSync > 0) syncManager.finish();
+        isSyncing = false;
         return { success: true };
     } catch (err: any) {
         console.error("Critical sync error:", err);
         syncManager.error();
+        isSyncing = false;
         return { success: false, error: err.message };
     }
 };

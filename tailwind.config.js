@@ -1,12 +1,13 @@
-import typography from '@tailwindcss/typography';
 
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
   content: [
     "./index.html",
-    "./*.{js,ts,jsx,tsx}",
+    "./index.tsx",
+    "./App.tsx",
     "./components/**/*.{js,ts,jsx,tsx}",
+    "./utils/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -24,14 +25,14 @@ export default {
         'spring': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-out',
-        'zoom-in': 'zoomIn 0.3s ease-out',
-        'slide-up': 'slideUp 0.4s ease-out',
+        'fade-in': 'fadeIn 0.5s ease-out forwards',
+        'zoom-in': 'zoomIn 0.3s ease-out forwards',
+        'slide-up': 'slideUp 0.4s ease-out forwards',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         zoomIn: {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
@@ -44,7 +45,5 @@ export default {
       }
     },
   },
-  plugins: [
-    typography,
-  ],
+  plugins: [],
 }

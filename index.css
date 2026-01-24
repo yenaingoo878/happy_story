@@ -1,3 +1,8 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Custom Base Styles */
 :root {
   --rs-primary: #FF9AA2;

@@ -120,23 +120,48 @@ function App() {
     }
   }, [profiles, activeProfileId]);
 
+  // Real-time Database Sync Logic (Push/Pull Background)
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
 
-    const channel = supabase
-        .channel('db-changes')
-        .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public'
-        }, (payload) => {
-            setTimeout(() => {
-                syncData().catch(err => console.error("Realtime sync pull failed:", err));
-            }, 500);
-        })
-        .subscribe();
+    // Listen to changes on ALL tables relevant to the user
+    const tables = ['memories', 'stories', 'growth_data', 'child_profile', 'reminders'];
+    
+    const channel = supabase.channel('db-changes');
+    
+    tables.forEach(table => {
+      channel.on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: table,
+        filter: `user_id=eq.${session.user.id}`
+      }, (payload) => {
+          // Debounce and trigger sync
+          setTimeout(() => {
+              syncData().catch(err => console.debug("Realtime background sync failed", err));
+          }, 1000);
+      });
+    });
+
+    channel.subscribe();
+
+    // Periodic Poll (every 5 minutes) as a fallback
+    const pollInterval = setInterval(() => {
+       if (navigator.onLine) syncData().catch(() => {});
+    }, 1000 * 60 * 5);
+
+    // Sync on visibility change (re-entering app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+         syncData().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
         supabase.removeChannel(channel);
+        clearInterval(pollInterval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [session]);
 
@@ -397,10 +422,10 @@ function App() {
                   <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
                   <div className="flex items-center gap-3">
                       <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-                      {syncState.status === 'syncing' && (
-                          <div className="flex items-center gap-1.5 text-sky-500 animate-fade-in">
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">{t('sync_now')}...</span>
+                      {(syncState.status === 'syncing' || syncState.status === 'success') && (
+                          <div className={`flex items-center gap-1.5 ${syncState.status === 'success' ? 'text-emerald-500' : 'text-sky-500'} animate-fade-in`}>
+                              {syncState.status === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <RefreshCw className="w-3 h-3 animate-spin" />}
+                              <span className="text-[10px] font-black uppercase tracking-widest">{syncState.status === 'success' ? 'Updated' : t('sync_now')}...</span>
                           </div>
                       )}
                   </div>
