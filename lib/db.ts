@@ -1,7 +1,7 @@
 
 import Dexie, { Table } from 'dexie';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { isR2Configured, uploadFileToR2, deleteFileFromR2, listObjectsFromR2 } from './r2Client';
+import { isR2Configured, uploadFileToR2, deleteFileFromR2, listObjectsFromR2, getR2PublicUrl } from './r2Client';
 import { Memory, GrowthData, ChildProfile, Reminder, Story, AppSetting } from '../types';
 import { uploadManager } from './uploadManager';
 import { syncManager } from './syncManager';
@@ -169,7 +169,7 @@ export const initDB = async () => {
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
     if (!isR2Configured()) {
         console.warn("R2 Cloud Storage is not configured. Returning local object for now.");
-        return ''; // Or handle by not calling this if !isR2Configured
+        return ''; 
     }
     
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
@@ -190,6 +190,22 @@ export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string,
     }
 };
 
+/**
+ * Helper to delete a file from R2 based on its public URL.
+ */
+const deleteImageFromCloudByUrl = async (url: string) => {
+    if (!isR2Configured() || !url) return;
+    const publicBase = getR2PublicUrl();
+    if (url.startsWith(publicBase)) {
+        const path = url.replace(publicBase, '').replace(/^\//, '');
+        try {
+            await deleteFileFromR2(path);
+        } catch (e) {
+            console.warn(`Failed to delete cloud image: ${path}`, e);
+        }
+    }
+};
+
 const syncDeletions = async () => {
     const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
     const supabaseTables: { [key: string]: string } = {
@@ -205,7 +221,19 @@ const syncDeletions = async () => {
             const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
             for (const item of itemsToDelete) {
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
-                if (!error) await db.table(tableName).delete(item.id);
+                if (!error) {
+                    // BEFORE removing from local DB, cleanup cloud storage if configured
+                    if (isR2Configured()) {
+                        if (tableName === 'memories' && item.imageUrls) {
+                            for (const url of item.imageUrls) {
+                                await deleteImageFromCloudByUrl(url);
+                            }
+                        } else if (tableName === 'profiles' && item.profileImage) {
+                            await deleteImageFromCloudByUrl(item.profileImage);
+                        }
+                    }
+                    await db.table(tableName).delete(item.id);
+                }
             }
         } catch (e) {
             console.warn(`Deletion sync failed for table ${tableName}:`, e);
@@ -413,6 +441,22 @@ export const DataService = {
         return result;
     },
     deleteMemory: async (id: string) => {
+        // Cleanup local filesystem images before soft-deleting
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const mem = await db.memories.get(id);
+                if (mem && mem.imageUrls) {
+                    for (const url of mem.imageUrls) {
+                        if (url.startsWith('file://')) {
+                            await Filesystem.deleteFile({ path: url });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Local file cleanup failed:", err);
+            }
+        }
+        
         await db.memories.update(id, { is_deleted: 1, synced: 0 });
         if (navigator.onLine) {
             syncData().catch(e => console.warn("Background sync failed", e));
@@ -464,6 +508,18 @@ export const DataService = {
         return res;
     },
     deleteProfile: async (id: string) => {
+        // Cleanup local profile image if native
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const p = await db.profiles.get(id);
+                if (p && p.profileImage && p.profileImage.startsWith('file://')) {
+                    await Filesystem.deleteFile({ path: p.profileImage });
+                }
+            } catch (err) {
+                console.warn("Local profile file cleanup failed:", err);
+            }
+        }
+        
         await db.profiles.update(id, { is_deleted: 1, synced: 0 });
         if (navigator.onLine) {
             syncData().catch(e => console.warn("Background sync failed", e));

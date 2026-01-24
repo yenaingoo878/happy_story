@@ -37,6 +37,11 @@ export const isR2Configured = () => {
     return !!R2_ENDPOINT && !!R2_ACCESS_KEY_ID && !!R2_SECRET_ACCESS_KEY && !!R2_PUBLIC_URL;
 };
 
+export const getR2PublicUrl = () => {
+    if (!R2_PUBLIC_URL) return '';
+    return R2_PUBLIC_URL.endsWith('/') ? R2_PUBLIC_URL : `${R2_PUBLIC_URL}/`;
+};
+
 // Initialize S3 client for Cloudflare R2
 const s3Client = isR2Configured() ? new S3Client({
     region: "auto",
