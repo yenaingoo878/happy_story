@@ -7,7 +7,6 @@ const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(mod
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
 const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(module => ({ default: module.GalleryGrid })));
 const AddMemory = React.lazy(() => import('./components/AddMemory'));
-// FIX: Settings is a default export, so we use the standard React.lazy import which looks for the 'default' property.
 const SettingsComponent = React.lazy(() => import('./components/Settings'));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
@@ -580,12 +579,14 @@ function App() {
           <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-[0_25px_50px_rgba(0,0,0,0.15)] border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             
             <div 
-              className="absolute h-[calc(100%-16px)] top-2 bg-primary/10 dark:bg-primary/20 rounded-[24px] transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+              className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)"
               style={{ 
-                width: `calc(${100 / navItems.length}% - 16px)`,
-                left: `calc(${(activeTabIndex * 100) / navItems.length}% + 8px)` 
+                width: `calc((100% - 16px) / ${navItems.length})`,
+                left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` 
               }}
-            />
+            >
+               <div className="w-full h-full bg-primary/10 dark:bg-primary/20 rounded-[24px]" />
+            </div>
 
             {navItems.map((item) => (
               <button 
