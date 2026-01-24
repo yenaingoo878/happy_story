@@ -206,6 +206,22 @@ const deleteImageFromCloudByUrl = async (url: string) => {
     }
 };
 
+/**
+ * Helper to clean up local filesystem images
+ */
+const deleteLocalImages = async (imageUrls: string[]) => {
+    if (!Capacitor.isNativePlatform() || !imageUrls) return;
+    for (const url of imageUrls) {
+        if (url && url.startsWith('file://')) {
+            try {
+                await Filesystem.deleteFile({ path: url });
+            } catch (err) {
+                console.warn(`Local file cleanup failed for ${url}:`, err);
+            }
+        }
+    }
+};
+
 const syncDeletions = async () => {
     const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
     const supabaseTables: { [key: string]: string } = {
@@ -222,7 +238,7 @@ const syncDeletions = async () => {
             for (const item of itemsToDelete) {
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
                 if (!error) {
-                    // BEFORE removing from local DB, cleanup cloud storage if configured
+                    // Cleanup cloud storage if configured
                     if (isR2Configured()) {
                         if (tableName === 'memories' && item.imageUrls) {
                             for (const url of item.imageUrls) {
@@ -267,8 +283,8 @@ export const syncData = async () => {
         const unsyncedProfiles = await db.profiles.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedReminders = await db.reminders.where({synced: 0, is_deleted: 0}).toArray();
 
-        const totalToSync = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
-        if (totalToSync > 0) syncManager.start(totalToSync);
+        const totalToPush = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
+        if (totalToPush > 0) syncManager.start(totalToPush);
         
         // 3. PUSH LOCAL CHANGES TO SUPABASE
         for (const s of unsyncedStories) {
@@ -355,15 +371,34 @@ export const syncData = async () => {
             } catch (e) { console.warn("Reminder sync push failed:", e); }
         }
 
-        // 4. PULL REMOTE CHANGES FROM SUPABASE
+        // 4. PULL REMOTE CHANGES FROM SUPABASE & DETECT DELETIONS
         const pullTable = async (dexieTable: Table<any>, supabaseTableName: string, mapper: Function) => {
             try {
                 const { data, error } = await supabase.from(supabaseTableName).select('*').eq('user_id', userId);
                 if (error) throw error;
                 if (data) {
+                    const remoteIds = new Set(data.map(d => d.id));
+                    
+                    // Identify items that were deleted on another device (exists locally with synced=1 but not on remote)
+                    const localItems = await dexieTable.toArray();
+                    for (const localItem of localItems) {
+                        if (localItem.synced === 1 && !remoteIds.has(localItem.id)) {
+                             // This was deleted elsewhere, remove it here too
+                             if (supabaseTableName === 'memories' && localItem.imageUrls) {
+                                 await deleteLocalImages(localItem.imageUrls);
+                             } else if (supabaseTableName === 'child_profile' && localItem.profileImage) {
+                                 await deleteLocalImages([localItem.profileImage]);
+                             }
+                             await dexieTable.delete(localItem.id);
+                        }
+                    }
+
+                    // Upsert updated data from remote
                     for (const remoteItem of data) {
                         const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
                         const localItem = await dexieTable.get(mapped.id);
+                        
+                        // Only overwrite if it was already synced or doesn't exist locally
                         if (!localItem || localItem.synced === 1) {
                             await dexieTable.put(mapped);
                         }
@@ -380,7 +415,7 @@ export const syncData = async () => {
         await pullTable(db.reminders, 'reminders', (table: string, item: any) => ({ ...item, synced: 1, is_deleted: 0 }));
         await pullTable(db.memories, 'memories', mapFromSupabase);
 
-        if (totalToSync > 0) syncManager.finish();
+        if (totalToPush > 0) syncManager.finish();
         isSyncing = false;
         return { success: true };
     } catch (err: any) {
@@ -441,20 +476,14 @@ export const DataService = {
         return result;
     },
     deleteMemory: async (id: string) => {
-        // Cleanup local filesystem images before soft-deleting
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const mem = await db.memories.get(id);
-                if (mem && mem.imageUrls) {
-                    for (const url of mem.imageUrls) {
-                        if (url.startsWith('file://')) {
-                            await Filesystem.deleteFile({ path: url });
-                        }
-                    }
-                }
-            } catch (err) {
-                console.warn("Local file cleanup failed:", err);
+        // Cleanup local filesystem images immediately for the current device
+        try {
+            const mem = await db.memories.get(id);
+            if (mem && mem.imageUrls) {
+                await deleteLocalImages(mem.imageUrls);
             }
+        } catch (err) {
+            console.warn("Local file cleanup failed during deletion:", err);
         }
         
         await db.memories.update(id, { is_deleted: 1, synced: 0 });
@@ -509,15 +538,13 @@ export const DataService = {
     },
     deleteProfile: async (id: string) => {
         // Cleanup local profile image if native
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const p = await db.profiles.get(id);
-                if (p && p.profileImage && p.profileImage.startsWith('file://')) {
-                    await Filesystem.deleteFile({ path: p.profileImage });
-                }
-            } catch (err) {
-                console.warn("Local profile file cleanup failed:", err);
+        try {
+            const p = await db.profiles.get(id);
+            if (p && p.profileImage) {
+                await deleteLocalImages([p.profileImage]);
             }
+        } catch (err) {
+            console.warn("Local profile file cleanup failed during deletion:", err);
         }
         
         await db.profiles.update(id, { is_deleted: 1, synced: 0 });

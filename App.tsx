@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart, CloudSync } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
@@ -424,12 +424,6 @@ function App() {
                   <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
                   <div className="flex items-center gap-3">
                       <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-                      {(syncState.status === 'syncing' || syncState.status === 'success') && (
-                          <div className={`flex items-center gap-1.5 ${syncState.status === 'success' ? 'text-emerald-500' : 'text-sky-500'} animate-fade-in`}>
-                              {syncState.status === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <RefreshCw className="w-3 h-3 animate-spin" />}
-                              <span className="text-[10px] font-black uppercase tracking-widest">{syncState.status === 'success' ? 'Updated' : t('sync_now')}...</span>
-                          </div>
-                      )}
                   </div>
                </div>
                {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
@@ -528,6 +522,31 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
+      
+      {/* GLOBAL SYNC STATUS INDICATOR - TOP RIGHT */}
+      {(syncState.status !== 'idle') && (
+        <div className="fixed top-8 right-8 z-[2000000] animate-fade-in pointer-events-none">
+           <div className={`backdrop-blur-xl px-4 py-2.5 rounded-2xl shadow-lg border flex items-center gap-2.5 transition-all duration-500 ${
+             syncState.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
+             syncState.status === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 
+             'bg-sky-500/10 border-sky-500/20 text-sky-500'
+           }`}>
+              {syncState.status === 'syncing' ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : syncState.status === 'success' ? (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              ) : (
+                <AlertTriangle className="w-3.5 h-3.5" />
+              )}
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {syncState.status === 'syncing' ? (language === 'mm' ? 'Sync နေသည်' : 'Syncing') : 
+                 syncState.status === 'success' ? (language === 'mm' ? 'သိမ်းပြီး' : 'Updated') : 
+                 (language === 'mm' ? 'အမှားရှိသည်' : 'Sync Error')}
+              </span>
+           </div>
+        </div>
+      )}
+
       <main className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
         <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
            {renderContent()}
