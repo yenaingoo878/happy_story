@@ -62,7 +62,6 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
-  // Real-time local data using Dexie LiveQuery
   const profiles = useLiveQuery(() => DataService.getProfiles(), []) || [];
   const memories = useLiveQuery(() => DataService.getMemories(activeProfileId), [activeProfileId]) || [];
   const stories = useLiveQuery(() => DataService.getStories(activeProfileId), [activeProfileId]) || [];
@@ -92,13 +91,11 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Auth Initialization
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
     
     supabase.auth.getSession().then(({ data, error }: any) => {
       if (error) {
-        console.warn("Auth session error:", error);
         supabase.auth.signOut();
         setSession(null);
       } else {
@@ -117,33 +114,24 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Set Active Profile ID automatically
   useEffect(() => {
     if (profiles.length > 0 && !activeProfileId) {
         setActiveProfileId(profiles[0].id!);
     }
   }, [profiles, activeProfileId]);
 
-  // Real-time Database Sync from Supabase
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
-
-    // Listen to changes across all tables for the current user
     const channel = supabase
         .channel('db-changes')
         .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-            console.log('Server-side change detected, syncing...', payload);
-            // Trigger background sync to pull latest changes into local DB
             syncData().catch(err => console.error("Realtime sync pull failed:", err));
         })
         .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [session]);
 
-  // Initial Load and DB Setup - Optimized for Speed
+  // OPTIMIZED STARTUP: Skip blocking sync if local data exists
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
@@ -157,22 +145,22 @@ function App() {
                 setIsInitialLoading(false);
                 return;
             }
-            
-            // Optimistic rendering: Check if we already have local data
-            const localProfileCount = await db.profiles.count();
+
+            // Check if we have any child profiles locally
+            const profileCount = await db.profiles.count();
             const initialSyncDone = localStorage.getItem('initial_sync_done') === 'true';
 
-            // If we have local data, we can unlock the UI early
-            if (localProfileCount > 0) {
+            // IF returning user (has local data), enter app immediately
+            if (profileCount > 0 && initialSyncDone) {
                 setIsInitialLoading(false);
-                // Continue sync in background
+                // Background sync only
                 if (navigator.onLine && session && isSupabaseConfigured()) {
-                  syncData().catch(e => console.warn("Background sync failed:", e));
+                    syncData().catch(e => console.warn("Background sync failed", e));
                 }
             } else {
-                // If NO local data and logged in, we MUST wait for the first sync
+                // IF new user (no local data), we MUST wait for the first sync to see their data
                 if (navigator.onLine && session && isSupabaseConfigured()) {
-                    setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Performing initial sync...');
+                    setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'First-time sync...');
                     await syncData();
                     localStorage.setItem('initial_sync_done', 'true');
                 }
@@ -188,7 +176,7 @@ function App() {
     } else {
         setIsInitialLoading(false);
     }
-  }, [session, isGuestMode, language]);
+  }, [session, isGuestMode]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -214,20 +202,13 @@ function App() {
         name: childData.name || getTranslation(language, 'default_child_name'), 
         dob: childData.dob || new Date().toISOString().split('T')[0], 
         gender: childData.gender || 'boy',
-        birthTime: childData.birthTime,
-        bloodType: childData.bloodType,
-        hospitalName: childData.hospitalName,
-        birthLocation: childData.birthLocation,
-        country: childData.country,
         synced: 0
     };
     await DataService.saveProfile(newProfile);
     setActiveProfileId(newProfile.id!);
   };
 
-  const handleProfileChange = (id: string) => {
-    setActiveProfileId(id);
-  };
+  const handleProfileChange = (id: string) => { setActiveProfileId(id); };
 
   const handleGuestLogin = async () => {
     await DataService.clearAllUserData();
@@ -269,7 +250,6 @@ function App() {
       }
     } catch (e) {
       console.error("Deletion failed:", e);
-      alert(t('delete_error_fallback'));
     } finally {
       setShowConfirmModal(false);
       setDeleteCallback(null);
@@ -329,37 +309,11 @@ function App() {
   if (dbError) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-8">
-            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-rose-500/10 text-rose-500">
+            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-[2.5rem] flex items-center justify-center mb-8 text-rose-500">
                 <AlertTriangle className="w-10 h-10" />
             </div>
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest">{language === 'mm' ? 'ဒေတာဘေ့စ် အမှားရှိနေပါသည်' : 'Database Error'}</h2>
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 max-w-sm mb-8 shadow-sm">
-                <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-4">{dbError}</p>
-                <div className="text-xs text-slate-400 dark:text-slate-500 text-left space-y-2">
-                    <p>• {language === 'mm' ? 'Incognito Mode ကို ပိတ်ပြီး ပြန်ဖွင့်ကြည့်ပါ။' : 'Make sure you are NOT in Incognito mode.'}</p>
-                    <p>• {language === 'mm' ? 'ဖုန်းမှ Storage နေရာလွတ် ရှိမရှိ စစ်ဆေးပါ။' : 'Check if your device storage is full.'}</p>
-                    <p>• {language === 'mm' ? 'Browser ကို Refresh လုပ်ကြည့်ပါ။' : 'Try refreshing the browser.'}</p>
-                </div>
-            </div>
-            <div className="flex flex-col gap-4 w-full max-w-xs">
-                <button 
-                    onClick={() => window.location.reload()} 
-                    className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all"
-                >
-                    {language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}
-                </button>
-                <button 
-                    onClick={() => {
-                        if (confirm(language === 'mm' ? "App ကို Reset လုပ်မှာ သေချာပါသလား? Local data များအားလုံး ပျက်သွားပါမည်။" : "Are you sure? This will wipe all local data and reset the app.")) {
-                            localStorage.removeItem('initial_sync_done');
-                            resetDatabase();
-                        }
-                    }} 
-                    className="w-full py-3 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-                >
-                    {language === 'mm' ? 'App ကို Reset လုပ်မည် (Wipe Data)' : 'Reset App (Wipe Data)'}
-                </button>
-            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4">{language === 'mm' ? 'ဒေတာဘေ့စ် အမှားရှိနေပါသည်' : 'Database Error'}</h2>
+            <button onClick={() => window.location.reload()} className="px-8 py-4 bg-primary text-white font-black rounded-2xl">Retry</button>
         </div>
     );
   }
@@ -372,7 +326,7 @@ function App() {
                <Sparkles className="w-8 h-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
             </div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('syncing_data')}</h2>
-            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 max-w-xs">{loadingStatus || t('welcome_subtitle')}</p>
+            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 max-w-xs">{loadingStatus}</p>
         </div>
     );
   }
@@ -398,7 +352,7 @@ function App() {
             {remindersEnabled && (
                <div className="space-y-3">
                   {bStatus === 'TODAY' && showBirthdayBanner && (
-                    <div className="bg-gradient-to-r from-rose-400 to-pink-500 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
+                    <div className="bg-gradient-to-r from-rose-400 to-pink-500 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden">
                        <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-4 right-4 text-white/60"><X className="w-5 h-5"/></button>
                        <div className="flex items-center gap-4 relative z-10">
                           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><Gift className="w-6 h-6 animate-bounce" /></div>
@@ -407,7 +361,7 @@ function App() {
                     </div>
                   )}
                   {todaysReminders.map(rem => (
-                    <div key={rem.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4 animate-slide-up">
+                    <div key={rem.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
                        <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-xl flex items-center justify-center"><Bell className="w-5 h-5"/></div>
                        <div><h4 className="font-black text-slate-800 dark:text-white text-sm">{rem.title}</h4><p className="text-[10px] font-bold text-slate-400 uppercase">Today</p></div>
                     </div>
@@ -432,10 +386,10 @@ function App() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-2">
               <div className="md:col-span-2">
                   {latestMemory && heroImg ? (
-                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
+                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
                         <img src={getImageSrc(heroImg)} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
-                          <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
+                          <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest">{t('latest_arrival')}</span>
                           <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
                         </div>
                       </div>
@@ -444,25 +398,25 @@ function App() {
                   )}
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
-                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between shadow-xl cursor-pointer active:scale-95 transition-all"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3></div>
+                  <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl">{growthData[growthData.length-1]?.height || 0} cm</h3></div></div>
               </div>
             </div>
             <div className="mt-8 animate-slide-up">
               <div className="flex justify-between items-center mb-5 px-2">
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
-                <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white">{t('memories')}</h3>
+                <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase">{t('see_all')}</button>
               </div>
               <div className="space-y-3">
                  {memories.slice(0, 4).map(m => {
                     const thumb = getHeroImage(m);
                     return (
                       <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group overflow-hidden">
-                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 bg-slate-50 dark:bg-slate-900">
                           {thumb ? (<img src={getImageSrc(thumb)} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
                          </div>
                          <div className="flex-1 min-w-0 overflow-hidden text-left">
-                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5 w-full pr-2">{m.title}</h4>
+                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm mb-1.5">{m.title}</h4>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
                          </div>
                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
@@ -515,156 +469,49 @@ function App() {
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-slate-50'} transition-colors duration-500 font-sans pb-24 lg:pb-0 lg:flex`}>
-      
-      {/* Premium Successful Notification */}
       {successMessage && (
         <div className="fixed top-8 inset-x-0 z-[2000000] flex justify-center pointer-events-none px-4 animate-fade-in lg:left-80">
-          <div className="bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-[0_15px_45px_rgba(16,185,129,0.4)] flex items-center gap-3 border border-emerald-400/30 backdrop-blur-md">
+          <div className="bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-lg flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5" />
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{successMessage}</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em]">{successMessage}</span>
           </div>
         </div>
       )}
-
-      {/* Sync Progress Bar */}
       {syncState.status === 'syncing' && (
         <div className="fixed top-0 left-0 right-0 z-[101] h-1.5 bg-slate-100 dark:bg-slate-800 lg:left-80">
-          <div 
-            className="h-full bg-sky-500 transition-all duration-500" 
-            style={{ width: `${syncState.progress}%` }}
-          />
+          <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${syncState.progress}%` }} />
         </div>
       )}
-
-      {/* Desktop Sidebar Navigation */}
-      <aside className="hidden lg:flex flex-col w-64 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-40 overflow-hidden">
+      <aside className="hidden lg:flex flex-col w-64 fixed top-6 bottom-6 left-6 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[48px] border border-slate-100 dark:border-slate-700 shadow-xl z-40 overflow-hidden">
         <div className="p-8 flex items-center gap-4">
-          <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
+          <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center">
              <img src="/logo.png" className="w-7 h-7 object-contain" alt="Logo"/>
           </div>
-          <div className="min-w-0">
-            <h2 className="text-lg font-black text-slate-800 dark:text-white leading-none truncate">Little Moments</h2>
-            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1.5 block">Precious Journey</span>
-          </div>
+          <h2 className="text-lg font-black text-slate-800 dark:text-white leading-none">Little Moments</h2>
         </div>
-
-        <div className="mx-5 p-4 bg-slate-50/50 dark:bg-slate-700/30 rounded-3xl border border-slate-100/50 dark:border-slate-700 flex items-center gap-3.5 mb-8">
-           <div className="w-11 h-11 rounded-[16px] overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm shrink-0">
-             {activeProfile.profileImage ? (
-               <img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" />
-             ) : (
-               <div className="w-full h-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center"><Baby className="w-5 h-5 text-slate-400"/></div>
-             )}
-           </div>
-           <div className="min-w-0">
-              <h3 className="font-black text-slate-800 dark:text-white text-xs truncate leading-none mb-1">{activeProfile.name}</h3>
-              <p className="text-[8px] font-black text-primary uppercase tracking-widest">{activeProfile.dob}</p>
-           </div>
-        </div>
-
         <div className="flex-1 px-4 space-y-1.5 overflow-y-auto no-scrollbar">
           {navItems.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-[22px] transition-all duration-300 group ${activeTab === tab.id ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
-            >
-              <tab.icon className={`w-4.5 h-4.5 transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`} />
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-[22px] transition-all ${activeTab === tab.id ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}>
+              <tab.icon className="w-4.5 h-4.5" />
               <span className="text-[10px] font-black uppercase tracking-widest">{t(tab.label)}</span>
-              {activeTab === tab.id && <ChevronRight className="ml-auto w-3.5 h-3.5 opacity-50" />}
             </button>
           ))}
         </div>
-
-        <div className="p-6 pt-4 mt-auto">
-           <button 
-             onClick={handleLogout}
-             className="w-full py-3.5 flex items-center justify-center gap-3 text-rose-500 bg-rose-50/50 dark:bg-rose-900/10 rounded-[22px] text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500 hover:text-white"
-           >
-              <LogOut className="w-3.5 h-3.5" />
-              {t('logout')}
-           </button>
+        <div className="p-6">
+           <button onClick={handleLogout} className="w-full py-3.5 flex items-center justify-center gap-3 text-rose-500 bg-rose-50/50 dark:bg-rose-900/10 rounded-[22px] text-[9px] font-black uppercase tracking-widest"><LogOut className="w-3.5 h-3.5" />{t('logout')}</button>
         </div>
       </aside>
-
-      <main className="flex-1 lg:ml-80 container mx-auto px-4 pt-6 md:pt-12 transition-all duration-500">
+      <main className="flex-1 lg:ml-80 container mx-auto px-4 pt-6 md:pt-12">
         {renderContent()}
       </main>
-
-      <nav className="fixed bottom-6 left-6 right-6 h-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex justify-around items-center px-4 z-40 lg:hidden transition-all duration-300">
-        {navItems.map((tab) => {
-          if (tab.id === TabView.ADD_MEMORY) {
-            return (
-              <div key={tab.id} className="relative -top-10">
-                <button
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-18 h-18 rounded-full flex items-center justify-center transition-all duration-500 active:scale-90 shadow-2xl ${activeTab === tab.id ? 'bg-primary scale-110 shadow-primary/40' : 'bg-slate-900 dark:bg-primary shadow-slate-900/30'}`}
-                >
-                  <Plus className="w-8 h-8 text-white" />
-                </button>
-              </div>
-            );
-          }
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === tab.id ? 'text-primary scale-110' : 'text-slate-400 hover:text-slate-500'}`}
-            >
-              <tab.icon className={`w-6 h-6 ${activeTab === tab.id ? 'fill-primary/10' : ''}`} />
-              <span className="text-[9px] font-black uppercase tracking-widest">{t(tab.label)}</span>
-            </button>
-          );
-        })}
+      <nav className="fixed bottom-6 left-6 right-6 h-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] border border-slate-100 dark:border-slate-700 shadow-xl flex justify-around items-center px-4 z-40 lg:hidden">
+        {navItems.map((tab) => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === tab.id ? 'text-primary scale-110' : 'text-slate-400'}`}>
+            <tab.icon className="w-6 h-6" />
+            <span className="text-[9px] font-black uppercase tracking-widest">{t(tab.label)}</span>
+          </button>
+        ))}
       </nav>
-
-      <Suspense fallback={null}>
-        {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
-        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
-        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={() => {
-              if (session?.user?.id && cloudPhoto) {
-                requestDeleteConfirmation(async () => {
-                  const res = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name);
-                  if (res.success) { setCloudPhoto(null); setCloudRefreshTrigger(prev => prev + 1); }
-                  return res.success;
-                });
-              }
-            }} />}
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-700">
-              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-3xl flex items-center justify-center text-rose-500 mx-auto mb-6"><Trash2 className="w-8 h-8" /></div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('delete_title')}</h3>
-              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8">{t('confirm_delete')}</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowConfirmModal(false)} className="flex-1 py-4 bg-slate-100 dark:bg-slate-700 text-slate-500 font-bold rounded-2xl uppercase tracking-widest text-xs">{t('cancel_btn')}</button>
-                <button onClick={executeDelete} className="flex-1 py-4 bg-rose-500 text-white font-bold rounded-2xl shadow-lg uppercase tracking-widest text-xs">{t('delete')}</button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showPasscodeModal && (
-          <div className="fixed inset-0 z-[900000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-            <div className="bg-white dark:bg-slate-800 p-10 rounded-[48px] max-w-sm w-full shadow-2xl text-center text-slate-800 dark:text-white">
-              <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto mb-8"><Lock className="w-10 h-10" /></div>
-              <h3 className="text-2xl font-black mb-2">{passcodeMode === 'UNLOCK' ? t('enter_passcode') : passcodeMode === 'SETUP' ? t('create_passcode') : passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : passcodeMode === 'CHANGE_NEW' ? t('enter_new_passcode') : t('enter_passcode')}</h3>
-              <p className="text-xs font-bold text-slate-400 mb-10 uppercase tracking-widest">{passcodeError && passcodeInputStr.length === 0 ? <span className="text-rose-500">{t('wrong_passcode')}</span> : t('private_info')}</p>
-              <form onSubmit={handlePasscodeSubmit} className="flex flex-col gap-8">
-                <div className="flex justify-center gap-3">
-                  {[0, 1, 2, 3].map(i => <div key={i} className={`w-4 h-4 rounded-full ${passcodeInputStr.length > i ? 'bg-primary scale-125' : 'bg-slate-200 dark:bg-slate-700'}`} />)}
-                </div>
-                <input type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} autoFocus value={passcodeInputStr} onChange={(e) => setPasscodeInputStr(e.target.value.replace(/[^0-9]/g, ''))} className="absolute opacity-0 pointer-events-none" />
-                <div className="grid grid-cols-3 gap-4">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'DEL'].map((num) => (
-                    <button key={num} type="button" onClick={() => { if (num === 'C') setPasscodeInputStr(''); else if (num === 'DEL') setPasscodeInputStr(prev => prev.slice(0, -1)); else if (passcodeInputStr.length < 4) setPasscodeInputStr(prev => prev + num); }} className="w-full aspect-square flex items-center justify-center text-xl font-black rounded-3xl bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white">{num === 'DEL' ? <Delete className="w-5 h-5" /> : num}</button>
-                  ))}
-                </div>
-                <button type="button" onClick={() => setShowPasscodeModal(false)} className="text-xs font-black text-slate-400 uppercase tracking-widest mt-4">{t('cancel_btn')}</button>
-              </form>
-            </div>
-          </div>
-        )}
-      </Suspense>
     </div>
   );
 }
