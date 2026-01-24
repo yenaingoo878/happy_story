@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart, CloudSync } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
@@ -124,7 +124,6 @@ function App() {
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
 
-    // Listen to changes on ALL tables relevant to the user
     const tables = ['memories', 'stories', 'growth_data', 'child_profile', 'reminders'];
     
     const channel = supabase.channel('db-changes');
@@ -136,7 +135,6 @@ function App() {
         table: table,
         filter: `user_id=eq.${session.user.id}`
       }, (payload) => {
-          // Debounce and trigger sync
           setTimeout(() => {
               if (navigator.onLine) {
                 syncData().catch(err => console.debug("Realtime background sync failed", err));
@@ -147,12 +145,10 @@ function App() {
 
     channel.subscribe();
 
-    // Periodic Poll (every 5 minutes) as a fallback
     const pollInterval = setInterval(() => {
        if (navigator.onLine) syncData().catch(() => {});
     }, 1000 * 60 * 5);
 
-    // Sync on visibility change (re-entering app)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) {
          syncData().catch(() => {});

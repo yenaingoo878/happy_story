@@ -378,12 +378,11 @@ export const syncData = async () => {
                 if (error) throw error;
                 if (data) {
                     const remoteIds = new Set(data.map(d => d.id));
-                    
-                    // Identify items that were deleted on another device (exists locally with synced=1 but not on remote)
                     const localItems = await dexieTable.toArray();
+                    
                     for (const localItem of localItems) {
+                        // If it's synced but no longer on the server, it means it was deleted on another device
                         if (localItem.synced === 1 && !remoteIds.has(localItem.id)) {
-                             // This was deleted elsewhere, remove it here too
                              if (supabaseTableName === 'memories' && localItem.imageUrls) {
                                  await deleteLocalImages(localItem.imageUrls);
                              } else if (supabaseTableName === 'child_profile' && localItem.profileImage) {
@@ -393,12 +392,9 @@ export const syncData = async () => {
                         }
                     }
 
-                    // Upsert updated data from remote
                     for (const remoteItem of data) {
                         const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
                         const localItem = await dexieTable.get(mapped.id);
-                        
-                        // Only overwrite if it was already synced or doesn't exist locally
                         if (!localItem || localItem.synced === 1) {
                             await dexieTable.put(mapped);
                         }
@@ -476,7 +472,6 @@ export const DataService = {
         return result;
     },
     deleteMemory: async (id: string) => {
-        // Cleanup local filesystem images immediately for the current device
         try {
             const mem = await db.memories.get(id);
             if (mem && mem.imageUrls) {
@@ -537,7 +532,6 @@ export const DataService = {
         return res;
     },
     deleteProfile: async (id: string) => {
-        // Cleanup local profile image if native
         try {
             const p = await db.profiles.get(id);
             if (p && p.profileImage) {
