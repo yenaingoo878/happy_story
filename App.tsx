@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart } from 'lucide-react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
 const GalleryGrid = React.lazy(() => import('./components/GalleryGrid').then(module => ({ default: module.GalleryGrid })));
-const AddMemory = React.lazy(() => import('./components/AddMemory').then(module => ({ default: module.AddMemory })));
+const AddMemory = React.lazy(() => import('./components/AddMemory'));
 const SettingsComponent = React.lazy(() => import('./components/Settings').then(module => ({ default: module.Settings })));
 const MemoryDetailModal = React.lazy(() => import('./components/MemoryDetailModal').then(module => ({ default: module.MemoryDetailModal })));
 const StoryDetailModal = React.lazy(() => import('./components/StoryDetailModal').then(module => ({ default: module.StoryDetailModal })));
@@ -62,8 +62,6 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
   const t = (key: keyof typeof translations) => getTranslation(language, key);
 
-  // Real-time local data using Dexie LiveQuery
-  // FIX: Don't default to [] immediately to detect loading state
   const profiles = useLiveQuery(() => DataService.getProfiles(), []);
   const memories = useLiveQuery(() => DataService.getMemories(activeProfileId), [activeProfileId]) || [];
   const stories = useLiveQuery(() => DataService.getStories(activeProfileId), [activeProfileId]) || [];
@@ -93,13 +91,11 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Auth Initialization
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
     
     supabase.auth.getSession().then(({ data, error }: any) => {
       if (error) {
-        console.warn("Auth session error:", error);
         supabase.auth.signOut();
         setSession(null);
       } else {
@@ -118,14 +114,12 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Set Active Profile ID automatically
   useEffect(() => {
     if (profiles && profiles.length > 0 && !activeProfileId) {
         setActiveProfileId(profiles[0].id!);
     }
   }, [profiles, activeProfileId]);
 
-  // REAL-TIME DATABASE SYNC LISTENER
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
 
@@ -135,21 +129,17 @@ function App() {
             event: '*', 
             schema: 'public'
         }, (payload) => {
-            console.log('🔔 Remote database change detected:', payload.table, payload.eventType);
             setTimeout(() => {
                 syncData().catch(err => console.error("Realtime sync pull failed:", err));
             }, 500);
         })
-        .subscribe((status) => {
-            console.log('🔌 Realtime subscription status:', status);
-        });
+        .subscribe();
 
     return () => {
         supabase.removeChannel(channel);
     };
   }, [session]);
 
-  // Initial Load and DB Setup
   useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
@@ -213,11 +203,6 @@ function App() {
         name: childData.name || getTranslation(language, 'default_child_name'), 
         dob: childData.dob || new Date().toISOString().split('T')[0], 
         gender: childData.gender || 'boy',
-        birthTime: childData.birthTime,
-        bloodType: childData.bloodType,
-        hospitalName: childData.hospitalName,
-        birthLocation: childData.birthLocation,
-        country: childData.country,
         synced: 0
     };
     await DataService.saveProfile(newProfile);
@@ -294,7 +279,6 @@ function App() {
     }
   };
 
-  // FIX: Define the missing handlePasscodeSubmit function to fix line 555 error.
   const handlePasscodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (passcodeInputStr.length === 4) {
@@ -321,14 +305,13 @@ function App() {
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
     { id: TabView.ADD_MEMORY, icon: PlusCircle, label: 'nav_create' },
     { id: TabView.GROWTH, icon: Activity, label: 'nav_growth' },
-    { id: TabView.SETTINGS, icon: Settings, label: 'nav_settings' },
+    { id: TabView.SETTINGS, icon: SettingsIcon, label: 'nav_settings' },
   ];
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
   
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
-  // FIX: Properly wait for profiles query results before showing Onboarding
   if (isInitialLoading || profiles === undefined) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
@@ -342,7 +325,6 @@ function App() {
     );
   }
 
-  // If no profiles found after initial loading, redirect to onboarding
   if (profiles.length === 0) {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
@@ -390,7 +372,7 @@ function App() {
       case TabView.HOME:
         const heroImg = latestMemory ? getHeroImage(latestMemory) : null;
         return (
-          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in max-w-6xl mx-auto px-4">
+          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in">
             {remindersEnabled && (
                <div className="space-y-3">
                   {bStatus === 'TODAY' && showBirthdayBanner && (
@@ -479,7 +461,7 @@ function App() {
         return <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />;
       case TabView.GROWTH:
         return (
-            <div className="max-w-4xl mx-auto px-4"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
+            <div><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
         );
       case TabView.SETTINGS:
         return (
@@ -515,15 +497,16 @@ function App() {
     }
   };
 
+  const activeTabIndex = navItems.findIndex(item => item.id === activeTab);
+
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
-      <main className="container mx-auto pt-4 md:pt-8 relative min-h-screen">
-        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
+      <main className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
+        <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
            {renderContent()}
         </Suspense>
       </main>
 
-      {/* Persistent Success Message Toast */}
       {successMessage && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[1000000] animate-slide-up">
            <div className="bg-emerald-500 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl flex items-center gap-3">
@@ -533,9 +516,8 @@ function App() {
         </div>
       )}
 
-      {/* Sync/Upload Progress Overlay */}
       {uploadProgress >= 0 && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999999] w-full max-w-xs px-4 animate-slide-up">
+          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[999999] w-full max-w-xs px-4 animate-slide-up">
             <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700">
                <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{t('uploading')}</span>
@@ -548,7 +530,6 @@ function App() {
           </div>
       )}
 
-      {/* Passcode Modal Overlay */}
       {showPasscodeModal && (
         <div className="fixed inset-0 z-[2000000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
           <div className="w-full max-w-xs text-center">
@@ -577,7 +558,6 @@ function App() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-[2000000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div className="bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 text-center shadow-2xl border border-white/10 animate-zoom-in">
@@ -594,20 +574,31 @@ function App() {
         </div>
       )}
 
-      {/* Navigation Bar */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-[100000]">
-        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[32px] p-2 flex justify-between items-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 dark:border-slate-700/50">
-          {navItems.map((item) => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex-1 flex flex-col items-center py-3 rounded-2xl transition-all duration-500 group relative ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>
-              <item.icon className={`w-6 h-6 mb-1.5 transition-all duration-500 ${activeTab === item.id ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,154,162,0.5)]' : 'group-hover:scale-110'}`} />
-              <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === item.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>{t(item.label)}</span>
-              {activeTab === item.id && <div className="absolute -top-1 w-1 h-1 bg-primary rounded-full animate-pulse" />}
-            </button>
-          ))}
+      <nav className="fixed bottom-0 left-0 right-0 z-[100000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+        <div className="max-w-md mx-auto relative pointer-events-auto">
+          <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-[0_25px_50px_rgba(0,0,0,0.15)] border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
+            
+            <div 
+              className="absolute h-[calc(100%-16px)] top-2 bg-primary/10 dark:bg-primary/20 rounded-[24px] transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+              style={{ 
+                width: `calc(${100 / navItems.length}% - 16px)`,
+                left: `calc(${(activeTabIndex * 100) / navItems.length}% + 8px)` 
+              }}
+            />
+
+            {navItems.map((item) => (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id)} 
+                className={`relative z-10 flex-1 flex flex-col items-center py-3 rounded-[24px] transition-all duration-500 active:scale-90 group ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}
+              >
+                <item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110 stroke-[2.5px]' : 'group-hover:scale-105'}`} />
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
-      {/* Modals */}
       <Suspense fallback={null}>
         {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
         {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
