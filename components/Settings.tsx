@@ -67,7 +67,7 @@ interface SettingsProps {
   cloudRefreshTrigger?: number;
 }
 
-const resizeImage = (file: File, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
+const resizeImage = (file: File | string, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -79,10 +79,15 @@ const resizeImage = (file: File, maxWidth = 512, maxHeight = 512, quality = 0.8)
       ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => reject(new Error('Image failed to load.'));
-    const reader = new FileReader();
-    reader.onload = (e) => { if (e.target?.result) img.src = e.target.result as string; else reject(new Error('FileReader Error')); };
-    reader.onerror = () => reject(new Error('FileReader Error'));
-    reader.readAsDataURL(file);
+    
+    if (typeof file === 'string') {
+        img.src = file;
+    } else {
+        const reader = new FileReader();
+        reader.onload = (e) => { if (e.target?.result) img.src = e.target.result as string; else reject(new Error('FileReader Error')); };
+        reader.onerror = () => reject(new Error('FileReader Error'));
+        reader.readAsDataURL(file);
+    }
   });
 };
 
@@ -124,9 +129,17 @@ export const Settings: React.FC<SettingsProps> = ({
   useEffect(() => { if (activeProfileId) { const p = profiles.find(pr => pr.id === activeProfileId); if (p) setEditingProfile(p); } }, [activeProfileId, profiles]);
   
   const saveImageToFile = async (dataUrl: string): Promise<string> => {
-      const fileName = `profile_${editingProfile.id}_${new Date().getTime()}.jpeg`;
-      const savedFile = await Filesystem.writeFile({ path: fileName, data: dataUrl, directory: Directory.Data });
-      return savedFile.uri;
+      if (!Capacitor.isNativePlatform()) {
+          return dataUrl;
+      }
+      try {
+          const fileName = `profile_${editingProfile.id}_${new Date().getTime()}.jpeg`;
+          const savedFile = await Filesystem.writeFile({ path: fileName, data: dataUrl, directory: Directory.Data });
+          return savedFile.uri;
+      } catch (err) {
+          console.warn("Failed to save profile image to filesystem, falling back to data URL", err);
+          return dataUrl;
+      }
   };
 
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,7 +160,11 @@ export const Settings: React.FC<SettingsProps> = ({
     setIsProcessingProfileImage(true);
     try {
       const image = await CapacitorCamera.getPhoto({ quality: 90, allowEditing: true, resultType: CameraResultType.DataUrl });
-      if (image.dataUrl) { const fileUri = await saveImageToFile(image.dataUrl); setEditingProfile(prev => ({ ...prev, profileImage: fileUri })); }
+      if (image.dataUrl) {
+          const resizedDataUrl = await resizeImage(image.dataUrl);
+          const fileUri = await saveImageToFile(resizedDataUrl); 
+          setEditingProfile(prev => ({ ...prev, profileImage: fileUri })); 
+      }
     } catch (error) { console.error("Camera failed", error); } 
     finally { setIsProcessingProfileImage(false); }
   };
