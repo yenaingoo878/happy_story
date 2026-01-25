@@ -457,10 +457,10 @@ function App() {
             <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('delete_title')}</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed mb-10 px-2">{t('confirm_delete')}</p>
             <div className="flex flex-col gap-3">
-               <button onClick={executeDelete} className="w-full py-4.5 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all uppercase tracking-widest text-xs">
+               <button onClick={executeDelete} className="w-full py-3.5 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all uppercase tracking-widest text-xs">
                  {t('delete')}
                </button>
-               <button onClick={() => setShowConfirmModal(false)} className="w-full py-4.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black rounded-2xl active:scale-95 transition-all uppercase tracking-widest text-xs">
+               <button onClick={() => setShowConfirmModal(false)} className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black rounded-2xl active:scale-95 transition-all uppercase tracking-widest text-xs">
                  {t('cancel_btn')}
                </button>
             </div>

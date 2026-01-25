@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
 import { DataService, syncData, getImageSrc } from '../lib/db';
@@ -151,6 +151,9 @@ const Settings: React.FC<SettingsProps> = ({
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const [memoriesSearch, setMemoriesSearch] = useState('');
+  const [isMemoriesSearchVisible, setIsMemoriesSearchVisible] = useState(false);
+
   const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('custom_api_key') || '');
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [isKeyInputVisible, setIsKeyInputVisible] = useState(() => !localStorage.getItem('custom_api_key'));
@@ -245,6 +248,12 @@ const Settings: React.FC<SettingsProps> = ({
   };
 
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
+
+  const filteredMemories = useMemo(() => {
+    if (!memoriesSearch.trim()) return memories;
+    const lower = memoriesSearch.toLowerCase();
+    return memories.filter(m => m.title.toLowerCase().includes(lower) || (m.tags && m.tags.some(t => t.toLowerCase().includes(lower))));
+  }, [memories, memoriesSearch]);
 
   const handleSaveGrowth = async () => {
       if (editingGrowth.month && editingGrowth.height && editingGrowth.weight && activeProfileId) {
@@ -427,13 +436,33 @@ const Settings: React.FC<SettingsProps> = ({
         <div className="space-y-4 animate-fade-in pb-32 px-1">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2>
-            <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
-              <Filter className="w-5 h-5" />
-            </div>
+            <button 
+              onClick={() => setIsMemoriesSearchVisible(!isMemoriesSearchVisible)}
+              className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner active:scale-90 transition-all"
+            >
+              {isMemoriesSearchVisible ? <X className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+            </button>
           </div>
-          {memories.length > 0 ? (
+
+          {isMemoriesSearchVisible && (
+            <div className="animate-fade-in mb-4 mx-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  autoFocus
+                  value={memoriesSearch}
+                  onChange={(e) => setMemoriesSearch(e.target.value)}
+                  placeholder={t('search_placeholder')}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+          )}
+
+          {filteredMemories.length > 0 ? (
             <div className="grid gap-3">
-              {memories.map(m => (
+              {filteredMemories.map(m => (
                 <div key={m.id} className="bg-white dark:bg-slate-800 p-2 sm:p-3 rounded-[24px] sm:rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all overflow-hidden">
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 overflow-hidden">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -453,7 +482,8 @@ const Settings: React.FC<SettingsProps> = ({
             </div>
           ) : (
             <div className="py-20 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]">
-              <ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p>
+              {memoriesSearch ? <Search className="w-14 h-14" /> : <ImageIcon className="w-14 h-14"/>}
+              <p className="text-xs font-black uppercase tracking-widest">{memoriesSearch ? 'No matches found' : 'No Memories Yet'}</p>
             </div>
           )}
         </div>
