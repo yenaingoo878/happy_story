@@ -96,25 +96,26 @@ function App() {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
+  const checkApiKey = async () => {
+      // If user provided a manual key, we have an API key.
+      const manualKey = localStorage.getItem('custom_api_key');
+      if (manualKey) {
+          setHasApiKey(true);
+          return;
+      }
+
+      // @ts-ignore
+      if (window.aistudio) {
+          // @ts-ignore
+          const result = await window.aistudio.hasSelectedApiKey();
+          setHasApiKey(result);
+      }
+  };
+
   useEffect(() => {
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
     
-    const checkApiKey = async () => {
-        // If user provided a manual key, we have an API key.
-        const manualKey = localStorage.getItem('custom_api_key');
-        if (manualKey) {
-            setHasApiKey(true);
-            return;
-        }
-
-        // @ts-ignore
-        if (window.aistudio) {
-            // @ts-ignore
-            const result = await window.aistudio.hasSelectedApiKey();
-            setHasApiKey(result);
-        }
-    };
     checkApiKey();
     
     // Add a listener to handle manual API key updates in real-time if multiple tabs are open
@@ -547,7 +548,7 @@ function App() {
         return <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />;
       case TabView.GROWTH:
         return (
-            <div><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
+            <div className="pb-32"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
         );
       case TabView.SETTINGS:
         return (
@@ -575,22 +576,11 @@ function App() {
             onSaveSuccess={() => {
               triggerSuccess('save_success');
               // Refresh API key check when a key is saved in settings
-              const checkApiKey = async () => {
-                const manualKey = localStorage.getItem('custom_api_key');
-                if (manualKey) { setHasApiKey(true); return; }
-                // @ts-ignore
-                if (window.aistudio) {
-                  // @ts-ignore
-                  const result = await window.aistudio.hasSelectedApiKey();
-                  setHasApiKey(result);
-                }
-              };
               checkApiKey();
             }}
             session={session}
             onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
             cloudRefreshTrigger={cloudRefreshTrigger}
-            onManageAiKey={handleSelectAiKey}
           />
         );
       default:
@@ -642,7 +632,7 @@ function App() {
       </nav>
 
       <main className="lg:pl-72 transition-all duration-500 min-h-screen">
-        <div className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 md:pt-8 relative min-h-screen">
             <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-transparent z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>}>
                {renderContent()}
             </Suspense>
@@ -711,7 +701,7 @@ function App() {
         </div>
       )}
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto relative pointer-events-auto">
           <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             <div className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc((100% - 16px) / ${navItems.length})`, left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` }}>

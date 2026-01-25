@@ -100,7 +100,6 @@ interface SettingsProps {
   session: any;
   onViewCloudPhoto?: (url: string, name: string) => void;
   cloudRefreshTrigger?: number;
-  onManageAiKey?: () => void;
 }
 
 const resizeImage = (file: File | string, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
@@ -138,8 +137,7 @@ const Settings: React.FC<SettingsProps> = ({
   onSaveSuccess,
   session,
   onViewCloudPhoto,
-  cloudRefreshTrigger = 0,
-  onManageAiKey
+  cloudRefreshTrigger = 0
 }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD'>(initialView || 'MAIN');
@@ -246,12 +244,6 @@ const Settings: React.FC<SettingsProps> = ({
     }, 500);
   };
 
-  const handleClearApiKey = () => {
-    localStorage.removeItem('custom_api_key');
-    setManualApiKey('');
-    setIsKeyInputVisible(true);
-  };
-
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
 
   const handleSaveGrowth = async () => {
@@ -274,7 +266,7 @@ const Settings: React.FC<SettingsProps> = ({
   );
 
   return (
-    <div className="max-w-4xl mx-auto px-2 relative">
+    <div className="max-w-4xl mx-auto relative px-1 sm:px-2">
       {view !== 'MAIN' && (<button onClick={() => setView('MAIN')} className="mb-6 flex items-center gap-3 text-slate-500 font-black hover:text-primary transition-colors px-2 text-lg active:scale-95"><ChevronLeft className="w-7 h-7" />{t('back')}</button>)}
       
       {view === 'MAIN' && (
@@ -367,19 +359,6 @@ const Settings: React.FC<SettingsProps> = ({
                         </button>
                       </div>
                     )}
-                    
-                    <div className="relative py-2">
-                       <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-slate-100 dark:border-slate-700" /></div>
-                       <div className="relative flex justify-center"><span className="bg-white dark:bg-slate-800 px-2 text-[8px] font-black text-slate-300 uppercase tracking-widest">OR</span></div>
-                    </div>
-                    
-                    <button 
-                      onClick={(e) => { e.preventDefault(); onManageAiKey?.(); }} 
-                      className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black rounded-xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 transition-all"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      {t('manage_api_key')}
-                    </button>
                   </div>
                 </div>
               </div>
