@@ -46,10 +46,9 @@ import { syncManager } from './lib/syncManager';
 
 const navItems = [
   { id: TabView.HOME, label: 'nav_home' as keyof typeof translations, icon: Home },
-  { id: TabView.STORY, label: 'nav_story' as keyof typeof translations, icon: BookOpen },
+  { id: TabView.GALLERY, label: 'nav_gallery' as keyof typeof translations, icon: ImageIcon },
   { id: TabView.ADD_MEMORY, label: 'nav_create' as keyof typeof translations, icon: PlusCircle },
   { id: TabView.GROWTH, label: 'nav_growth' as keyof typeof translations, icon: Activity },
-  { id: TabView.GALLERY, label: 'nav_gallery' as keyof typeof translations, icon: ImageIcon },
   { id: TabView.SETTINGS, label: 'nav_settings' as keyof typeof translations, icon: SettingsIcon },
 ];
 
@@ -124,9 +123,9 @@ function App() {
     const currentScrollY = e.currentTarget.scrollTop;
     
     // Threshold to prevent flickering on small movements
-    if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
+    if (Math.abs(currentScrollY - lastScrollY.current) < 15) return;
 
-    if (currentScrollY > lastScrollY.current && currentScrollY > 70) {
+    if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
       // Scrolling up (finger moving up, content moving up) -> Hide Nav
       if (isNavVisible) setIsNavVisible(false);
     } else {
@@ -143,7 +142,7 @@ function App() {
       setIsNavVisible(true); // Ensure nav is visible when switching tabs
       // Scroll to top when tab changes
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
       }
     });
   };
@@ -279,7 +278,7 @@ function App() {
         const latestMemory = memories[0];
         const heroImg = latestMemory?.imageUrls?.[0] || latestMemory?.imageUrl || null;
         return (
-          <div className="space-y-4 pb-8 animate-fade-in px-1">
+          <div className="space-y-4 pb-8 animate-fade-in">
             {remindersEnabled && (
                <div className="space-y-3">
                   {!hasApiKey && (
@@ -420,14 +419,14 @@ function App() {
         onScroll={handleScroll}
         className="main-content lg:pl-72 lg:pt-8 lg:pb-8 flex-1 relative no-scrollbar"
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative">
+        <div className="max-w-5xl mx-auto relative">
           <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>}>
             {renderContent()}
           </Suspense>
         </div>
       </main>
 
-      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom,16px))] pt-2 pointer-events-none mobile-nav-container ${!isNavVisible ? 'mobile-nav-hidden' : ''}`}>
+      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem + env(safe-area-inset-bottom, 16px))] pt-2 pointer-events-none mobile-nav-container ${!isNavVisible ? 'mobile-nav-hidden' : ''}`}>
         <div className="max-w-md mx-auto relative pointer-events-auto">
           <div className="bg-white/80 dark:bg-slate-800/90 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             <div className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc((100% - 16px) / ${navItems.length})`, left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` }}>
