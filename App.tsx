@@ -711,7 +711,7 @@ function App() {
         </div>
       )}
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto relative pointer-events-auto">
           <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             <div className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc((100% - 16px) / ${navItems.length})`, left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` }}>
