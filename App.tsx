@@ -44,6 +44,16 @@ import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
 
+// Define navigation items for the application
+const navItems = [
+  { id: TabView.HOME, label: 'nav_home' as keyof typeof translations, icon: Home },
+  { id: TabView.STORY, label: 'nav_story' as keyof typeof translations, icon: BookOpen },
+  { id: TabView.ADD_MEMORY, label: 'nav_create' as keyof typeof translations, icon: PlusCircle },
+  { id: TabView.GROWTH, label: 'nav_growth' as keyof typeof translations, icon: Activity },
+  { id: TabView.GALLERY, label: 'nav_gallery' as keyof typeof translations, icon: ImageIcon },
+  { id: TabView.SETTINGS, label: 'nav_settings' as keyof typeof translations, icon: SettingsIcon },
+];
+
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
@@ -97,13 +107,11 @@ function App() {
   };
 
   const checkApiKey = async () => {
-      // If user provided a manual key, we have an API key.
       const manualKey = localStorage.getItem('custom_api_key');
       if (manualKey) {
           setHasApiKey(true);
           return;
       }
-
       // @ts-ignore
       if (window.aistudio) {
           // @ts-ignore
@@ -112,18 +120,25 @@ function App() {
       }
   };
 
+  // Handler to open the AI key selection dialog
+  const handleSelectAiKey = async () => {
+    // @ts-ignore
+    if (window.aistudio) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      // Assume the selection was successful to mitigate race conditions as per guidelines
+      setHasApiKey(true);
+    }
+  };
+
   useEffect(() => {
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
-    
     checkApiKey();
-    
-    // Add a listener to handle manual API key updates in real-time if multiple tabs are open
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'custom_api_key') checkApiKey();
     };
     window.addEventListener('storage', handleStorage);
-    
     return () => {
       uploadManager.unsubscribe();
       syncManager.unsubscribe();
@@ -132,7 +147,6 @@ function App() {
   }, []);
 
   useEffect(() => { if (!passcode) setIsAppUnlocked(true); }, [passcode]);
-  useEffect(() => { localStorage.setItem('language', language); }, [language]);
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
@@ -141,7 +155,6 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setAuthLoading(false); setIsInitialLoading(false); return; }
-    
     supabase.auth.getSession().then(({ data, error }: any) => {
       if (error) {
         supabase.auth.signOut();
@@ -154,7 +167,6 @@ function App() {
       setAuthLoading(false);
       setIsInitialLoading(false);
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setAuthLoading(false);
@@ -169,55 +181,19 @@ function App() {
   }, [profiles, activeProfileId]);
 
   useEffect(() => {
-    if (!session?.user?.id || !isSupabaseConfigured()) return;
-
-    const tables = ['memories', 'stories', 'growth_data', 'child_profile', 'reminders'];
-    const channel = supabase.channel('db-changes');
-    
-    tables.forEach(table => {
-      channel.on('postgres_changes', { 
-        event: '*', 
-        schema: 'public',
-        table: table,
-        filter: `user_id=eq.${session.user.id}`
-      }, (payload) => {
-          setTimeout(() => {
-              if (navigator.onLine) {
-                syncData().catch(err => console.debug("Realtime sync failed", err));
-              }
-          }, 1000);
-      });
-    });
-
-    channel.subscribe();
-
-    const pollInterval = setInterval(() => {
-       if (navigator.onLine) syncData().catch(() => {});
-    }, 1000 * 60 * 5);
-
-    return () => {
-        supabase.removeChannel(channel);
-        clearInterval(pollInterval);
-    };
-  }, [session]);
-
-  useEffect(() => {
     if (session || isGuestMode) {
         const initialLoad = async () => {
           try {
             setIsInitialLoading(true);
             setLoadingStatus(language === 'mm' ? 'ပြင်ဆင်နေသည်...' : 'Initializing...');
-            
             const dbInitResult = await initDB();
             if (!dbInitResult.success) {
                 setDbError(dbInitResult.error || 'Database Initialization Failed');
                 setIsInitialLoading(false);
                 return;
             }
-            
-            const initialSyncDone = localStorage.getItem('initial_sync_done') === 'true';
-
             if (navigator.onLine && session && isSupabaseConfigured()) {
+                const initialSyncDone = localStorage.getItem('initial_sync_done') === 'true';
                 if (!initialSyncDone) {
                     setLoadingStatus(language === 'mm' ? 'Cloud မှ အချက်အလက်များကို ရယူနေသည်...' : 'Performing initial sync...');
                     await syncData();
@@ -226,10 +202,8 @@ function App() {
                     syncData().catch(e => console.warn("Background sync failed:", e));
                 }
             }
-            
             setIsInitialLoading(false);
           } catch (err) {
-            console.error("Critical error during setup:", err);
             setDbError('Critical Setup Error');
             setIsInitialLoading(false);
           }
@@ -240,47 +214,7 @@ function App() {
     }
   }, [session, isGuestMode, language]);
 
-  useEffect(() => {
-    const handleOnline = () => {
-        setIsOnline(true);
-        if (session && isSupabaseConfigured()) {
-            syncData().catch(e => console.warn("Sync failed when coming online:", e));
-        }
-    };
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-    };
-  }, [session]);
-
   const activeProfile = (profiles || []).find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
-
-  const handleCreateFirstProfile = async (childData: Partial<ChildProfile>) => {
-    const newProfile: ChildProfile = { 
-        id: crypto.randomUUID(), 
-        name: childData.name || getTranslation(language, 'default_child_name'), 
-        dob: childData.dob || new Date().toISOString().split('T')[0], 
-        gender: childData.gender || 'boy',
-        synced: 0
-    };
-    await DataService.saveProfile(newProfile);
-    setActiveProfileId(newProfile.id!);
-  };
-
-  const handleProfileChange = (id: string) => {
-    setActiveProfileId(id);
-  };
-
-  const handleGuestLogin = async () => {
-    await DataService.clearAllUserData();
-    localStorage.removeItem('initial_sync_done');
-    setActiveTab(TabView.HOME);
-    setIsGuestMode(true);
-    localStorage.setItem('guest_mode', 'true');
-  };
 
   const handleLogout = async () => {
       try { if (session && isSupabaseConfigured()) await supabase.auth.signOut(); } 
@@ -295,137 +229,16 @@ function App() {
       }
   };
 
-  const handleSaveGrowth = async (data: GrowthData) => {
-      await DataService.saveGrowth(data);
-      triggerSuccess('profile_saved');
-  };
-
-  const requestDeleteConfirmation = (onConfirm: () => Promise<boolean | any>) => {
-      setDeleteCallback(() => onConfirm);
-      setShowConfirmModal(true);
-  };
-
   const executeDelete = async () => {
     if (!deleteCallback) return;
     try {
       const result = await deleteCallback();
-      if (result !== false) {
-        triggerSuccess('delete_success');
-      }
-    } catch (e) {
-      console.error("Deletion failed:", e);
+      if (result !== false) triggerSuccess('delete_success');
     } finally {
       setShowConfirmModal(false);
       setDeleteCallback(null);
     }
   };
-
-  const validatePasscode = (code: string) => {
-    if (code.length !== 4) return;
-    setPasscodeError(false);
-    if (passcodeMode === 'UNLOCK') {
-      if (code === passcode) { setIsAppUnlocked(true); setShowPasscodeModal(false); setPasscodeInputStr(''); }
-      else { setPasscodeError(true); setPasscodeInputStr(''); }
-    } else if (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW') {
-      localStorage.setItem('app_passcode', code); setPasscode(code); setIsAppUnlocked(true);
-      setShowPasscodeModal(false); setPasscodeInputStr('');
-    } else if (passcodeMode === 'CHANGE_VERIFY') {
-      if (code === passcode) { setPasscodeMode('CHANGE_NEW'); setPasscodeInputStr(''); }
-      else { setPasscodeError(true); setPasscodeInputStr(''); }
-    } else if (passcodeMode === 'REMOVE') {
-      if (code === passcode) {
-        localStorage.removeItem('app_passcode'); setPasscode(null); setIsAppUnlocked(true);
-        setShowPasscodeModal(false); setPasscodeInputStr('');
-      } else { setPasscodeError(true); setPasscodeInputStr(''); }
-    }
-  };
-
-  const handlePasscodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passcodeInputStr.length === 4) {
-      validatePasscode(passcodeInputStr);
-    }
-  };
-
-  useEffect(() => {
-    if (passcodeInputStr.length === 4) {
-      const timer = setTimeout(() => validatePasscode(passcodeInputStr), 150);
-      return () => clearTimeout(timer);
-    }
-  }, [passcode, passcodeMode, passcodeInputStr]);
-
-  const getBirthdayStatus = () => {
-    if (!activeProfile.dob) return 'NONE';
-    const today = new Date(); const dob = new Date(activeProfile.dob);
-    if (today.getMonth() === dob.getMonth() && today.getDate() === dob.getDate()) return 'TODAY';
-    return 'NONE';
-  };
-
-  const handleSelectAiKey = async () => {
-    // @ts-ignore
-    if (window.aistudio) {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        setHasApiKey(true);
-        triggerSuccess('key_set_success');
-    }
-  };
-
-  const navItems: { id: TabView; icon: React.ElementType; label: keyof typeof translations }[] = [
-    { id: TabView.HOME, icon: Home, label: 'nav_home' },
-    { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
-    { id: TabView.ADD_MEMORY, icon: PlusCircle, label: 'nav_create' },
-    { id: TabView.GROWTH, icon: Activity, label: 'nav_growth' },
-    { id: TabView.SETTINGS, icon: SettingsIcon, label: 'nav_settings' },
-  ];
-
-  if (authLoading) return (
-    <div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999]">
-      <Loader2 className="w-12 h-12 text-primary" />
-    </div>
-  );
-  
-  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
-  
-  if (isInitialLoading || profiles === undefined) {
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
-            <div className="relative mb-8 flex items-center justify-center w-24 h-24">
-               <div className="absolute inset-0 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
-               <div className="relative w-10 h-10 flex items-center justify-center text-primary">
-                  <Sparkles className="w-8 h-8" />
-               </div>
-            </div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('syncing_data')}</h2>
-            <p className="text-sm font-bold text-slate-400 dark:text-slate-500 max-w-xs">{loadingStatus || t('welcome_subtitle')}</p>
-        </div>
-    );
-  }
-
-  if (profiles.length === 0) {
-    return (
-      <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>}>
-        <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} onLogout={handleLogout} />
-      </Suspense>
-    );
-  }
-
-  if (dbError) {
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-8">
-            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-rose-500/10 text-rose-500">
-                <AlertTriangle className="w-10 h-10" />
-            </div>
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest">{language === 'mm' ? 'ဒေတာဘေ့စ် အမှားရှိနေပါသည်' : 'Database Error'}</h2>
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 max-w-sm mb-8 shadow-sm text-left">
-                <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-4">{dbError}</p>
-                <div className="space-y-2">
-                   <button onClick={() => window.location.reload()} className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all">{language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}</button>
-                </div>
-            </div>
-        </div>
-    );
-  }
 
   const renderContent = () => {
     if (isLoading) return (
@@ -434,21 +247,12 @@ function App() {
       </div>
     );
     
-    const bStatus = getBirthdayStatus();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todaysReminders = reminders.filter(r => r.date === todayStr);
-    const latestMemory = memories[0];
-
-    const getHeroImage = (mem: Memory) => {
-        if (mem.imageUrls && mem.imageUrls.length > 0) return mem.imageUrls[0];
-        return mem.imageUrl || null;
-    };
-
     switch (activeTab) {
       case TabView.HOME:
-        const heroImg = latestMemory ? getHeroImage(latestMemory) : null;
+        const latestMemory = memories[0];
+        const heroImg = latestMemory?.imageUrls?.[0] || latestMemory?.imageUrl || null;
         return (
-          <div className="space-y-4 pb-32 lg:pb-8 animate-fade-in">
+          <div className="space-y-4 pb-8 animate-fade-in px-1">
             {remindersEnabled && (
                <div className="space-y-3">
                   {!hasApiKey && (
@@ -463,34 +267,12 @@ function App() {
                         </div>
                      </div>
                   )}
-                  {bStatus === 'TODAY' && showBirthdayBanner && (
-                    <div className="bg-gradient-to-r from-rose-400 to-pink-500 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
-                       <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-4 right-4 text-white/60"><X className="w-5 h-5"/></button>
-                       <div className="flex items-center gap-4 relative z-10">
-                          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><Gift className="w-6 h-6 animate-bounce" /></div>
-                          <div><h3 className="font-black text-lg leading-none">{t('happy_birthday_title')}</h3><p className="text-xs opacity-90 mt-1">{t('happy_birthday_msg').replace('{name}', activeProfile.name)}</p></div>
-                       </div>
-                    </div>
-                  )}
-                  {todaysReminders.map(rem => (
-                    <div key={rem.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4 animate-slide-up">
-                       <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-xl flex items-center justify-center"><Bell className="w-5 h-5"/></div>
-                       <div><h4 className="font-black text-slate-800 dark:text-white text-sm">{rem.title}</h4><p className="text-[10px] font-bold text-slate-400 uppercase">Today</p></div>
-                    </div>
-                  ))}
                </div>
             )}
-            <div className="flex justify-between items-center mb-2 mt-4">
+            <div className="flex justify-between items-center mb-2 mt-2">
                <div>
                   <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
-                  <div className="flex items-center gap-3">
-                      <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-                      {syncState.status !== 'idle' && (
-                        <div className={`flex items-center animate-fade-in ${syncState.status === 'success' ? 'text-emerald-500' : syncState.status === 'error' ? 'text-rose-500' : 'text-primary'}`}>
-                           {syncState.status === 'syncing' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : syncState.status === 'success' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                        </div>
-                      )}
-                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
                </div>
                {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
             </div>
@@ -510,51 +292,48 @@ function App() {
                   )}
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95"><Wand2 className="w-8 h-8 text-indigo-200" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95 overflow-hidden relative"><Wand2 className="w-8 h-8 text-indigo-200" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
                   <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
             </div>
 
             <div className="mt-8 animate-slide-up">
-              <div className="flex justify-between items-center mb-5 px-2">
+              <div className="flex justify-between items-center mb-5 px-1">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
                 <button onClick={() => setActiveTab(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
               </div>
               <div className="space-y-3">
-                 {memories.slice(0, 4).map(m => {
-                    const thumb = getHeroImage(m);
-                    return (
-                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
-                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-                          {thumb ? (<img src={getImageSrc(thumb)} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
-                         </div>
-                         <div className="flex-1 min-w-0 overflow-hidden text-left">
-                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
-                         </div>
-                         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
-                      </div>
-                    );
-                 })}
+                 {memories.slice(0, 4).map(m => (
+                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+                          {m.imageUrls?.[0] ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
+                       </div>
+                       <div className="flex-1 min-w-0 overflow-hidden text-left">
+                          <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                       </div>
+                       <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
+                    </div>
+                 ))}
               </div>
             </div>
           </div>
         );
       case TabView.GALLERY:
-        return <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />;
+        return <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={() => {}} />;
       case TabView.ADD_MEMORY:
-        return <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess(editingMemory ? 'update_success' : 'save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />;
+        return <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess('save_success'); setEditingMemory(null); setActiveTab(TabView.HOME); }} onCancel={() => { setEditingMemory(null); setActiveTab(TabView.HOME); }} session={session} />;
       case TabView.STORY:
         return <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); setActiveTab(TabView.HOME); }} />;
       case TabView.GROWTH:
         return (
-            <div className="pb-32"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
+            <div className="px-1"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
         );
       case TabView.SETTINGS:
         return (
           <SettingsComponent 
             language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-            profiles={profiles} activeProfileId={activeProfileId} onProfileChange={handleProfileChange} onRefreshData={async () => {}}
+            profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => setActiveProfileId(id)} onRefreshData={async () => {}}
             passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }}
             onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }}
             onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }}
@@ -562,156 +341,68 @@ function App() {
             onHideDetails={() => setIsAppUnlocked(false)}
             growthData={growthData} memories={memories} stories={stories}
             onEditMemory={(m) => { setEditingMemory(m); setActiveTab(TabView.ADD_MEMORY); }}
-            onDeleteMemory={(id) => requestDeleteConfirmation(() => DataService.deleteMemory(id))}
+            onDeleteMemory={(id) => setDeleteCallback(() => DataService.deleteMemory(id))}
             onStoryClick={setSelectedStory}
-            onDeleteStory={(id) => requestDeleteConfirmation(() => DataService.deleteStory(id))}
-            onDeleteGrowth={(id) => requestDeleteConfirmation(() => DataService.deleteGrowth(id))}
-            onSaveGrowth={handleSaveGrowth}
-            onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))}
+            onDeleteStory={(id) => setDeleteCallback(() => DataService.deleteStory(id))}
+            onDeleteGrowth={(id) => setDeleteCallback(() => DataService.deleteGrowth(id))}
+            onSaveGrowth={(d) => DataService.saveGrowth(d)}
+            onDeleteProfile={(id) => setDeleteCallback(() => DataService.deleteProfile(id))}
             isGuestMode={isGuestMode} onLogout={handleLogout}
-            remindersEnabled={remindersEnabled} toggleReminders={() => { const next = !remindersEnabled; setRemindersEnabled(next); localStorage.setItem('reminders_enabled', String(next)); }}
+            remindersEnabled={remindersEnabled} toggleReminders={() => setRemindersEnabled(!remindersEnabled)}
             remindersList={reminders}
             onDeleteReminder={(id) => DataService.deleteReminder(id)}
             onSaveReminder={(r) => DataService.saveReminder(r)}
-            onSaveSuccess={() => {
-              triggerSuccess('save_success');
-              // Refresh API key check when a key is saved in settings
-              checkApiKey();
-            }}
+            onSaveSuccess={() => { triggerSuccess('save_success'); checkApiKey(); }}
             session={session}
             onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
-            cloudRefreshTrigger={cloudRefreshTrigger}
           />
         );
-      default:
-        return null;
+      default: return null;
     }
   };
 
   const activeTabIndex = navItems.findIndex(item => item.id === activeTab);
 
+  if (authLoading) return <div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>;
+  if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={() => { setIsGuestMode(true); localStorage.setItem('guest_mode', 'true'); }} />;
+  if (isInitialLoading || profiles === undefined) return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6"><Loader2 className="w-12 h-12 text-primary mb-4" /><p className="text-sm font-bold text-slate-400">{loadingStatus || t('welcome_subtitle')}</p></div>;
+  if (profiles.length === 0) return <Suspense fallback={null}><Onboarding language={language} onCreateProfile={async (d) => { await DataService.saveProfile({ ...d, id: crypto.randomUUID() } as ChildProfile); }} onLogout={handleLogout} /></Suspense>;
+
   return (
-    <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
+    <>
       <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 flex-col py-10 px-6 z-[1000] shadow-sm">
         <div className="flex items-center gap-4 mb-12 px-2">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
-                <Baby className="w-6 h-6" />
-            </div>
-            <div>
-                <h2 className="font-black text-slate-800 dark:text-white leading-tight">Little Moments</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('welcome_subtitle')}</p>
-            </div>
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner"><Baby className="w-6 h-6" /></div>
+            <div><h2 className="font-black text-slate-800 dark:text-white leading-tight">Little Moments</h2><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('welcome_subtitle')}</p></div>
         </div>
-
         <div className="flex-1 space-y-2">
             {navItems.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => setActiveTab(item.id)} 
-                className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group ${activeTab === item.id ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-600 dark:hover:text-slate-300'}`}
-              >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <item.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} />
-                </div>
+              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group ${activeTab === item.id ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                <div className="w-6 h-6 flex items-center justify-center"><item.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} /></div>
                 <span className="text-sm font-black uppercase tracking-widest">{t(item.label)}</span>
               </button>
             ))}
         </div>
-
         <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50">
-            <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all duration-300 group"
-            >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <LogOut className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                </div>
-                <span className="text-sm font-black uppercase tracking-widest">{t('logout')}</span>
-            </button>
+            <button onClick={handleLogout} className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all duration-300 group"><div className="w-6 h-6 flex items-center justify-center"><LogOut className="w-5 h-5 transition-transform group-hover:translate-x-1" /></div><span className="text-sm font-black uppercase tracking-widest">{t('logout')}</span></button>
         </div>
       </nav>
 
-      <main className="lg:pl-72 transition-all duration-500 min-h-screen">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 md:pt-8 relative min-h-screen">
-            <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-transparent z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>}>
-               {renderContent()}
-            </Suspense>
+      <main className="main-content lg:pl-72 lg:pt-8 lg:pb-8 flex-1">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative">
+          {renderContent()}
         </div>
       </main>
 
-      {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[2000] animate-slide-down w-full max-w-xs px-4">
-           <div className="bg-emerald-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-xl flex items-center justify-center gap-3 border border-emerald-400/20">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <span className="truncate">{successMessage}</span>
-           </div>
-        </div>
-      )}
-
-      {uploadProgress >= 0 && (
-          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[1999] w-full max-w-[280px] px-4 animate-slide-down`}>
-            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-2xl border border-slate-100/50 dark:border-slate-700/50">
-               <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{t('uploading')}</span>
-                  <span className="text-[11px] font-black text-primary">{Math.round(uploadProgress)}%</span>
-               </div>
-               <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-               </div>
-            </div>
-          </div>
-      )}
-
-      {showPasscodeModal && (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
-          <div className="w-full max-w-xs text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner">
-               <Lock className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-black text-white mb-2 uppercase tracking-widest">
-              {passcodeMode === 'UNLOCK' ? t('enter_passcode') : (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW' ? t('create_passcode') : (passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : t('enter_passcode')))}
-            </h3>
-            {passcodeError && <p className="text-rose-400 text-xs font-bold mb-6">{t('wrong_passcode')}</p>}
-            <form onSubmit={handlePasscodeSubmit} className="relative mb-8">
-              <div className="flex justify-center gap-4">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${passcodeInputStr.length > i ? 'bg-primary border-primary scale-110' : 'border-white/20'}`} />
-                ))}
-              </div>
-              <input type="password" pattern="[0-9]*" inputMode="numeric" autoFocus maxLength={4} value={passcodeInputStr} onChange={(e) => setPasscodeInputStr(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} className="absolute inset-0 opacity-0 cursor-default" />
-            </form>
-            <button onClick={() => { setShowPasscodeModal(false); setPasscodeInputStr(''); setPasscodeError(false); }} className="text-white/40 font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors">{t('cancel_btn')}</button>
-          </div>
-        </div>
-      )}
-
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 text-center shadow-2xl border border-white/10 animate-zoom-in">
-            <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('delete_title')}</h3>
-            <p className="text-xs font-bold text-slate-400 leading-relaxed mb-8">{t('confirm_delete')}</p>
-            <div className="flex flex-col gap-3">
-              <button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-[11px]">{t('delete')}</button>
-              <button onClick={() => setShowConfirmModal(false)} className="w-full py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]">{t('cancel_btn')}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1rem+env(safe-area-inset-bottom,16px))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto relative pointer-events-auto">
-          <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
+          <div className="bg-white/80 dark:bg-slate-800/90 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             <div className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc((100% - 16px) / ${navItems.length})`, left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` }}>
                <div className="w-full h-full bg-primary/10 dark:bg-primary/20 rounded-[24px]" />
             </div>
             {navItems.map((item) => (
               <button key={item.id} onClick={() => setActiveTab(item.id)} className={`relative z-10 flex-1 flex flex-col items-center py-3 rounded-[24px] transition-all duration-500 active:scale-90 group ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} />
-                </div>
+                <div className="w-8 h-8 flex items-center justify-center"><item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} /></div>
               </button>
             ))}
           </div>
@@ -720,16 +411,12 @@ function App() {
 
       <Suspense fallback={null}>
         {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
-        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
-        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={async () => {
-             if (confirm(t('confirm_delete'))) {
-                 const res = await DataService.deleteCloudPhoto(session.user.id, activeProfileId, cloudPhoto.name);
-                 if (res.success) { triggerSuccess('delete_success'); setCloudRefreshTrigger(prev => prev + 1); setCloudPhoto(null); }
-                 else { alert(res.error || "Failed to delete from cloud"); }
-             }
-        }} />}
+        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => setDeleteCallback(() => DataService.deleteStory(selectedStory.id))} />}
+        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={() => {}} />}
       </Suspense>
-    </div>
+
+      {successMessage && <div className="fixed top-[calc(env(safe-area-inset-top)+1rem)] left-1/2 -translate-x-1/2 z-[2000] animate-slide-down w-full max-w-xs px-4"><div className="bg-emerald-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-xl flex items-center justify-center gap-3 border border-emerald-400/20"><CheckCircle2 className="w-5 h-5 shrink-0" /><span className="truncate">{successMessage}</span></div></div>}
+    </>
   );
 }
 
