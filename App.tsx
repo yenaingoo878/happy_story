@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
-// FontAwesome Icon Bridge with Enhanced Centering
+// FontAwesome Icon Bridge with Perfect Centering
 const Home = ({ className }: { className?: string }) => <i className={`fa-solid fa-house flex items-center justify-center ${className}`} />;
 const PlusCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-plus flex items-center justify-center ${className}`} />;
 const BookOpen = ({ className }: { className?: string }) => <i className={`fa-solid fa-book-open flex items-center justify-center ${className}`} />;
@@ -43,14 +43,6 @@ import { initDB, DataService, syncData, getImageSrc, resetDatabase, db } from '.
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
-
-// Declare aistudio types for window
-declare global {
-  // FIX: Use 'AIStudio' type to match external declaration and fix type mismatch and modifier errors.
-  interface Window {
-    aistudio: AIStudio;
-  }
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
@@ -108,18 +100,33 @@ function App() {
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
     
-    // Check AI Key status
     const checkApiKey = async () => {
+        // If user provided a manual key, we have an API key.
+        const manualKey = localStorage.getItem('custom_api_key');
+        if (manualKey) {
+            setHasApiKey(true);
+            return;
+        }
+
+        // @ts-ignore
         if (window.aistudio) {
+            // @ts-ignore
             const result = await window.aistudio.hasSelectedApiKey();
             setHasApiKey(result);
         }
     };
     checkApiKey();
     
+    // Add a listener to handle manual API key updates in real-time if multiple tabs are open
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'custom_api_key') checkApiKey();
+    };
+    window.addEventListener('storage', handleStorage);
+    
     return () => {
       uploadManager.unsubscribe();
       syncManager.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
     }
   }, []);
 
@@ -160,12 +167,10 @@ function App() {
     }
   }, [profiles, activeProfileId]);
 
-  // Real-time Database Sync Logic (Push/Pull Background)
   useEffect(() => {
     if (!session?.user?.id || !isSupabaseConfigured()) return;
 
     const tables = ['memories', 'stories', 'growth_data', 'child_profile', 'reminders'];
-    
     const channel = supabase.channel('db-changes');
     
     tables.forEach(table => {
@@ -177,7 +182,7 @@ function App() {
       }, (payload) => {
           setTimeout(() => {
               if (navigator.onLine) {
-                syncData().catch(err => console.debug("Realtime background sync failed", err));
+                syncData().catch(err => console.debug("Realtime sync failed", err));
               }
           }, 1000);
       });
@@ -189,17 +194,9 @@ function App() {
        if (navigator.onLine) syncData().catch(() => {});
     }, 1000 * 60 * 5);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine) {
-         syncData().catch(() => {});
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
         supabase.removeChannel(channel);
         clearInterval(pollInterval);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [session]);
 
@@ -364,7 +361,9 @@ function App() {
   };
 
   const handleSelectAiKey = async () => {
+    // @ts-ignore
     if (window.aistudio) {
+        // @ts-ignore
         await window.aistudio.openSelectKey();
         setHasApiKey(true);
         triggerSuccess('key_set_success');
@@ -379,7 +378,11 @@ function App() {
     { id: TabView.SETTINGS, icon: SettingsIcon, label: 'nav_settings' },
   ];
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-10 h-10 text-primary" /></div>;
+  if (authLoading) return (
+    <div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999]">
+      <Loader2 className="w-12 h-12 text-primary" />
+    </div>
+  );
   
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
@@ -387,7 +390,7 @@ function App() {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
             <div className="relative mb-8 flex items-center justify-center w-24 h-24">
-               <div className="absolute w-20 h-20 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
+               <div className="absolute inset-0 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
                <div className="relative w-10 h-10 flex items-center justify-center text-primary">
                   <Sparkles className="w-8 h-8" />
                </div>
@@ -400,7 +403,7 @@ function App() {
 
   if (profiles.length === 0) {
     return (
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-10 h-10 text-primary" /></div>}>
+      <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>}>
         <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} onLogout={handleLogout} />
       </Suspense>
     );
@@ -413,24 +416,23 @@ function App() {
                 <AlertTriangle className="w-10 h-10" />
             </div>
             <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-4 uppercase tracking-widest">{language === 'mm' ? 'ဒေတာဘေ့စ် အမှားရှိနေပါသည်' : 'Database Error'}</h2>
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 max-w-sm mb-8 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 max-w-sm mb-8 shadow-sm text-left">
                 <p className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-4">{dbError}</p>
-                <div className="text-xs text-slate-400 dark:text-slate-500 text-left space-y-2">
-                    <p>• {language === 'mm' ? 'Incognito Mode ကို ပိတ်ပြီး ပြန်ဖွင့်ကြည့်ပါ။' : 'Make sure you are NOT in Incognito mode.'}</p>
-                    <p>• {language === 'mm' ? 'ဖုန်းမှ Storage နေရာလွတ် ရှိမရှိ စစ်ဆေးပါ။' : 'Check if your device storage is full.'}</p>
-                    <p>• {language === 'mm' ? 'Browser ကို Refresh လုပ်ကြည့်ပါ။' : 'Try refreshing the browser.'}</p>
+                <div className="space-y-2">
+                   <button onClick={() => window.location.reload()} className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all">{language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}</button>
                 </div>
-            </div>
-            <div className="flex flex-col gap-4 w-full max-w-xs">
-                <button onClick={() => window.location.reload()} className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all">{language === 'mm' ? 'ပြန်လည်စတင်မည်' : 'Retry'}</button>
-                <button onClick={() => { if (confirm(language === 'mm' ? "App ကို Reset လုပ်မှာ သေချာပါသလား?" : "Are you sure?")) { resetDatabase(); } }} className="w-full py-3 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold rounded-2xl text-[10px] uppercase tracking-widest active:scale-95 transition-all">{language === 'mm' ? 'App ကို Reset လုပ်မည်' : 'Reset App'}</button>
             </div>
         </div>
     );
   }
 
   const renderContent = () => {
-    if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-10 h-10 text-primary" /></div>;
+    if (isLoading) return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-[9999]">
+        <Loader2 className="w-12 h-12 text-primary" />
+      </div>
+    );
+    
     const bStatus = getBirthdayStatus();
     const todayStr = new Date().toISOString().split('T')[0];
     const todaysReminders = reminders.filter(r => r.date === todayStr);
@@ -482,20 +484,9 @@ function App() {
                   <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
                   <div className="flex items-center gap-3">
                       <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-                      
                       {syncState.status !== 'idle' && (
-                        <div className={`flex items-center transition-all duration-500 animate-fade-in ${
-                          syncState.status === 'success' ? 'text-emerald-500' : 
-                          syncState.status === 'error' ? 'text-rose-500' : 
-                          'text-primary'
-                        }`}>
-                           {syncState.status === 'syncing' ? (
-                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                           ) : syncState.status === 'success' ? (
-                             <CheckCircle2 className="w-3.5 h-3.5" />
-                           ) : (
-                             <AlertTriangle className="w-3.5 h-3.5" />
-                           )}
+                        <div className={`flex items-center animate-fade-in ${syncState.status === 'success' ? 'text-emerald-500' : syncState.status === 'error' ? 'text-rose-500' : 'text-primary'}`}>
+                           {syncState.status === 'syncing' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : syncState.status === 'success' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                         </div>
                       )}
                   </div>
@@ -518,7 +509,7 @@ function App() {
                   )}
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Wand2 className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95"><Wand2 className="w-8 h-8 text-indigo-200" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
                   <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
             </div>
@@ -532,12 +523,12 @@ function App() {
                  {memories.slice(0, 4).map(m => {
                     const thumb = getHeroImage(m);
                     return (
-                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group overflow-hidden">
-                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                      <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                         <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
                           {thumb ? (<img src={getImageSrc(thumb)} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
                          </div>
                          <div className="flex-1 min-w-0 overflow-hidden text-left">
-                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5 w-full pr-2">{m.title}</h4>
+                            <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
                          </div>
                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
@@ -581,7 +572,21 @@ function App() {
             remindersList={reminders}
             onDeleteReminder={(id) => DataService.deleteReminder(id)}
             onSaveReminder={(r) => DataService.saveReminder(r)}
-            onSaveSuccess={() => triggerSuccess('save_success')}
+            onSaveSuccess={() => {
+              triggerSuccess('save_success');
+              // Refresh API key check when a key is saved in settings
+              const checkApiKey = async () => {
+                const manualKey = localStorage.getItem('custom_api_key');
+                if (manualKey) { setHasApiKey(true); return; }
+                // @ts-ignore
+                if (window.aistudio) {
+                  // @ts-ignore
+                  const result = await window.aistudio.hasSelectedApiKey();
+                  setHasApiKey(result);
+                }
+              };
+              checkApiKey();
+            }}
             session={session}
             onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
             cloudRefreshTrigger={cloudRefreshTrigger}
@@ -597,9 +602,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
-      
-      {/* SIDEBAR FOR DESKTOP (lg and up) */}
-      <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 flex-col py-10 px-6 z-[100000] shadow-sm">
+      <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 flex-col py-10 px-6 z-[1000] shadow-sm">
         <div className="flex items-center gap-4 mb-12 px-2">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
                 <Baby className="w-6 h-6" />
@@ -638,45 +641,39 @@ function App() {
         </div>
       </nav>
 
-      {/* MAIN CONTENT AREA - ADJUSTED FOR SIDEBAR ON DESKTOP */}
       <main className="lg:pl-72 transition-all duration-500 min-h-screen">
         <div className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
-            <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-primary"/></div>}>
+            <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center bg-transparent z-[9999]"><Loader2 className="w-12 h-12 text-primary" /></div>}>
                {renderContent()}
             </Suspense>
         </div>
       </main>
 
-      {/* SUCCESS NOTIFICATION - FLOATING TOP CENTER */}
       {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[2000000] animate-slide-down w-full max-w-xs px-4">
-           <div className="bg-emerald-500/90 dark:bg-emerald-600/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-[0_20px_40px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 border border-emerald-400/20">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[2000] animate-slide-down w-full max-w-xs px-4">
+           <div className="bg-emerald-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-xl flex items-center justify-center gap-3 border border-emerald-400/20">
               <CheckCircle2 className="w-5 h-5 shrink-0" />
               <span className="truncate">{successMessage}</span>
            </div>
         </div>
       )}
 
-      {/* UPLOAD STATUS BAR - FLOATING TOP CENTER */}
       {uploadProgress >= 0 && (
-          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[1999999] w-full max-w-[280px] px-4 animate-slide-down transition-all duration-500`}>
-            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-slate-100/50 dark:border-slate-700/50">
-               <div className="flex items-center justify-between mb-2.5 px-1">
+          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[1999] w-full max-w-[280px] px-4 animate-slide-down`}>
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-2xl border border-slate-100/50 dark:border-slate-700/50">
+               <div className="flex items-center justify-between mb-2.5">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{t('uploading')}</span>
-                  <div className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 text-primary" />
-                    <span className="text-[11px] font-black text-primary">{Math.round(uploadProgress)}%</span>
-                  </div>
+                  <span className="text-[11px] font-black text-primary">{Math.round(uploadProgress)}%</span>
                </div>
-               <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden shadow-inner">
-                  <div className="h-full bg-primary transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(255,154,162,0.5)]" style={{ width: `${uploadProgress}%` }} />
+               <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                </div>
             </div>
           </div>
       )}
 
       {showPasscodeModal && (
-        <div className="fixed inset-0 z-[2000000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-fade-in">
           <div className="w-full max-w-xs text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-primary shadow-inner">
                <Lock className="w-8 h-8" />
@@ -684,19 +681,14 @@ function App() {
             <h3 className="text-xl font-black text-white mb-2 uppercase tracking-widest">
               {passcodeMode === 'UNLOCK' ? t('enter_passcode') : (passcodeMode === 'SETUP' || passcodeMode === 'CHANGE_NEW' ? t('create_passcode') : (passcodeMode === 'CHANGE_VERIFY' ? t('enter_old_passcode') : t('enter_passcode')))}
             </h3>
-            {passcodeError && <p className="text-rose-400 text-xs font-bold mb-6 animate-shake">{t('wrong_passcode')}</p>}
-            
+            {passcodeError && <p className="text-rose-400 text-xs font-bold mb-6">{t('wrong_passcode')}</p>}
             <form onSubmit={handlePasscodeSubmit} className="relative mb-8">
               <div className="flex justify-center gap-4">
                 {[0, 1, 2, 3].map((i) => (
                   <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${passcodeInputStr.length > i ? 'bg-primary border-primary scale-110' : 'border-white/20'}`} />
                 ))}
               </div>
-              <input 
-                type="password" pattern="[0-9]*" inputMode="numeric" autoFocus maxLength={4}
-                value={passcodeInputStr} onChange={(e) => setPasscodeInputStr(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                className="absolute inset-0 opacity-0 cursor-default"
-              />
+              <input type="password" pattern="[0-9]*" inputMode="numeric" autoFocus maxLength={4} value={passcodeInputStr} onChange={(e) => setPasscodeInputStr(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))} className="absolute inset-0 opacity-0 cursor-default" />
             </form>
             <button onClick={() => { setShowPasscodeModal(false); setPasscodeInputStr(''); setPasscodeError(false); }} className="text-white/40 font-black text-[10px] uppercase tracking-widest hover:text-white transition-colors">{t('cancel_btn')}</button>
           </div>
@@ -704,7 +696,7 @@ function App() {
       )}
 
       {showConfirmModal && (
-        <div className="fixed inset-0 z-[2000000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div className="bg-white dark:bg-slate-800 w-full max-w-xs rounded-[40px] p-8 text-center shadow-2xl border border-white/10 animate-zoom-in">
             <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <AlertTriangle className="w-8 h-8" />
@@ -712,34 +704,21 @@ function App() {
             <h3 className="text-xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('delete_title')}</h3>
             <p className="text-xs font-bold text-slate-400 leading-relaxed mb-8">{t('confirm_delete')}</p>
             <div className="flex flex-col gap-3">
-              <button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all uppercase tracking-widest text-[11px]">{t('delete')}</button>
+              <button onClick={executeDelete} className="w-full py-4 bg-rose-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-widest text-[11px]">{t('delete')}</button>
               <button onClick={() => setShowConfirmModal(false)} className="w-full py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]">{t('cancel_btn')}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* BOTTOM NAV FOR MOBILE (hidden on lg) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[1000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto relative pointer-events-auto">
-          <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-[0_25px_50px_rgba(0,0,0,0.15)] border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
-            
-            <div 
-              className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-              style={{ 
-                width: `calc((100% - 16px) / ${navItems.length})`,
-                left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` 
-              }}
-            >
+          <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-2xl border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
+            <div className="absolute top-2 bottom-2 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc((100% - 16px) / ${navItems.length})`, left: `calc(8px + (${activeTabIndex} * (100% - 16px) / ${navItems.length}))` }}>
                <div className="w-full h-full bg-primary/10 dark:bg-primary/20 rounded-[24px]" />
             </div>
-
             {navItems.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => setActiveTab(item.id)} 
-                className={`relative z-10 flex-1 flex flex-col items-center py-3 rounded-[24px] transition-all duration-500 active:scale-90 group ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}
-              >
+              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`relative z-10 flex-1 flex flex-col items-center py-3 rounded-[24px] transition-all duration-500 active:scale-90 group ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>
                 <div className="w-8 h-8 flex items-center justify-center">
                   <item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} />
                 </div>

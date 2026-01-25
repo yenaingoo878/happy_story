@@ -5,16 +5,15 @@ import { Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
 
 // FontAwesome Icon Bridge
-// FIX: Added 'style' prop to allow conditional rendering (e.g. display: 'none')
-const Baby = ({ className, style }: { className?: string; style?: React.CSSProperties }) => <i className={`fa-solid fa-baby ${className}`} style={style} />;
-const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin ${className}`} />;
-const Mail = ({ className }: { className?: string }) => <i className={`fa-solid fa-envelope ${className}`} />;
-const Lock = ({ className }: { className?: string }) => <i className={`fa-solid fa-lock ${className}`} />;
-const AlertCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-exclamation ${className}`} />;
-const Eye = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye ${className}`} />;
-const EyeOff = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye-slash ${className}`} />;
-const LogIn = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-to-bracket ${className}`} />;
-const UserCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-user ${className}`} />;
+const Baby = ({ className, style }: { className?: string; style?: React.CSSProperties }) => <i className={`fa-solid fa-baby flex items-center justify-center ${className}`} style={style} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const Mail = ({ className }: { className?: string }) => <i className={`fa-solid fa-envelope flex items-center justify-center ${className}`} />;
+const Lock = ({ className }: { className?: string }) => <i className={`fa-solid fa-lock flex items-center justify-center ${className}`} />;
+const AlertCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-exclamation flex items-center justify-center ${className}`} />;
+const Eye = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye flex items-center justify-center ${className}`} />;
+const EyeOff = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye-slash flex items-center justify-center ${className}`} />;
+const LogIn = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-to-bracket flex items-center justify-center ${className}`} />;
+const UserCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-user flex items-center justify-center ${className}`} />;
 
 interface AuthScreenProps {
   language: Language;
@@ -77,18 +76,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
       <div className="w-full max-w-sm text-center relative z-10 animate-fade-in">
          <div className="flex flex-col items-center mb-10">
-            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 overflow-hidden p-2">
-                <img src="logo.png" className="w-full h-full object-contain" alt="Logo" onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}/>
-                <Baby className="w-12 h-12 text-primary" style={{ display: 'none' }} />
+            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 overflow-hidden p-2 border border-slate-100 dark:border-slate-800">
+                <Baby className="w-12 h-12 text-primary" />
             </div>
-            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Little Moments</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-60">Precious Memories</p>
+            <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none">Little Moments</h1>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] mt-3 opacity-60">Precious Memories</p>
          </div>
 
          <div className="bg-white dark:bg-slate-800 backdrop-blur-md p-8 rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-700/50">
-            <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mb-6">
+            <h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 uppercase tracking-widest">
                 {isSignUp ? t('sign_up') : t('sign_in')}
             </h2>
 
@@ -101,22 +97,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
             <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
                 <div className="relative group">
-                    <Mail className="absolute left-4 top-4 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                     <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-900/50 border border-transparent dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-primary/10 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all" placeholder={t('email')} />
                 </div>
                 <div className="relative group">
-                    <Lock className="absolute left-4 top-4 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                     <input type={showPassword ? "text" : "password"} required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-900/50 border border-transparent dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-primary/10 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all" placeholder={t('password')} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-slate-300 hover:text-slate-500">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                 </div>
-                <button type="submit" disabled={loading} className="w-full py-5 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><LogIn className="w-5 h-5"/> {isSignUp ? t('sign_up') : t('sign_in')}</>}
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="relative w-full h-14 bg-slate-900 dark:bg-primary text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center overflow-hidden uppercase tracking-widest text-xs"
+                >
+                    {loading ? (
+                        <div className="flex items-center justify-center w-full h-full">
+                           <Loader2 className="w-6 h-6 animate-spin" />
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center gap-2">
+                            <LogIn className="w-4 h-4"/> 
+                            {isSignUp ? t('sign_up') : t('sign_in')}
+                        </div>
+                    )}
                 </button>
             </form>
 
-            <button onClick={() => setIsSignUp(!isSignUp)} className="mt-6 text-xs font-bold text-slate-400 hover:text-primary transition-colors">
+            <button onClick={() => setIsSignUp(!isSignUp)} className="mt-6 text-[10px] font-black text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">
                 {isSignUp ? t('have_account') : t('no_account')} <span className="text-primary underline underline-offset-4 ml-1">{isSignUp ? t('sign_in') : t('sign_up')}</span>
             </button>
             
@@ -133,7 +142,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
             <button 
               onClick={onGuestLogin}
-              className="w-full py-4 bg-white dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 font-bold rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3"
+              className="w-full py-4 bg-white dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 font-black rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-[10px]"
             >
               <UserCircle className="w-5 h-5" />
               {language === 'mm' ? 'ဧည့်သည်အဖြစ် အသုံးပြုမည်' : 'Continue as Guest'}

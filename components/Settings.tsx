@@ -49,6 +49,7 @@ const Droplets = ({ className }: { className?: string }) => <i className={`fa-so
 const Camera = ({ className }: { className?: string }) => <i className={`fa-solid fa-camera flex items-center justify-center ${className}`} />;
 const Search = ({ className }: { className?: string }) => <i className={`fa-solid fa-magnifying-glass flex items-center justify-center ${className}`} />;
 const KeyIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-key flex items-center justify-center ${className}`} />;
+const CheckCircle2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-check flex items-center justify-center ${className}`} />;
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -152,6 +153,10 @@ const Settings: React.FC<SettingsProps> = ({
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('custom_api_key') || '');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isKeyInputVisible, setIsKeyInputVisible] = useState(() => !localStorage.getItem('custom_api_key'));
+
   const [syncState, setSyncState] = useState({ status: 'idle' });
 
   useEffect(() => { syncManager.subscribe(setSyncState); return () => syncManager.unsubscribe(); }, []);
@@ -231,6 +236,22 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const handleSaveApiKey = () => {
+    setIsSavingKey(true);
+    localStorage.setItem('custom_api_key', manualApiKey);
+    setTimeout(() => {
+      setIsSavingKey(false);
+      setIsKeyInputVisible(false);
+      onSaveSuccess();
+    }, 500);
+  };
+
+  const handleClearApiKey = () => {
+    localStorage.removeItem('custom_api_key');
+    setManualApiKey('');
+    setIsKeyInputVisible(true);
+  };
+
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
 
   const handleSaveGrowth = async () => {
@@ -307,18 +328,61 @@ const Settings: React.FC<SettingsProps> = ({
                 </div>
                 <div className="flex-1 text-left">
                   <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('security_title')}</h3>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
                     {t('api_key_desc')}
                   </p>
+                  
+                  <div className="space-y-3">
+                    {isKeyInputVisible ? (
+                      <div className="animate-fade-in space-y-3">
+                        <div className="relative">
+                          <input 
+                            type="password"
+                            value={manualApiKey}
+                            onChange={(e) => setManualApiKey(e.target.value)}
+                            placeholder="Paste your Gemini API Key here..."
+                            className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                          />
+                        </div>
+                        <button 
+                          onClick={handleSaveApiKey} 
+                          disabled={isSavingKey || !manualApiKey}
+                          className="w-full py-3.5 bg-indigo-500 text-white font-black rounded-xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/20 transition-all disabled:opacity-50"
+                        >
+                          {isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {t('save_changes')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="animate-fade-in bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="text-xs font-black uppercase tracking-widest">AI Key is Active</span>
+                        </div>
+                        <button 
+                          onClick={() => setIsKeyInputVisible(true)} 
+                          className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline"
+                        >
+                          {t('edit')}
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="relative py-2">
+                       <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-slate-100 dark:border-slate-700" /></div>
+                       <div className="relative flex justify-center"><span className="bg-white dark:bg-slate-800 px-2 text-[8px] font-black text-slate-300 uppercase tracking-widest">OR</span></div>
+                    </div>
+                    
+                    <button 
+                      onClick={(e) => { e.preventDefault(); onManageAiKey?.(); }} 
+                      className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black rounded-xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      {t('manage_api_key')}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button 
-                onClick={(e) => { e.preventDefault(); onManageAiKey?.(); }} 
-                className="w-full py-4 bg-indigo-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/20 transition-all"
-              >
-                <Lock className="w-4 h-4" />
-                {t('manage_api_key')}
-              </button>
             </section>
           </section>
 
@@ -357,35 +421,22 @@ const Settings: React.FC<SettingsProps> = ({
               <Cloud className="w-5 h-5" />
             </div>
           </div>
-          <div className="bg-sky-50 dark:bg-sky-950/20 p-4 rounded-2xl mb-6 border border-sky-100 dark:border-sky-900/30">
-            <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 leading-relaxed uppercase tracking-widest text-left">
-              Showing images synced from your device to the cloud. You can view or delete these files directly.
-            </p>
-          </div>
-          
           {isLoadingCloud ? (
-             <div className="py-20 flex flex-col items-center gap-4 animate-pulse">
-                <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+             <div className="py-20 flex flex-col items-center justify-center min-h-[300px] animate-pulse">
+                <Loader2 className="w-12 h-12 text-sky-500 mb-4" />
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Connecting to Vault...</p>
              </div>
           ) : cloudPhotos.length > 0 ? (
              <div className="grid grid-cols-3 gap-3">
                {cloudPhotos.map((photo) => (
-                 <div 
-                   key={photo.id} 
-                   onClick={() => onViewCloudPhoto?.(photo.url, photo.name)}
-                   className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer group shadow-sm active:scale-95 transition-all"
-                 >
+                 <div key={photo.id} onClick={() => onViewCloudPhoto?.(photo.url, photo.name)} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer group shadow-sm active:scale-95 transition-all">
                    <img src={photo.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
-                   <div className="absolute bottom-2 right-2">
-                      <Cloud className="w-3.5 h-3.5 text-white/70 shadow-lg" />
-                   </div>
+                   <div className="absolute bottom-2 right-2"><Cloud className="w-3.5 h-3.5 text-white/70 shadow-lg" /></div>
                  </div>
                ))}
              </div>
           ) : (
-            <div className="py-24 text-center opacity-30 flex flex-col items-center gap-4">
+            <div className="py-24 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]">
                <Cloud className="w-14 h-14" />
                <p className="text-xs font-black uppercase tracking-widest">No Cloud Backup Found</p>
             </div>
@@ -407,34 +458,22 @@ const Settings: React.FC<SettingsProps> = ({
                 <div key={m.id} className="bg-white dark:bg-slate-800 p-2 sm:p-3 rounded-[24px] sm:rounded-[32px] border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-between gap-3 sm:gap-4 group hover:shadow-md transition-all overflow-hidden">
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 overflow-hidden">
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-50 dark:border-slate-700 shadow-sm flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                      {m.imageUrls && m.imageUrls.length > 0 ? (
-                        <img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />
-                      ) : (
-                        <ImageIcon className="w-8 h-8 text-slate-300" />
-                      )}
+                      {m.imageUrls && m.imageUrls.length > 0 ? <img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 text-slate-300" />}
                     </div>
                     <div className="min-w-0 text-left flex-1 overflow-hidden flex flex-col">
-                      <h4 className="font-black text-slate-800 dark:text-white text-sm truncate block whitespace-nowrap leading-none mb-1.5 w-full pr-1">
-                        {m.title}
-                      </h4>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
-                        <Clock className="w-2.5 h-2.5 shrink-0"/> {m.date}
-                      </p>
+                      <h4 className="font-black text-slate-800 dark:text-white text-sm truncate block whitespace-nowrap leading-none mb-1.5">{m.title}</h4>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap"><Clock className="w-2.5 h-2.5 shrink-0"/> {m.date}</p>
                     </div>
                   </div>
-                  <div className="flex gap-0 sm:gap-1 shrink-0 ml-1">
-                    <button onClick={() => onEditMemory(m)} className="p-2 sm:p-3 text-slate-400 hover:text-primary transition-colors active:scale-90 flex items-center justify-center shrink-0">
-                      <Pencil className="w-4.5 h-4.5" />
-                    </button>
-                    <button onClick={() => onDeleteMemory(m.id)} className="p-2 sm:p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90 flex items-center justify-center shrink-0">
-                      <Trash2 className="w-4.5 h-4.5" />
-                    </button>
+                  <div className="flex gap-1">
+                    <button onClick={() => onEditMemory(m)} className="p-3 text-slate-400 hover:text-primary transition-colors active:scale-90 flex items-center justify-center"><Pencil className="w-4.5 h-4.5" /></button>
+                    <button onClick={() => onDeleteMemory(m.id)} className="p-3 text-slate-400 hover:text-rose-500 transition-colors active:scale-90 flex items-center justify-center"><Trash2 className="w-4.5 h-4.5" /></button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-20 text-center opacity-30 flex flex-col items-center gap-4">
+            <div className="py-20 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]">
               <ImageIcon className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Memories Yet</p>
             </div>
           )}
@@ -442,7 +481,7 @@ const Settings: React.FC<SettingsProps> = ({
       ))}
       {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
       {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
-      {view === 'STORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}
+      {view === 'STORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}
     </div>
   );
 };

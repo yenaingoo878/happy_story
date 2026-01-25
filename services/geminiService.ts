@@ -3,10 +3,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
+const getEffectiveApiKey = () => {
+  return localStorage.getItem('custom_api_key') || process.env.API_KEY || '';
+};
+
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    // FIX: Always use process.env.API_KEY directly for initialization.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getEffectiveApiKey() });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -35,8 +38,7 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        // FIX: Always use process.env.API_KEY directly for initialization.
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: getEffectiveApiKey() });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
@@ -52,7 +54,6 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
           Example Tone: "Your child's growth is progressing steadily, following along their own percentile curve, which is a wonderful sign."
         `;
 
-        // FIX: Use 'gemini-3-pro-preview' for tasks requiring reasoning and analysis.
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-preview',
             contents: prompt,
@@ -62,7 +63,6 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
             }
         });
 
-        // Directly accessing .text property of GenerateContentResponse
         return response.text || (language === 'mm' ? "အချက်အလက်များကို ဆန်းစစ်မရနိုင်ပါ။" : "Could not analyze data.");
     } catch (error) {
         console.error("Error analyzing growth:", error);
