@@ -121,26 +121,19 @@ function App() {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
-    
-    // Threshold to prevent flickering on small movements
     if (Math.abs(currentScrollY - lastScrollY.current) < 15) return;
-
     if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-      // Scrolling up (finger moving up, content moving up) -> Hide Nav
       if (isNavVisible) setIsNavVisible(false);
     } else {
-      // Scrolling down (finger moving down, content moving down) -> Show Nav
       if (!isNavVisible) setIsNavVisible(true);
     }
-    
     lastScrollY.current = currentScrollY;
   };
 
   const handleTabChange = (tab: TabView) => {
     startTransition(() => {
       setActiveTab(tab);
-      setIsNavVisible(true); // Ensure nav is visible when switching tabs
-      // Scroll to top when tab changes
+      setIsNavVisible(true);
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
       }
@@ -266,6 +259,11 @@ function App() {
     }
   };
 
+  const requestDeleteConfirmation = (callback: () => Promise<boolean | any>) => {
+    setDeleteCallback(() => callback);
+    setShowConfirmModal(true);
+  };
+
   const renderContent = () => {
     if (isLoading) return (
       <div className="fixed inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-[9999]">
@@ -346,7 +344,7 @@ function App() {
           </div>
         );
       case TabView.GALLERY:
-        return <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={() => {}} />;
+        return <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />;
       case TabView.ADD_MEMORY:
         return <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess('save_success'); setEditingMemory(null); handleTabChange(TabView.HOME); }} onCancel={() => { setEditingMemory(null); handleTabChange(TabView.HOME); }} session={session} />;
       case TabView.STORY:
@@ -367,16 +365,16 @@ function App() {
             onHideDetails={() => setIsAppUnlocked(false)}
             growthData={growthData} memories={memories} stories={stories}
             onEditMemory={(m) => { setEditingMemory(m); handleTabChange(TabView.ADD_MEMORY); }}
-            onDeleteMemory={(id) => setDeleteCallback(() => DataService.deleteMemory(id))}
+            onDeleteMemory={(id) => requestDeleteConfirmation(() => DataService.deleteMemory(id))}
             onStoryClick={setSelectedStory}
-            onDeleteStory={(id) => setDeleteCallback(() => DataService.deleteStory(id))}
-            onDeleteGrowth={(id) => setDeleteCallback(() => DataService.deleteGrowth(id))}
+            onDeleteStory={(id) => requestDeleteConfirmation(() => DataService.deleteStory(id))}
+            onDeleteGrowth={(id) => requestDeleteConfirmation(() => DataService.deleteGrowth(id))}
             onSaveGrowth={(d) => DataService.saveGrowth(d)}
-            onDeleteProfile={(id) => setDeleteCallback(() => DataService.deleteProfile(id))}
+            onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))}
             isGuestMode={isGuestMode} onLogout={handleLogout}
             remindersEnabled={remindersEnabled} toggleReminders={() => setRemindersEnabled(!remindersEnabled)}
             remindersList={reminders}
-            onDeleteReminder={(id) => DataService.deleteReminder(id)}
+            onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))}
             onSaveReminder={(r) => DataService.saveReminder(r)}
             onSaveSuccess={() => { triggerSuccess('save_success'); checkApiKey(); }}
             session={session}
@@ -414,11 +412,7 @@ function App() {
         </div>
       </nav>
 
-      <main 
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="main-content lg:pl-72 lg:pt-8 lg:pb-8 flex-1 relative no-scrollbar"
-      >
+      <main ref={scrollContainerRef} onScroll={handleScroll} className="main-content lg:pl-72 lg:pt-8 lg:pb-8 flex-1 relative no-scrollbar">
         <div className="max-w-5xl mx-auto relative">
           <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>}>
             {renderContent()}
@@ -448,9 +442,31 @@ function App() {
 
       <Suspense fallback={null}>
         {selectedMemory && <MemoryDetailModal memory={selectedMemory} language={language} onClose={() => setSelectedMemory(null)} />}
-        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => setDeleteCallback(() => DataService.deleteStory(selectedStory.id))} />}
-        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={() => {}} />}
+        {selectedStory && <StoryDetailModal story={selectedStory} language={language} onClose={() => setSelectedStory(null)} onDelete={() => requestDeleteConfirmation(() => DataService.deleteStory(selectedStory.id))} />}
+        {cloudPhoto && <CloudPhotoModal url={cloudPhoto.url} data={null} isLoading={false} language={language} onClose={() => setCloudPhoto(null)} onDelete={(fileName) => requestDeleteConfirmation(() => DataService.deleteCloudPhoto(session.user.id, activeProfileId, fileName))} />}
       </Suspense>
+
+      {/* REUSABLE CONFIRMATION MODAL */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[600000] flex items-center justify-center p-6 sm:p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md animate-fade-in" onClick={() => setShowConfirmModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] p-8 shadow-2xl animate-zoom-in border border-slate-100 dark:border-slate-800 text-center">
+            <div className="w-20 h-20 bg-rose-50 dark:bg-rose-950/30 rounded-[28px] flex items-center justify-center text-rose-500 mx-auto mb-6 shadow-inner">
+               <AlertTriangle className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('delete_title')}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed mb-10 px-2">{t('confirm_delete')}</p>
+            <div className="flex flex-col gap-3">
+               <button onClick={executeDelete} className="w-full py-4.5 bg-rose-500 text-white font-black rounded-2xl shadow-lg shadow-rose-500/20 active:scale-95 transition-all uppercase tracking-widest text-xs">
+                 {t('delete')}
+               </button>
+               <button onClick={() => setShowConfirmModal(false)} className="w-full py-4.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black rounded-2xl active:scale-95 transition-all uppercase tracking-widest text-xs">
+                 {t('cancel_btn')}
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {successMessage && <div className="fixed top-[calc(env(safe-area-inset-top)+1rem)] left-1/2 -translate-x-1/2 z-[2000] animate-slide-down w-full max-w-xs px-4"><div className="bg-emerald-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-xl flex items-center justify-center gap-3 border border-emerald-400/20"><CheckCircle2 className="w-5 h-5 shrink-0" /><span className="truncate">{successMessage}</span></div></div>}
     </>

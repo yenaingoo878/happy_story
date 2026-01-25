@@ -14,7 +14,7 @@ interface CloudPhotoModalProps {
   isLoading: boolean;
   language: Language;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete: (fileName: string) => void;
 }
 
 export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({ 
@@ -47,6 +47,9 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
   }, [url]);
 
   if (!url) return null;
+
+  // Extract filename from URL
+  const fileName = url.split('/').pop() || '';
 
   return (
     <div className="fixed inset-0 z-[200000] flex items-center justify-center p-4 md:p-8 w-screen h-[100dvh] overflow-hidden">
@@ -126,7 +129,11 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
                </button>
 
                <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(); }} 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onDelete(fileName);
+                  onClose(); // Close modal immediately to show the confirmation in App level
+                }} 
                 className="w-14 h-14 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[24px] flex items-center justify-center shrink-0 active:scale-95 transition-all border border-rose-100 dark:border-rose-900/30"
               >
                 <Trash2 className="w-6 h-6" />
