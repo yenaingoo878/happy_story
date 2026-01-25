@@ -1,9 +1,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Memory, Language } from '../types';
-import { X, Calendar, Tag, Loader2, ChevronLeft, ChevronRight, Heart, Image as ImageIcon } from 'lucide-react';
 import { getTranslation, translations } from '../utils/translations';
 import { getImageSrc } from '../lib/db';
+
+// FontAwesome Icon Bridge
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const Calendar = ({ className }: { className?: string }) => <i className={`fa-solid fa-calendar-days flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const ChevronLeft = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-left flex items-center justify-center ${className}`} />;
+const ChevronRight = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-right flex items-center justify-center ${className}`} />;
+const Heart = ({ className }: { className?: string }) => <i className={`fa-solid fa-heart flex items-center justify-center ${className}`} />;
+const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image flex items-center justify-center ${className}`} />;
 
 interface MemoryDetailModalProps {
   memory: Memory | null;
@@ -208,7 +216,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
               </div>
               
               <button className="w-12 h-12 flex items-center justify-center bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[20px] border border-rose-100 dark:border-rose-900/30 active:scale-95 transition-all shadow-sm shrink-0">
-                <Heart className="w-5 h-5 fill-rose-500" />
+                <Heart className="w-5 h-5" />
               </button>
             </div>
           </div>

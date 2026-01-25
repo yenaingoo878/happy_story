@@ -1,12 +1,22 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, Save, Tag, X, Image as ImageIcon, CheckCircle2, Camera, Text, Calendar, Plus } from 'lucide-react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
 import { DataService, getImageSrc, uploadFileToCloud } from '../lib/db';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+
+// FontAwesome Icon Bridge
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin ${className}`} />;
+const Save = ({ className }: { className?: string }) => <i className={`fa-solid fa-floppy-disk ${className}`} />;
+const Tag = ({ className }: { className?: string }) => <i className={`fa-solid fa-tag ${className}`} />;
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark ${className}`} />;
+const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image ${className}`} />;
+const Camera = ({ className }: { className?: string }) => <i className={`fa-solid fa-camera ${className}`} />;
+const Text = ({ className }: { className?: string }) => <i className={`fa-solid fa-font ${className}`} />;
+const Calendar = ({ className }: { className?: string }) => <i className={`fa-solid fa-calendar-days ${className}`} />;
+const Plus = ({ className }: { className?: string }) => <i className={`fa-solid fa-plus ${className}`} />;
 
 // Helper function to resize images to a max dimension while maintaining aspect ratio
 const resizeImage = (file: File | string, maxWidth = 1024, maxHeight = 1024, quality = 0.8): Promise<string> => {

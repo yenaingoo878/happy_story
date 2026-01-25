@@ -1,7 +1,12 @@
 
 import React, { useEffect } from 'react';
-import { X, Cloud, Download, Trash2, Loader2 } from 'lucide-react';
 import { Language } from '../types';
+
+// FontAwesome Icon Bridge with Centering
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const Cloud = ({ className }: { className?: string }) => <i className={`fa-solid fa-cloud flex items-center justify-center ${className}`} />;
+const Download = ({ className }: { className?: string }) => <i className={`fa-solid fa-download flex items-center justify-center ${className}`} />;
+const Trash2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-trash-can flex items-center justify-center ${className}`} />;
 
 interface CloudPhotoModalProps {
   url: string | null;
@@ -22,9 +27,8 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
       const originalBodyOverflow = document.body.style.overflow;
       const originalRootOverflow = root ? root.style.overflow : '';
 
-      // Forcefully lock all scrolling containers
       document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none'; // Lock mobile gestures
+      document.body.style.touchAction = 'none'; 
       
       if (root) {
         root.style.overflow = 'hidden';
@@ -46,16 +50,13 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[200000] flex items-center justify-center p-4 md:p-8 w-screen h-[100dvh] overflow-hidden">
-      {/* Absolute Backdrop Isolation - Deep Blur & Dark Overlay */}
       <div 
         className="absolute inset-0 bg-slate-950/98 backdrop-blur-[60px] transition-opacity duration-700 animate-fade-in cursor-default" 
         onClick={onClose} 
       />
       
-      {/* Centered Standalone Module Box - Optimized for action button visibility */}
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-[92vw] md:max-w-xl h-[88dvh] rounded-[54px] overflow-hidden shadow-[0_60px_120px_-20px_rgba(0,0,0,0.8)] animate-zoom-in flex flex-col z-[100001] border border-white/10 dark:border-slate-800">
         
-        {/* Header - Fixed Overlay */}
         <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-50 pointer-events-none">
            <div className="flex items-center gap-3 bg-black/40 backdrop-blur-2xl px-5 py-2.5 rounded-2xl border border-white/10 pointer-events-auto shadow-xl">
               <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse" />
@@ -72,13 +73,14 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
            </button>
         </div>
 
-        {/* Media Canvas - Ensures image fits without pushing actions */}
         <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden min-h-0">
           {isLoading ? (
             <div className="flex flex-col items-center gap-6">
-              <div className="relative">
-                <div className="w-16 h-16 border-[6px] border-sky-500/10 border-t-sky-500 rounded-full animate-spin" />
-                <Cloud className="w-6 h-6 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+              <div className="relative flex items-center justify-center w-20 h-20">
+                <div className="absolute w-16 h-16 border-[6px] border-sky-500/10 border-t-sky-500 rounded-full animate-spin" />
+                <div className="relative w-8 h-8 flex items-center justify-center text-white">
+                  <Cloud className="w-6 h-6 animate-pulse" />
+                </div>
               </div>
               <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] animate-pulse">
                 {language === 'mm' ? 'ပုံဖော်နေသည်...' : 'Developing...'}
@@ -93,7 +95,6 @@ export const CloudPhotoModal: React.FC<CloudPhotoModalProps> = ({
           )}
         </div>
 
-        {/* Action Zone - Compacted for better mobile visibility */}
         <div className="p-6 md:p-8 bg-white dark:bg-slate-900 shrink-0 border-t border-slate-50 dark:border-slate-800/50 flex flex-col gap-6 shadow-[0_-15px_40px_rgba(0,0,0,0.1)]">
           <div className="flex items-center justify-between px-1">
              <div className="space-y-1.5 min-w-0">

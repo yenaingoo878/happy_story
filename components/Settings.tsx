@@ -1,13 +1,5 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Lock, Baby, Loader2, Save, Moon, Sun, Trash2, Pencil, LogOut, 
-  ChevronDown, Bell, Activity, Image as ImageIcon, X, Cloud, 
-  HardDrive, Clock, User, ShieldCheck, ChevronLeft, ChevronRight, Plus, 
-  Settings as SettingsIcon, CircleUser, CheckCircle2, BookOpen, 
-  BellRing, Languages, Mail, Filter, Building2, MapPin, Globe, Scale, Ruler,
-  Calendar, Heart, Droplets, Camera, Search, Eye, EyeOff, Terminal
-} from 'lucide-react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
 import { DataService, syncData, getImageSrc } from '../lib/db';
@@ -15,6 +7,48 @@ import { syncManager } from '../lib/syncManager';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+
+// FontAwesome Icon Bridge
+const Lock = ({ className }: { className?: string }) => <i className={`fa-solid fa-lock flex items-center justify-center ${className}`} />;
+const Baby = ({ className }: { className?: string }) => <i className={`fa-solid fa-baby flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const Save = ({ className }: { className?: string }) => <i className={`fa-solid fa-floppy-disk flex items-center justify-center ${className}`} />;
+const Moon = ({ className }: { className?: string }) => <i className={`fa-solid fa-moon flex items-center justify-center ${className}`} />;
+const Sun = ({ className }: { className?: string }) => <i className={`fa-solid fa-sun flex items-center justify-center ${className}`} />;
+const Trash2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-trash-can flex items-center justify-center ${className}`} />;
+const Pencil = ({ className }: { className?: string }) => <i className={`fa-solid fa-pencil flex items-center justify-center ${className}`} />;
+const LogOut = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-from-bracket flex items-center justify-center ${className}`} />;
+const ChevronDown = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-down flex items-center justify-center ${className}`} />;
+const Bell = ({ className }: { className?: string }) => <i className={`fa-solid fa-bell flex items-center justify-center ${className}`} />;
+const Activity = ({ className }: { className?: string }) => <i className={`fa-solid fa-chart-line flex items-center justify-center ${className}`} />;
+const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image flex items-center justify-center ${className}`} />;
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const Cloud = ({ className }: { className?: string }) => <i className={`fa-solid fa-cloud flex items-center justify-center ${className}`} />;
+const HardDrive = ({ className }: { className?: string }) => <i className={`fa-solid fa-hard-drive flex items-center justify-center ${className}`} />;
+const Clock = ({ className }: { className?: string }) => <i className={`fa-solid fa-clock flex items-center justify-center ${className}`} />;
+const User = ({ className }: { className?: string }) => <i className={`fa-solid fa-user flex items-center justify-center ${className}`} />;
+const ShieldCheck = ({ className }: { className?: string }) => <i className={`fa-solid fa-shield-halved flex items-center justify-center ${className}`} />;
+const ChevronLeft = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-left flex items-center justify-center ${className}`} />;
+const ChevronRight = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-right flex items-center justify-center ${className}`} />;
+const Plus = ({ className }: { className?: string }) => <i className={`fa-solid fa-plus flex items-center justify-center ${className}`} />;
+const SettingsIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-gear flex items-center justify-center ${className}`} />;
+const CircleUser = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-user flex items-center justify-center ${className}`} />;
+const BookOpen = ({ className }: { className?: string }) => <i className={`fa-solid fa-book-open flex items-center justify-center ${className}`} />;
+const BellRing = ({ className }: { className?: string }) => <i className={`fa-solid fa-bell flex items-center justify-center ${className}`} />;
+const Languages = ({ className }: { className?: string }) => <i className={`fa-solid fa-language flex items-center justify-center ${className}`} />;
+const Mail = ({ className }: { className?: string }) => <i className={`fa-solid fa-envelope flex items-center justify-center ${className}`} />;
+const Filter = ({ className }: { className?: string }) => <i className={`fa-solid fa-filter flex items-center justify-center ${className}`} />;
+const Building2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-hospital flex items-center justify-center ${className}`} />;
+const MapPin = ({ className }: { className?: string }) => <i className={`fa-solid fa-map-pin flex items-center justify-center ${className}`} />;
+const Globe = ({ className }: { className?: string }) => <i className={`fa-solid fa-globe flex items-center justify-center ${className}`} />;
+const Scale = ({ className }: { className?: string }) => <i className={`fa-solid fa-weight-scale flex items-center justify-center ${className}`} />;
+const Ruler = ({ className }: { className?: string }) => <i className={`fa-solid fa-ruler flex items-center justify-center ${className}`} />;
+const Calendar = ({ className }: { className?: string }) => <i className={`fa-solid fa-calendar-days flex items-center justify-center ${className}`} />;
+const Heart = ({ className }: { className?: string }) => <i className={`fa-solid fa-heart flex items-center justify-center ${className}`} />;
+const Droplets = ({ className }: { className?: string }) => <i className={`fa-solid fa-droplet flex items-center justify-center ${className}`} />;
+const Camera = ({ className }: { className?: string }) => <i className={`fa-solid fa-camera flex items-center justify-center ${className}`} />;
+const Search = ({ className }: { className?: string }) => <i className={`fa-solid fa-magnifying-glass flex items-center justify-center ${className}`} />;
+const KeyIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-key flex items-center justify-center ${className}`} />;
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -65,6 +99,7 @@ interface SettingsProps {
   session: any;
   onViewCloudPhoto?: (url: string, name: string) => void;
   cloudRefreshTrigger?: number;
+  onManageAiKey?: () => void;
 }
 
 const resizeImage = (file: File | string, maxWidth = 512, maxHeight = 512, quality = 0.8): Promise<string> => {
@@ -102,7 +137,8 @@ const Settings: React.FC<SettingsProps> = ({
   onSaveSuccess,
   session,
   onViewCloudPhoto,
-  cloudRefreshTrigger = 0
+  cloudRefreshTrigger = 0,
+  onManageAiKey
 }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD'>(initialView || 'MAIN');
@@ -117,7 +153,6 @@ const Settings: React.FC<SettingsProps> = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [syncState, setSyncState] = useState({ status: 'idle' });
-  const [devMode, setDevMode] = useState(() => localStorage.getItem('dev_mode') === 'true');
 
   useEffect(() => { syncManager.subscribe(setSyncState); return () => syncManager.unsubscribe(); }, []);
 
@@ -196,13 +231,6 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const toggleDevMode = () => {
-    const next = !devMode;
-    setDevMode(next);
-    localStorage.setItem('dev_mode', String(next));
-    window.location.reload(); // Reload to apply security listener changes
-  };
-
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
 
   const handleSaveGrowth = async () => {
@@ -268,13 +296,36 @@ const Settings: React.FC<SettingsProps> = ({
             <SettingToggle icon={theme === 'dark' ? Moon : Sun} label={t('theme')} sublabel={theme === 'dark' ? 'Dark Mode On' : 'Light Mode On'} active={theme === 'dark'} onToggle={toggleTheme} colorClass="text-indigo-500" bgClass="bg-indigo-50 dark:bg-indigo-900/20"/>
             <div className="p-5 flex items-center justify-between group"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 shadow-sm"><Languages className="w-5 h-5" /></div><div className="text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('language')}</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{language === 'mm' ? 'မြန်မာဘာသာ' : 'English (US)'}</p></div></div><div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-2xl border border-slate-200 dark:border-slate-600/50 shadow-inner"><button type="button" onClick={(e) => { e.preventDefault(); setLanguage('mm'); }} className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'mm' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}>MM</button><button type="button" onClick={(e) => { e.preventDefault(); setLanguage('en'); }} className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all active:scale-95 ${language === 'en' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm ring-1 ring-slate-100 dark:ring-slate-500' : 'text-slate-400 hover:text-slate-600'}`}>EN</button></div></div>
             <SettingToggle icon={BellRing} label={t('notifications')} sublabel={remindersEnabled ? 'Enabled' : 'Disabled'} active={remindersEnabled} onToggle={toggleReminders} colorClass="text-amber-500" bgClass="bg-amber-50 dark:bg-amber-900/20"/>
-            <SettingToggle icon={Terminal} label={t('dev_mode')} sublabel={t('dev_mode_desc')} active={devMode} onToggle={toggleDevMode} colorClass="text-emerald-500" bgClass="bg-emerald-50 dark:bg-emerald-900/20"/>
+          </section>
+
+          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
+            <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('api_key_title')}</h3></div>
+            <section className="p-5 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
+                  <KeyIcon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 text-left">
+                  <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('security_title')}</h3>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {t('api_key_desc')}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={(e) => { e.preventDefault(); onManageAiKey?.(); }} 
+                className="w-full py-4 bg-indigo-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/20 transition-all"
+              >
+                <Lock className="w-4 h-4" />
+                {t('manage_api_key')}
+              </button>
+            </section>
           </section>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('data_management')}</h3></div>
             <section className="p-5 space-y-4">
-              <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-sky-500 shadow-sm shrink-0"><Cloud className="w-5 h-5" /></div><div className="flex-1"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('cloud_sync')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{isGuestMode ? t('sync_guest_msg') : session ? t('sync_active') : t('sync_disconnected')}</p></div></div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-sky-500 shadow-sm shrink-0"><Cloud className="w-5 h-5" /></div><div className="flex-1 text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('cloud_sync')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{isGuestMode ? t('sync_guest_msg') : session ? t('sync_active') : t('sync_disconnected')}</p></div></div>
               {!isGuestMode && session && (
                 <div className="flex flex-col gap-2">
                   <button onClick={handleManualSync} disabled={syncState.status === 'syncing'} className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-sky-500/20 disabled:bg-slate-300 disabled:cursor-not-allowed">{syncState.status === 'syncing' ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}{t('sync_now')}</button>
@@ -307,7 +358,7 @@ const Settings: React.FC<SettingsProps> = ({
             </div>
           </div>
           <div className="bg-sky-50 dark:bg-sky-950/20 p-4 rounded-2xl mb-6 border border-sky-100 dark:border-sky-900/30">
-            <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 leading-relaxed uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-sky-600 dark:text-sky-400 leading-relaxed uppercase tracking-widest text-left">
               Showing images synced from your device to the cloud. You can view or delete these files directly.
             </p>
           </div>
@@ -389,8 +440,8 @@ const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
       ))}
-      {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
-      {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
+      {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
+      {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
       {view === 'STORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center gap-4"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}
     </div>
   );

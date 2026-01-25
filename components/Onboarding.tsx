@@ -1,8 +1,23 @@
 
 import React, { useState } from 'react';
-import { Baby, ArrowRight, X, User, Calendar, Save, Loader2, ChevronDown, Clock, ShieldCheck, LogOut, Building2, MapPin, Globe, Droplets } from 'lucide-react';
 import { Language, ChildProfile } from '../types';
 import { getTranslation, translations } from '../utils/translations';
+
+// FontAwesome Icon Bridge
+const Baby = ({ className }: { className?: string }) => <i className={`fa-solid fa-baby flex items-center justify-center ${className}`} />;
+const ArrowRight = ({ className }: { className?: string }) => <i className={`fa-solid fa-arrow-right flex items-center justify-center ${className}`} />;
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const User = ({ className }: { className?: string }) => <i className={`fa-solid fa-user flex items-center justify-center ${className}`} />;
+const Calendar = ({ className }: { className?: string }) => <i className={`fa-solid fa-calendar-days flex items-center justify-center ${className}`} />;
+const Save = ({ className }: { className?: string }) => <i className={`fa-solid fa-floppy-disk flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const ChevronDown = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-down flex items-center justify-center ${className}`} />;
+const Clock = ({ className }: { className?: string }) => <i className={`fa-solid fa-clock flex items-center justify-center ${className}`} />;
+const LogOut = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-from-bracket flex items-center justify-center ${className}`} />;
+const Building2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-hospital flex items-center justify-center ${className}`} />;
+const MapPin = ({ className }: { className?: string }) => <i className={`fa-solid fa-map-pin flex items-center justify-center ${className}`} />;
+const Globe = ({ className }: { className?: string }) => <i className={`fa-solid fa-globe flex items-center justify-center ${className}`} />;
+const Droplets = ({ className }: { className?: string }) => <i className={`fa-solid fa-droplet flex items-center justify-center ${className}`} />;
 
 interface OnboardingProps {
   language: Language;
@@ -13,7 +28,9 @@ interface OnboardingProps {
 const ModalInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "" }: any) => (
   <div className={`bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 focus-within:ring-2 focus-within:ring-primary/20 transition-all ${className}`}>
     <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-      <Icon className="w-3 h-3" />
+      <div className="w-3 h-3 flex items-center justify-center">
+        <Icon className="w-full h-full" />
+      </div>
       {label}
     </label>
     {type === 'select' ? (
@@ -109,7 +126,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfil
             <button 
               onClick={() => setShowModal(false)}
               disabled={isSaving}
-              className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors z-10"
+              className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors z-10 w-10 h-10 flex items-center justify-center"
             >
               <X className="w-6 h-6" />
             </button>

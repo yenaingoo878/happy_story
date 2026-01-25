@@ -1,10 +1,20 @@
 
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { Baby, Loader2, Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, Sparkles, ShieldCheck, Heart, LogIn, UserCircle } from 'lucide-react';
 import { Language } from '../types';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
+
+// FontAwesome Icon Bridge
+// FIX: Added 'style' prop to allow conditional rendering (e.g. display: 'none')
+const Baby = ({ className, style }: { className?: string; style?: React.CSSProperties }) => <i className={`fa-solid fa-baby ${className}`} style={style} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin ${className}`} />;
+const Mail = ({ className }: { className?: string }) => <i className={`fa-solid fa-envelope ${className}`} />;
+const Lock = ({ className }: { className?: string }) => <i className={`fa-solid fa-lock ${className}`} />;
+const AlertCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-exclamation ${className}`} />;
+const Eye = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye ${className}`} />;
+const EyeOff = ({ className }: { className?: string }) => <i className={`fa-solid fa-eye-slash ${className}`} />;
+const LogIn = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-to-bracket ${className}`} />;
+const UserCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-user ${className}`} />;
 
 interface AuthScreenProps {
   language: Language;
@@ -20,7 +30,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // FIX: Provide a strong type for the translation key.
   const t = (key: keyof typeof translations) => getTranslation(language, key);
   const supabaseReady = isSupabaseConfigured();
 
@@ -54,11 +63,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-      {/* Background blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/10 rounded-full blur-[100px] opacity-60"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-secondary/10 rounded-full blur-[100px] opacity-60"></div>
 
-      {/* Language Switcher */}
       <div className="absolute top-8 right-8 z-20">
          <button 
            onClick={() => setLanguage(language === 'mm' ? 'en' : 'mm')} 
@@ -69,21 +76,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ language, setLanguage, o
       </div>
 
       <div className="w-full max-w-sm text-center relative z-10 animate-fade-in">
-         {/* Brand */}
          <div className="flex flex-col items-center mb-10">
             <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-xl mb-6 transform -rotate-3 overflow-hidden p-2">
                 <img src="logo.png" className="w-full h-full object-contain" alt="Logo" onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}/>
-                <Baby className="w-12 h-12 text-primary" style={{ display: 'none' }} onLoad={(e) => {
-                   // If logo fails, this could be a placeholder logic but keeping it simple
-                }} />
+                <Baby className="w-12 h-12 text-primary" style={{ display: 'none' }} />
             </div>
             <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Little Moments</h1>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-60">Precious Memories</p>
          </div>
 
-         {/* Combined Auth Card */}
          <div className="bg-white dark:bg-slate-800 backdrop-blur-md p-8 rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-700/50">
             <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mb-6">
                 {isSignUp ? t('sign_up') : t('sign_in')}

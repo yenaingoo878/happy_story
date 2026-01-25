@@ -1,9 +1,13 @@
 
 import React from 'react';
 import { Story, Language } from '../types';
-import { X, Calendar, BookOpen, Trash2 } from 'lucide-react';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
+
+// FontAwesome Icon Bridge
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const Calendar = ({ className }: { className?: string }) => <i className={`fa-solid fa-calendar-days flex items-center justify-center ${className}`} />;
+const BookOpen = ({ className }: { className?: string }) => <i className={`fa-solid fa-book-open flex items-center justify-center ${className}`} />;
+const Trash2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-trash-can flex items-center justify-center ${className}`} />;
 
 interface StoryDetailModalProps {
   story: Story | null;
@@ -29,7 +33,7 @@ export const StoryDetailModal: React.FC<StoryDetailModalProps> = ({ story, langu
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-fade-in" onClick={onClose} />
       <div className="relative bg-[#FCFBF4] dark:bg-slate-900 w-full max-w-md md:max-w-2xl rounded-[32px] overflow-hidden shadow-2xl animate-zoom-in flex flex-col max-h-[90vh] z-[500001]">
         
-        <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-200 backdrop-blur-md">
+        <button onClick={onClose} className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-200 backdrop-blur-md">
           <X className="w-5 h-5" />
         </button>
 
@@ -54,7 +58,7 @@ export const StoryDetailModal: React.FC<StoryDetailModalProps> = ({ story, langu
 
         <div className="p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 flex gap-3">
            <button onClick={onClose} className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all">Close Ebook</button>
-           <button onClick={() => { onClose(); onDelete(); }} className="px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-black rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2">
+           <button onClick={() => { onClose(); onDelete(); }} className="px-6 py-4 bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-black rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2">
               <Trash2 className="w-4 h-4" />
               {t('delete')}
            </button>

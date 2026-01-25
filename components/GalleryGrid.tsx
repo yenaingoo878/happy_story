@@ -1,9 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { Memory, Language } from '../types';
-import { Image as ImageIcon, Search } from 'lucide-react';
 import { getTranslation, translations } from '../utils/translations';
 import { getImageSrc } from '../lib/db';
+
+// FontAwesome Icon Bridge
+const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image ${className}`} />;
+const Search = ({ className }: { className?: string }) => <i className={`fa-solid fa-magnifying-glass ${className}`} />;
 
 interface GalleryGridProps {
   memories: Memory[];

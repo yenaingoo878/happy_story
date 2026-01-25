@@ -1,12 +1,15 @@
 
-
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GrowthData, Language } from '../types';
 // FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
 import { analyzeGrowthData } from '../services/geminiService';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+
+// FontAwesome Icon Bridge
+const Sparkles = ({ className }: { className?: string }) => <i className={`fa-solid fa-wand-magic-sparkles flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const AlertCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-exclamation flex items-center justify-center ${className}`} />;
 
 interface GrowthChartProps {
   data: GrowthData[];
@@ -45,7 +48,7 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ data, language }) => {
           <button 
              onClick={handleAnalyze}
              disabled={analyzing || data.length === 0}
-             className={`text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center
+             className={`text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center justify-center
                 ${analyzing || data.length === 0 
                   ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed' 
                   : 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'

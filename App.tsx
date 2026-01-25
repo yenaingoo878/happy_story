@@ -1,7 +1,30 @@
 
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
-import { Home, PlusCircle, BookOpen, Activity, Image as ImageIcon, ChevronRight, Sparkles, Settings as SettingsIcon, Trash2, Cloud, RefreshCw, Loader2, Baby, LogOut, AlertTriangle, Gift, X, Calendar, Delete, Bell, Lock, ChevronLeft, Sun, Moon, Keyboard, ShieldCheck, CheckCircle2, Plus, LayoutDashboard, Heart } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
+
+// FontAwesome Icon Bridge with Enhanced Centering
+const Home = ({ className }: { className?: string }) => <i className={`fa-solid fa-house flex items-center justify-center ${className}`} />;
+const PlusCircle = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-plus flex items-center justify-center ${className}`} />;
+const BookOpen = ({ className }: { className?: string }) => <i className={`fa-solid fa-book-open flex items-center justify-center ${className}`} />;
+const Activity = ({ className }: { className?: string }) => <i className={`fa-solid fa-chart-line flex items-center justify-center ${className}`} />;
+const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image flex items-center justify-center ${className}`} />;
+const ChevronRight = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-right flex items-center justify-center ${className}`} />;
+const Sparkles = ({ className }: { className?: string }) => <i className={`fa-solid fa-wand-magic-sparkles flex items-center justify-center ${className}`} />;
+const SettingsIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-gear flex items-center justify-center ${className}`} />;
+const Trash2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-trash-can flex items-center justify-center ${className}`} />;
+const Cloud = ({ className }: { className?: string }) => <i className={`fa-solid fa-cloud flex items-center justify-center ${className}`} />;
+const RefreshCw = ({ className }: { className?: string }) => <i className={`fa-solid fa-arrows-rotate flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const Baby = ({ className }: { className?: string }) => <i className={`fa-solid fa-baby flex items-center justify-center ${className}`} />;
+const LogOut = ({ className }: { className?: string }) => <i className={`fa-solid fa-right-from-bracket flex items-center justify-center ${className}`} />;
+const AlertTriangle = ({ className }: { className?: string }) => <i className={`fa-solid fa-triangle-exclamation flex items-center justify-center ${className}`} />;
+const Gift = ({ className }: { className?: string }) => <i className={`fa-solid fa-gift flex items-center justify-center ${className}`} />;
+const X = ({ className }: { className?: string }) => <i className={`fa-solid fa-xmark flex items-center justify-center ${className}`} />;
+const Bell = ({ className }: { className?: string }) => <i className={`fa-solid fa-bell flex items-center justify-center ${className}`} />;
+const Lock = ({ className }: { className?: string }) => <i className={`fa-solid fa-lock flex items-center justify-center ${className}`} />;
+const ChevronLeft = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-left flex items-center justify-center ${className}`} />;
+const CheckCircle2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-check flex items-center justify-center ${className}`} />;
+const Wand2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-wand-magic-sparkles flex items-center justify-center ${className}`} />;
 
 const GrowthChart = React.lazy(() => import('./components/GrowthChart').then(module => ({ default: module.GrowthChart })));
 const StoryGenerator = React.lazy(() => import('./components/StoryGenerator').then(module => ({ default: module.StoryGenerator })));
@@ -20,7 +43,14 @@ import { initDB, DataService, syncData, getImageSrc, resetDatabase, db } from '.
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { uploadManager } from './lib/uploadManager';
 import { syncManager } from './lib/syncManager';
-import { initializeAntiInspect } from './lib/security';
+
+// Declare aistudio types for window
+declare global {
+  // FIX: Use 'AIStudio' type to match external declaration and fix type mismatch and modifier errors.
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>(TabView.HOME);
@@ -33,6 +63,7 @@ function App() {
   const [session, setSession] = useState<any>(null);
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
+  const [hasApiKey, setHasApiKey] = useState(true);
 
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
@@ -74,9 +105,18 @@ function App() {
   };
 
   useEffect(() => {
-    initializeAntiInspect();
     uploadManager.subscribe((progress) => setUploadProgress(progress));
     syncManager.subscribe(setSyncState);
+    
+    // Check AI Key status
+    const checkApiKey = async () => {
+        if (window.aistudio) {
+            const result = await window.aistudio.hasSelectedApiKey();
+            setHasApiKey(result);
+        }
+    };
+    checkApiKey();
+    
     return () => {
       uploadManager.unsubscribe();
       syncManager.unsubscribe();
@@ -323,6 +363,14 @@ function App() {
     return 'NONE';
   };
 
+  const handleSelectAiKey = async () => {
+    if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+        setHasApiKey(true);
+        triggerSuccess('key_set_success');
+    }
+  };
+
   const navItems: { id: TabView; icon: React.ElementType; label: keyof typeof translations }[] = [
     { id: TabView.HOME, icon: Home, label: 'nav_home' },
     { id: TabView.GALLERY, icon: ImageIcon, label: 'nav_gallery' },
@@ -331,16 +379,18 @@ function App() {
     { id: TabView.SETTINGS, icon: SettingsIcon, label: 'nav_settings' },
   ];
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>;
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-10 h-10 text-primary" /></div>;
   
   if (!session && !isGuestMode) return <AuthScreen language={language} setLanguage={setLanguage} onGuestLogin={handleGuestLogin} />;
   
   if (isInitialLoading || profiles === undefined) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 text-center p-6">
-            <div className="relative mb-8">
-               <div className="w-20 h-20 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
-               <Sparkles className="w-8 h-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+            <div className="relative mb-8 flex items-center justify-center w-24 h-24">
+               <div className="absolute w-20 h-20 border-[6px] border-primary/10 border-t-primary rounded-full animate-spin" />
+               <div className="relative w-10 h-10 flex items-center justify-center text-primary">
+                  <Sparkles className="w-8 h-8" />
+               </div>
             </div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">{t('syncing_data')}</h2>
             <p className="text-sm font-bold text-slate-400 dark:text-slate-500 max-w-xs">{loadingStatus || t('welcome_subtitle')}</p>
@@ -350,7 +400,7 @@ function App() {
 
   if (profiles.length === 0) {
     return (
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-8 h-8 text-primary animate-spin"/></div>}>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Loader2 className="w-10 h-10 text-primary" /></div>}>
         <Onboarding language={language} onCreateProfile={handleCreateFirstProfile} onLogout={handleLogout} />
       </Suspense>
     );
@@ -380,7 +430,7 @@ function App() {
   }
 
   const renderContent = () => {
-    if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-8 h-8 animate-spin"/></div>;
+    if (isLoading) return <div className="flex h-screen items-center justify-center text-slate-400"><Loader2 className="w-10 h-10 text-primary" /></div>;
     const bStatus = getBirthdayStatus();
     const todayStr = new Date().toISOString().split('T')[0];
     const todaysReminders = reminders.filter(r => r.date === todayStr);
@@ -395,9 +445,21 @@ function App() {
       case TabView.HOME:
         const heroImg = latestMemory ? getHeroImage(latestMemory) : null;
         return (
-          <div className="space-y-4 pb-32 md:pb-8 animate-fade-in">
+          <div className="space-y-4 pb-32 lg:pb-8 animate-fade-in">
             {remindersEnabled && (
                <div className="space-y-3">
+                  {!hasApiKey && (
+                     <div className="bg-gradient-to-r from-indigo-500 to-violet-600 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
+                        <div className="flex items-center gap-4 relative z-10">
+                           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><Lock className="w-6 h-6" /></div>
+                           <div className="flex-1">
+                              <h3 className="font-black text-sm leading-none uppercase tracking-widest mb-1">{t('api_key_title')}</h3>
+                              <p className="text-[10px] opacity-90">{t('api_key_missing')}</p>
+                           </div>
+                           <button onClick={handleSelectAiKey} className="px-4 py-2 bg-white text-indigo-600 font-black text-[10px] rounded-xl uppercase tracking-widest shadow-lg active:scale-95 transition-all">{t('start')}</button>
+                        </div>
+                     </div>
+                  )}
                   {bStatus === 'TODAY' && showBirthdayBanner && (
                     <div className="bg-gradient-to-r from-rose-400 to-pink-500 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
                        <button onClick={() => setShowBirthdayBanner(false)} className="absolute top-4 right-4 text-white/60"><X className="w-5 h-5"/></button>
@@ -421,7 +483,6 @@ function App() {
                   <div className="flex items-center gap-3">
                       <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
                       
-                      {/* INLINE SYNC STATUS ICON NEXT TO DATE */}
                       {syncState.status !== 'idle' && (
                         <div className={`flex items-center transition-all duration-500 animate-fade-in ${
                           syncState.status === 'success' ? 'text-emerald-500' : 
@@ -457,7 +518,7 @@ function App() {
                   )}
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
-                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Sparkles className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+                  <div onClick={() => setActiveTab(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all relative overflow-hidden active:scale-95"><Wand2 className="w-8 h-8 text-indigo-200 opacity-60 transition-transform" /><h3 className="font-black text-xl leading-tight relative z-10">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
                   <div onClick={() => setActiveTab(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
               </div>
             </div>
@@ -524,6 +585,7 @@ function App() {
             session={session}
             onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
             cloudRefreshTrigger={cloudRefreshTrigger}
+            onManageAiKey={handleSelectAiKey}
           />
         );
       default:
@@ -536,15 +598,58 @@ function App() {
   return (
     <div className="min-h-screen bg-[#FDFCFB] dark:bg-slate-900 transition-colors">
       
-      <main className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
-        <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary"/></div>}>
-           {renderContent()}
-        </Suspense>
+      {/* SIDEBAR FOR DESKTOP (lg and up) */}
+      <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 flex-col py-10 px-6 z-[100000] shadow-sm">
+        <div className="flex items-center gap-4 mb-12 px-2">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
+                <Baby className="w-6 h-6" />
+            </div>
+            <div>
+                <h2 className="font-black text-slate-800 dark:text-white leading-tight">Little Moments</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('welcome_subtitle')}</p>
+            </div>
+        </div>
+
+        <div className="flex-1 space-y-2">
+            {navItems.map((item) => (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id)} 
+                className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group ${activeTab === item.id ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-600 dark:hover:text-slate-300'}`}
+              >
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <item.icon className={`w-5 h-5 transition-transform duration-300 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} />
+                </div>
+                <span className="text-sm font-black uppercase tracking-widest">{t(item.label)}</span>
+              </button>
+            ))}
+        </div>
+
+        <div className="mt-auto pt-6 border-t border-slate-50 dark:border-slate-700/50">
+            <button 
+                onClick={handleLogout}
+                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all duration-300 group"
+            >
+                <div className="w-6 h-6 flex items-center justify-center">
+                  <LogOut className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </div>
+                <span className="text-sm font-black uppercase tracking-widest">{t('logout')}</span>
+            </button>
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT AREA - ADJUSTED FOR SIDEBAR ON DESKTOP */}
+      <main className="lg:pl-72 transition-all duration-500 min-h-screen">
+        <div className="max-w-5xl mx-auto px-5 pt-4 md:pt-8 relative min-h-screen">
+            <Suspense fallback={<div className="flex h-[calc(100vh-100px)] items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-primary"/></div>}>
+               {renderContent()}
+            </Suspense>
+        </div>
       </main>
 
       {/* SUCCESS NOTIFICATION - FLOATING TOP CENTER */}
       {successMessage && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[2000000] animate-slide-down w-full max-w-xs px-4">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[2000000] animate-slide-down w-full max-w-xs px-4">
            <div className="bg-emerald-500/90 dark:bg-emerald-600/90 backdrop-blur-xl text-white px-6 py-4 rounded-[28px] font-black text-xs uppercase tracking-[0.15em] shadow-[0_20px_40px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 border border-emerald-400/20">
               <CheckCircle2 className="w-5 h-5 shrink-0" />
               <span className="truncate">{successMessage}</span>
@@ -554,12 +659,12 @@ function App() {
 
       {/* UPLOAD STATUS BAR - FLOATING TOP CENTER */}
       {uploadProgress >= 0 && (
-          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 z-[1999999] w-full max-w-[280px] px-4 animate-slide-down transition-all duration-500`}>
+          <div className={`fixed ${successMessage ? 'top-28' : 'top-8'} left-1/2 -translate-x-1/2 lg:left-[calc(50%+144px)] z-[1999999] w-full max-w-[280px] px-4 animate-slide-down transition-all duration-500`}>
             <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-2xl p-4 rounded-[32px] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-slate-100/50 dark:border-slate-700/50">
                <div className="flex items-center justify-between mb-2.5 px-1">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{t('uploading')}</span>
                   <div className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                    <Loader2 className="w-3 h-3 text-primary" />
                     <span className="text-[11px] font-black text-primary">{Math.round(uploadProgress)}%</span>
                   </div>
                </div>
@@ -614,7 +719,8 @@ function App() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-[100000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      {/* BOTTOM NAV FOR MOBILE (hidden on lg) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100000] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-2 pointer-events-none">
         <div className="max-w-md mx-auto relative pointer-events-auto">
           <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-3xl rounded-[32px] p-2 flex justify-between items-center shadow-[0_25px_50px_rgba(0,0,0,0.15)] border border-white/40 dark:border-slate-700/50 relative overflow-hidden">
             
@@ -634,7 +740,9 @@ function App() {
                 onClick={() => setActiveTab(item.id)} 
                 className={`relative z-10 flex-1 flex flex-col items-center py-3 rounded-[24px] transition-all duration-500 active:scale-90 group ${activeTab === item.id ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}
               >
-                <item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110 stroke-[2.5px]' : 'group-hover:scale-105'}`} />
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <item.icon className={`w-6 h-6 transition-all duration-500 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-105'}`} />
+                </div>
               </button>
             ))}
           </div>

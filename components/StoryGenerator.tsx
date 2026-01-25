@@ -1,13 +1,18 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { generateBedtimeStoryStream } from '../services/geminiService';
-import { Wand2, BookOpen, Sparkles, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import { Language, Story } from '../types';
-// FIX: Import translations to correctly type the `t` function.
 import { getTranslation, translations } from '../utils/translations';
 import { GenerateContentResponse } from '@google/genai';
 import { DataService } from '../lib/db';
+
+// FontAwesome Icon Bridge
+const Wand2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-wand-magic-sparkles flex items-center justify-center ${className}`} />;
+const BookOpen = ({ className }: { className?: string }) => <i className={`fa-solid fa-book-open flex items-center justify-center ${className}`} />;
+const Sparkles = ({ className }: { className?: string }) => <i className={`fa-solid fa-sparkles flex items-center justify-center ${className}`} />;
+const Loader2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-spinner fa-spin flex items-center justify-center ${className}`} />;
+const Save = ({ className }: { className?: string }) => <i className={`fa-solid fa-floppy-disk flex items-center justify-center ${className}`} />;
+const CheckCircle2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-check flex items-center justify-center ${className}`} />;
 
 interface StoryGeneratorProps {
   language: Language;
@@ -121,7 +126,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
               <BookOpen className="w-5 h-5 mr-2" />
               <span className="font-bold">{t('result_title')}</span>
             </div>
-            <button onClick={handleSaveEbook} disabled={isSaving} className="flex items-center gap-2 px-5 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
+            <button onClick={handleSaveEbook} disabled={isSaving} className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm">
               {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {language === 'mm' ? 'Ebook အဖြစ်သိမ်းမည်' : 'Save as Ebook'}
             </button>

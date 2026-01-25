@@ -204,16 +204,11 @@ export const translations = {
   setup_passcode: { en: "Setup PIN", mm: "နံပါတ်သတ်မှတ်" },
 
   // API Key Management
-  api_key_title: { en: "Gemini API Key", mm: "Gemini API Key" },
-  api_key_desc_1: { en: "To use AI features, get your own free API key from ", mm: "AI လုပ်ဆောင်ချက်များကို အသုံးပြုရန်အတွက် သင်၏ကိုယ်ပိုင် API Key ကို " },
-  api_key_desc_2: { en: " and add it here. Your key is stored securely on your device only.", mm: " မှ အခမဲ့ ရယူပြီး ဤနေရာတွင် ထည့်သွင်းပါ။ သင်၏ Key ကို သင့်စက်တွင်သာ လုံခြုံစွာ သိမ်းဆည်းထားမည်ဖြစ်သည်။" },
-  api_key_label: { en: "Your API Key", mm: "သင်၏ API Key" },
-  api_key_placeholder: { en: "Enter your Gemini API Key here", mm: "သင်၏ Gemini API Key ကို ဤနေရာတွင် ထည့်ပါ" },
-  api_key_saved: { en: "API Key Is Set", mm: "API Key ထည့်သွင်းပြီး" },
-
-  // Developer Mode
-  dev_mode: { en: "Developer Mode", mm: "Developer မုဒ်" },
-  dev_mode_desc: { en: "Allow inspect and DevTools", mm: "Inspect နဲ့ DevTools သုံးခွင့်ပြုမည်" }
+  api_key_title: { en: "AI Security Key", mm: "AI လုံခြုံရေး Key" },
+  api_key_desc: { en: "Manage your Gemini API Key securely through our system vault.", mm: "သင်၏ Gemini API Key ကို စနစ်၏ လုံခြုံသော Vault မှတစ်ဆင့် စီမံခန့်ခွဲပါ။" },
+  manage_api_key: { en: "Manage AI Key", mm: "AI Key စီမံခန့်ခွဲရန်" },
+  key_set_success: { en: "AI Key configured successfully", mm: "AI Key အောင်မြင်စွာ သတ်မှတ်ပြီးပါပြီ" },
+  api_key_missing: { en: "Please select an API Key to use AI features.", mm: "AI သုံးရန် API Key ရွေးချယ်ပေးပါ။" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
