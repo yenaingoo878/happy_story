@@ -327,7 +327,8 @@ const AddMemory: React.FC<AddMemoryProps> = ({
                     <div className="flex flex-wrap gap-1.5 mb-1.5">
                         {formState.tags.map(tag => (
                             <span key={tag} className="bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[9px] font-black flex items-center border border-primary/20">
-                                #{tag}
+                                <Tag className="w-2.5 h-2.5 mr-1" />
+                                {tag}
                                 <button type="button" onClick={() => removeTag(tag)} className="ml-1.5 hover:text-rose-500 transition-colors"><X className="w-2.5 h-2.5"/></button>
                             </span>
                         ))}
@@ -357,9 +358,9 @@ const AddMemory: React.FC<AddMemoryProps> = ({
             <button 
                 type="submit"
                 disabled={isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0} 
-                className={`w-full py-4 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95 ${isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed' : 'bg-primary shadow-primary/20'}`}
+                className={`w-full py-4 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
             >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
                 {isSaving ? t('saving') : (editMemory ? t('update_btn') : t('record_btn'))}
             </button>
           </div>

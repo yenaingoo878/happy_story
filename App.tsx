@@ -59,6 +59,9 @@ function App() {
   const lastScrollY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
+  // Track scroll positions for each tab to maintain continuity
+  const tabScrollPositions = useRef<Record<string, number>>({});
+  
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [cloudPhoto, setCloudPhoto] = useState<{ url: string; name: string } | null>(null);
@@ -66,6 +69,7 @@ function App() {
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('guest_mode') === 'true');
   const [authLoading, setAuthLoading] = useState(true);
   const [hasApiKey, setHasApiKey] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [passcode, setPasscode] = useState<string | null>(() => localStorage.getItem('app_passcode'));
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
@@ -121,6 +125,8 @@ function App() {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
+    tabScrollPositions.current[activeTab] = currentScrollY;
+    
     if (Math.abs(currentScrollY - lastScrollY.current) < 15) return;
     if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
       if (isNavVisible) setIsNavVisible(false);
@@ -134,8 +140,11 @@ function App() {
     startTransition(() => {
       setActiveTab(tab);
       setIsNavVisible(true);
+      
+      // Restore scroll position for the newly active tab
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
+        const targetScroll = tabScrollPositions.current[tab] || 0;
+        scrollContainerRef.current.scrollTo({ top: targetScroll, behavior: 'auto' });
       }
     });
   };
@@ -235,7 +244,10 @@ function App() {
   const activeProfile = (profiles || []).find(p => p.id === activeProfileId) || { id: '', name: '', dob: '', gender: 'boy' } as ChildProfile;
 
   const handleLogout = async () => {
-      try { if (session && isSupabaseConfigured()) await supabase.auth.signOut(); } 
+      setIsLoggingOut(true);
+      try { 
+        if (session && isSupabaseConfigured()) await supabase.auth.signOut(); 
+      } 
       catch (e) { console.error("Error signing out:", e); } 
       finally {
         await DataService.clearAllUserData(); 
@@ -245,6 +257,9 @@ function App() {
         startTransition(() => setActiveTab(TabView.HOME));
         setIsAppUnlocked(false); 
         setShowPasscodeModal(false);
+        // Clear scroll cache
+        tabScrollPositions.current = {};
+        setIsLoggingOut(false);
       }
   };
 
@@ -264,6 +279,80 @@ function App() {
     setShowConfirmModal(true);
   };
 
+  // Pre-render components and keep them mounted to preserve state
+  const homeView = useMemo(() => {
+    const latestMemory = memories[0];
+    const heroImg = latestMemory?.imageUrls?.[0] || latestMemory?.imageUrl || null;
+    return (
+      <div className="space-y-4 pb-8 animate-fade-in">
+        {remindersEnabled && (
+           <div className="space-y-3">
+              {!hasApiKey && (
+                 <div className="bg-gradient-to-r from-indigo-500 to-violet-600 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
+                    <div className="flex items-center gap-4 relative z-10">
+                       <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><Lock className="w-6 h-6" /></div>
+                       <div className="flex-1">
+                          <h3 className="font-black text-sm leading-none uppercase tracking-widest mb-1">{t('api_key_title')}</h3>
+                          <p className="text-[10px] opacity-90">{t('api_key_missing')}</p>
+                       </div>
+                       <button onClick={handleSelectAiKey} className="px-4 py-2 bg-white text-indigo-600 font-black text-[10px] rounded-xl uppercase tracking-widest shadow-lg active:scale-95 transition-all">{t('start')}</button>
+                    </div>
+                 </div>
+              )}
+           </div>
+        )}
+        <div className="flex justify-between items-center mb-2 mt-2">
+           <div>
+              <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
+              <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+           </div>
+           {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-2">
+          <div className="md:col-span-2">
+              {latestMemory && heroImg ? (
+                  <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
+                    <img src={getImageSrc(heroImg)} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
+                      <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
+                      <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
+                    </div>
+                  </div>
+              ) : (
+                <div className="h-72 md:h-96 rounded-[40px] bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-20" /><p className="font-bold text-sm">{t('no_photos')}</p></div>
+              )}
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
+              <div onClick={() => handleTabChange(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95 overflow-hidden relative"><Wand2 className="w-8 h-8 text-indigo-200" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
+              <div onClick={() => handleTabChange(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
+          </div>
+        </div>
+
+        <div className="mt-8 animate-slide-up">
+          <div className="flex justify-between items-center mb-5 px-1">
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
+            <button onClick={() => handleTabChange(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
+          </div>
+          <div className="space-y-3">
+             {memories.slice(0, 4).map(m => (
+                <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
+                   <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+                      {m.imageUrls?.[0] ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
+                   </div>
+                   <div className="flex-1 min-w-0 overflow-hidden text-left">
+                      <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
+                   </div>
+                   <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
+                </div>
+             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }, [memories, remindersEnabled, hasApiKey, activeProfile, activeTab, language]);
+
   const renderContent = () => {
     if (isLoading) return (
       <div className="fixed inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-[9999]">
@@ -271,118 +360,69 @@ function App() {
       </div>
     );
     
-    switch (activeTab) {
-      case TabView.HOME:
-        const latestMemory = memories[0];
-        const heroImg = latestMemory?.imageUrls?.[0] || latestMemory?.imageUrl || null;
-        return (
-          <div className="space-y-4 pb-8 animate-fade-in">
-            {remindersEnabled && (
-               <div className="space-y-3">
-                  {!hasApiKey && (
-                     <div className="bg-gradient-to-r from-indigo-500 to-violet-600 p-5 rounded-[32px] text-white shadow-lg relative overflow-hidden animate-zoom-in">
-                        <div className="flex items-center gap-4 relative z-10">
-                           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center"><Lock className="w-6 h-6" /></div>
-                           <div className="flex-1">
-                              <h3 className="font-black text-sm leading-none uppercase tracking-widest mb-1">{t('api_key_title')}</h3>
-                              <p className="text-[10px] opacity-90">{t('api_key_missing')}</p>
-                           </div>
-                           <button onClick={handleSelectAiKey} className="px-4 py-2 bg-white text-indigo-600 font-black text-[10px] rounded-xl uppercase tracking-widest shadow-lg active:scale-95 transition-all">{t('start')}</button>
-                        </div>
-                     </div>
-                  )}
-               </div>
-            )}
-            <div className="flex justify-between items-center mb-2 mt-2">
-               <div>
-                  <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{activeProfile.name ? `${t('greeting')}, ${activeProfile.name}` : t('greeting')}</h1>
-                  <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-               </div>
-               {activeProfile.profileImage && (<div className="w-12 h-12 rounded-[20px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-md"><img src={getImageSrc(activeProfile.profileImage)} className="w-full h-full object-cover" /></div>)}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-2">
-              <div className="md:col-span-2">
-                  {latestMemory && heroImg ? (
-                      <div className="relative h-72 md:h-96 rounded-[40px] overflow-hidden shadow-lg group cursor-pointer border border-transparent dark:border-slate-700 transition-transform active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
-                        <img src={getImageSrc(heroImg)} className="w-full h-full object-cover transition-transform duration-1000 md:group-hover:scale-110" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-8 pointer-events-none">
-                          <span className="bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full w-fit mb-3 uppercase tracking-widest shadow-lg">{t('latest_arrival')}</span>
-                          <h3 className="text-white text-2xl font-black leading-tight">{latestMemory.title}</h3>
-                        </div>
-                      </div>
-                  ) : (
-                    <div className="h-72 md:h-96 rounded-[40px] bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-12 h-12 opacity-20" /><p className="font-bold text-sm">{t('no_photos')}</p></div>
-                  )}
-              </div>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-1 md:gap-6">
-                  <div onClick={() => handleTabChange(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[40px] p-6 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95 overflow-hidden relative"><Wand2 className="w-8 h-8 text-indigo-200" /><h3 className="font-black text-xl leading-tight">{t('create_story')}</h3><div className="absolute -bottom-4 -right-4 opacity-10"><BookOpen className="w-32 h-32" /></div></div>
-                  <div onClick={() => handleTabChange(TabView.GROWTH)} className="col-span-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[40px] p-6 flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer active:scale-95"><Activity className="w-8 h-8 text-teal-500" /><div><p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{t('current_height')}</p><h3 className="font-black text-slate-800 dark:text-white text-2xl sm:text-3xl">{growthData[growthData.length-1]?.height || 0} <span className="text-sm font-bold text-slate-400">cm</span></h3></div></div>
-              </div>
-            </div>
+    // Using a pattern that renders all main tabs but only displays the active one.
+    // This preserves the state of child components (like forms being filled).
+    return (
+      <>
+        <div key="view-home" style={{ display: activeTab === TabView.HOME ? 'block' : 'none' }}>
+           {homeView}
+        </div>
+        
+        <div key="view-gallery" style={{ display: activeTab === TabView.GALLERY ? 'block' : 'none' }}>
+           <Suspense fallback={null}>
+             <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />
+           </Suspense>
+        </div>
 
-            <div className="mt-8 animate-slide-up">
-              <div className="flex justify-between items-center mb-5 px-1">
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{t('memories')}</h3>
-                <button onClick={() => handleTabChange(TabView.GALLERY)} className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">{t('see_all')}</button>
-              </div>
-              <div className="space-y-3">
-                 {memories.slice(0, 4).map(m => (
-                    <div key={m.id} onClick={() => setSelectedMemory(m)} className="bg-white dark:bg-slate-800 p-2.5 rounded-[32px] border border-slate-50 dark:border-slate-700 flex items-center gap-3.5 active:scale-[0.98] transition-all cursor-pointer shadow-sm group">
-                       <div className="w-14 h-14 rounded-[18px] overflow-hidden shrink-0 shadow-sm border border-slate-50 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-                          {m.imageUrls?.[0] ? (<img src={getImageSrc(m.imageUrls[0])} className="w-full h-full object-cover" />) : (<ImageIcon className="w-8 h-8 text-slate-300"/>)}
-                       </div>
-                       <div className="flex-1 min-w-0 overflow-hidden text-left">
-                          <h4 className="font-black text-slate-800 dark:text-white truncate text-sm tracking-tight leading-none mb-1.5">{m.title}</h4>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.date}</p>
-                       </div>
-                       <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 group-hover:text-primary transition-all shrink-0"><ChevronRight className="w-4.5 h-4.5" /></div>
-                    </div>
-                 ))}
-              </div>
-            </div>
-          </div>
-        );
-      case TabView.GALLERY:
-        return <GalleryGrid memories={memories} language={language} onMemoryClick={setSelectedMemory} activeProfileId={activeProfileId} requestDeleteConfirmation={requestDeleteConfirmation} />;
-      case TabView.ADD_MEMORY:
-        return <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess('save_success'); setEditingMemory(null); handleTabChange(TabView.HOME); }} onCancel={() => { setEditingMemory(null); handleTabChange(TabView.HOME); }} session={session} />;
-      case TabView.STORY:
-        return <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); handleTabChange(TabView.HOME); }} />;
-      case TabView.GROWTH:
-        return (
-            <div className="px-1"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
-        );
-      case TabView.SETTINGS:
-        return (
-          <SettingsComponent 
-            language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-            profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => setActiveProfileId(id)} onRefreshData={async () => {}}
-            passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }}
-            onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }}
-            onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }}
-            onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }}
-            onHideDetails={() => setIsAppUnlocked(false)}
-            growthData={growthData} memories={memories} stories={stories}
-            onEditMemory={(m) => { setEditingMemory(m); handleTabChange(TabView.ADD_MEMORY); }}
-            onDeleteMemory={(id) => requestDeleteConfirmation(() => DataService.deleteMemory(id))}
-            onStoryClick={setSelectedStory}
-            onDeleteStory={(id) => requestDeleteConfirmation(() => DataService.deleteStory(id))}
-            onDeleteGrowth={(id) => requestDeleteConfirmation(() => DataService.deleteGrowth(id))}
-            onSaveGrowth={(d) => DataService.saveGrowth(d)}
-            onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))}
-            isGuestMode={isGuestMode} onLogout={handleLogout}
-            remindersEnabled={remindersEnabled} toggleReminders={() => setRemindersEnabled(!remindersEnabled)}
-            remindersList={reminders}
-            onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))}
-            onSaveReminder={(r) => DataService.saveReminder(r)}
-            onSaveSuccess={() => { triggerSuccess('save_success'); checkApiKey(); }}
-            session={session}
-            onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
-          />
-        );
-      default: return null;
-    }
+        <div key="view-add" style={{ display: activeTab === TabView.ADD_MEMORY ? 'block' : 'none' }}>
+           <Suspense fallback={null}>
+             <AddMemory language={language} activeProfileId={activeProfileId} editMemory={editingMemory} onSaveComplete={() => { triggerSuccess('save_success'); setEditingMemory(null); handleTabChange(TabView.HOME); }} onCancel={() => { setEditingMemory(null); handleTabChange(TabView.HOME); }} session={session} />
+           </Suspense>
+        </div>
+
+        <div key="view-story" style={{ display: activeTab === TabView.STORY ? 'block' : 'none' }}>
+           <Suspense fallback={null}>
+             <StoryGenerator language={language} activeProfileId={activeProfileId} defaultChildName={activeProfile.name} onSaveComplete={() => { triggerSuccess('save_success'); handleTabChange(TabView.HOME); }} />
+           </Suspense>
+        </div>
+
+        <div key="view-growth" style={{ display: activeTab === TabView.GROWTH ? 'block' : 'none' }}>
+           <Suspense fallback={null}>
+             <div className="px-1"><h1 className="text-2xl font-black mb-6 text-slate-800 dark:text-slate-100">{t('growth_title')}</h1><GrowthChart data={growthData} language={language} /></div>
+           </Suspense>
+        </div>
+
+        <div key="view-settings" style={{ display: activeTab === TabView.SETTINGS ? 'block' : 'none' }}>
+           <Suspense fallback={null}>
+             <SettingsComponent 
+                language={language} setLanguage={setLanguage} theme={theme} toggleTheme={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+                profiles={profiles} activeProfileId={activeProfileId} onProfileChange={(id) => setActiveProfileId(id)} onRefreshData={async () => {}}
+                passcode={passcode} isDetailsUnlocked={isAppUnlocked} onUnlockRequest={() => { setPasscodeMode('UNLOCK'); setShowPasscodeModal(true); }}
+                onPasscodeSetup={() => { setPasscodeMode('SETUP'); setShowPasscodeModal(true); }}
+                onPasscodeChange={() => { setPasscodeMode('CHANGE_VERIFY'); setShowPasscodeModal(true); }}
+                onPasscodeRemove={() => { setPasscodeMode('REMOVE'); setShowPasscodeModal(true); }}
+                onHideDetails={() => setIsAppUnlocked(false)}
+                growthData={growthData} memories={memories} stories={stories}
+                onEditMemory={(m) => { setEditingMemory(m); handleTabChange(TabView.ADD_MEMORY); }}
+                onDeleteMemory={(id) => requestDeleteConfirmation(() => DataService.deleteMemory(id))}
+                onStoryClick={setSelectedStory}
+                onDeleteStory={(id) => requestDeleteConfirmation(() => DataService.deleteStory(id))}
+                onDeleteGrowth={(id) => requestDeleteConfirmation(() => DataService.deleteGrowth(id))}
+                onSaveGrowth={(d) => DataService.saveGrowth(d)}
+                onDeleteProfile={(id) => requestDeleteConfirmation(() => DataService.deleteProfile(id))}
+                isGuestMode={isGuestMode} onLogout={handleLogout}
+                remindersEnabled={remindersEnabled} toggleReminders={() => setRemindersEnabled(!remindersEnabled)}
+                remindersList={reminders}
+                onDeleteReminder={(id) => requestDeleteConfirmation(() => DataService.deleteReminder(id))}
+                onSaveReminder={(r) => DataService.saveReminder(r)}
+                onSaveSuccess={() => { triggerSuccess('save_success'); checkApiKey(); }}
+                session={session}
+                onViewCloudPhoto={(url, name) => setCloudPhoto({ url, name })}
+              />
+           </Suspense>
+        </div>
+      </>
+    );
   };
 
   const activeTabIndex = navItems.findIndex(item => item.id === activeTab);
@@ -465,6 +505,17 @@ function App() {
                </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* LOGOUT LOADING OVERLAY */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-[1000000] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+           <div className="w-24 h-24 bg-white/10 rounded-[40px] flex items-center justify-center mb-6 shadow-2xl border border-white/10 animate-pulse">
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+           </div>
+           <h3 className="text-xl font-black text-white uppercase tracking-[0.3em] mb-2">{language === 'mm' ? 'ထွက်ခွာနေသည်' : 'Logging Out'}</h3>
+           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">{language === 'mm' ? 'အချက်အလက်များကို သိမ်းဆည်းနေပါသည်...' : 'Finalizing your session...'}</p>
         </div>
       )}
 

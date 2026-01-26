@@ -101,7 +101,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfil
         <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
           <button
             onClick={() => setShowModal(true)}
-            className="w-full py-5 bg-primary text-white font-black rounded-3xl shadow-xl shadow-primary/30 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3"
+            className="w-full py-4 bg-primary text-white text-xs font-black rounded-2xl shadow-xl shadow-primary/30 uppercase tracking-[0.2em] transition-all active:scale-95 flex items-center justify-center gap-3"
           >
             {t('create_first_profile')}
             <ArrowRight className="w-5 h-5" />
@@ -230,13 +230,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfil
                 <button
                   type="submit"
                   disabled={!formData.name || isSaving}
-                  className={`w-full py-5 rounded-3xl font-black shadow-xl uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
+                  className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
                     !formData.name || isSaving 
                     ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' 
-                    : 'bg-primary text-white shadow-primary/20 active:scale-95'
+                    : 'bg-primary text-white shadow-md shadow-primary/20 active:scale-[0.95]'
                   }`}
                 >
-                  {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                   {isSaving ? t('saving') : t('save_changes')}
                 </button>
               </div>

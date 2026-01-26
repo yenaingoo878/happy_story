@@ -288,7 +288,7 @@ const Settings: React.FC<SettingsProps> = ({
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-100 dark:border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4 px-1"><div className="flex items-center gap-2.5"><CircleUser className="w-4 h-4 text-slate-400"/><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('about_child')}</h3></div><button onClick={() => DataService.saveProfile({ id: crypto.randomUUID(), name: t('add_new_profile'), dob: new Date().toISOString().split('T')[0], gender: 'boy' }).then(() => onRefreshData())} className="text-primary text-[10px] font-black uppercase tracking-wider px-4 py-2.5 bg-primary/5 rounded-2xl flex items-center gap-1.5 active:scale-95 transition-all"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button></div>
             <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar border-b border-slate-50 dark:border-slate-700/50 mb-5 items-center">{profiles.map(p => (<button key={p.id} onClick={() => onProfileChange(p.id!)} className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 ${p.id === activeProfileId ? 'scale-105' : 'opacity-40 grayscale'}`}><div className={`m-2 w-12 h-12 rounded-[18px] border-2 overflow-hidden flex items-center justify-center ${p.id === activeProfileId ? 'border-primary ring-4 ring-primary/10 shadow-lg' : 'border-transparent bg-slate-100 dark:bg-slate-700'}`}>{p.profileImage ? <img src={getImageSrc(p.profileImage)} className="w-full h-full object-cover" /> : <Baby className="w-5 h-5 text-slate-400" />}</div><span className="text-[9px] font-black truncate max-w-[50px]">{p.name}</span></button>))}</div>
-            <div className="flex items-center justify-between px-1"><div className="text-left"><h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-1">{currentProfile?.name}</h2><p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{currentProfile?.dob}</p></div><button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-lg shadow-primary/20">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button></div>
+            <div className="flex items-center justify-between px-1"><div className="text-left"><h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-1">{currentProfile?.name}</h2><p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{currentProfile?.dob}</p></div><button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-xl shadow-primary/30">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button></div>
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-4 pt-4 pb-4 overflow-y-auto max-h-[70vh] no-scrollbar">
                  <div className="flex flex-col items-center mb-4"><div className="relative group w-24 h-24"><div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center">{isProcessingProfileImage ? (<Loader2 className="w-8 h-8 text-primary animate-spin" />) : editingProfile.profileImage ? (<img src={getImageSrc(editingProfile.profileImage)} className="w-full h-full object-cover" alt="Profile" />) : (<Baby className="w-10 h-10 text-slate-400" />)}</div>{editingProfile.profileImage && !isProcessingProfileImage && (<button type="button" onClick={handleRemoveImage} className="absolute top-0 right-0 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"><X className="w-3 h-3" /></button>)}</div><div className="flex gap-3 mt-4">{Capacitor.isNativePlatform() ? (<button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><Camera className="w-3.5 h-3.5" />{t('take_photo')}</button>) : (<button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><ImageIcon className="w-3.5 h-3.5" />{t('upload_photo')}</button>)}</div><input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} /></div>
@@ -308,7 +308,7 @@ const Settings: React.FC<SettingsProps> = ({
                     <IOSInput label={t('country_label')} icon={Globe} value={editingProfile.country || ''} placeholder={t('country_placeholder')} onChange={(e: any) => setEditingProfile({...editingProfile, country: e.target.value})} />
                   </div>
                 </div>
-                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3"><button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 py-4 bg-primary text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-primary/20">{isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}{t('save_changes')}</button><button onClick={() => { if(editingProfile.id) { onDeleteProfile(editingProfile.id); setShowProfileDetails(false); } }} disabled={isSavingProfile || profiles.length <= 1} className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl active:scale-95 flex items-center justify-center disabled:opacity-40 border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"><Trash2 className="w-5 h-5" /></button></div>
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 "><button onClick={handleSaveProfile} disabled={isSavingProfile} className="flex-1 py-4 bg-primary text-white text-xs font-black rounded-2xl shadow-md uppercase tracking-[0.2em] active:scale-[0.97] flex items-center justify-center gap-3 shadow-primary/20 ">{isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}{t('save_changes')}</button><button onClick={() => { if(editingProfile.id) { onDeleteProfile(editingProfile.id); setShowProfileDetails(false); } }} disabled={isSavingProfile || profiles.length <= 1} className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl active:scale-[0.97] flex items-center justify-center disabled:opacity-40 border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-color"><Trash2 className="w-5 h-5" /></button></div>
               </div>
             )}
           </section>
@@ -323,54 +323,7 @@ const Settings: React.FC<SettingsProps> = ({
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('api_key_title')}</h3></div>
             <section className="p-5 space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
-                  <KeyIcon className="w-5 h-5" />
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('security_title')}</h3>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-                    {t('api_key_desc')}
-                  </p>
-                  
-                  <div className="space-y-3">
-                    {isKeyInputVisible ? (
-                      <div className="animate-fade-in space-y-3">
-                        <div className="relative">
-                          <input 
-                            type="password"
-                            value={manualApiKey}
-                            onChange={(e) => setManualApiKey(e.target.value)}
-                            placeholder="Paste your Gemini API Key here..."
-                            className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
-                          />
-                        </div>
-                        <button 
-                          onClick={handleSaveApiKey} 
-                          disabled={isSavingKey || !manualApiKey}
-                          className="w-full py-3.5 bg-indigo-500 text-white font-black rounded-xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/20 transition-all disabled:opacity-50"
-                        >
-                          {isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          {t('save_changes')}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="animate-fade-in bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="w-5 h-5" />
-                          <span className="text-xs font-black uppercase tracking-widest">AI Key is Active</span>
-                        </div>
-                        <button 
-                          onClick={() => setIsKeyInputVisible(true)} 
-                          className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline"
-                        >
-                          {t('edit')}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0"><KeyIcon className="w-5 h-5" /></div><div className="flex-1 text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('security_title')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed mb-4">{t('api_key_desc')}</p><div className="space-y-3">{isKeyInputVisible ? (<div className="animate-fade-in space-y-3"><div className="relative"><input type="password" value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} placeholder="Paste your Gemini API Key here..." className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all" /></div><button onClick={handleSaveApiKey} disabled={isSavingKey || !manualApiKey} className="w-full py-4 bg-indigo-500 text-white text-xs font-black rounded-2xl shadow-xl uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/30 transition-all disabled:opacity-50">{isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('save_changes')}</button></div>) : (<div className="animate-fade-in bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between"><div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /><span className="text-xs font-black uppercase tracking-widest">AI Key is Active</span></div><button onClick={() => setIsKeyInputVisible(true)} className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">{t('edit')}</button></div>)}</div></div></div>
             </section>
           </section>
 
@@ -380,7 +333,7 @@ const Settings: React.FC<SettingsProps> = ({
               <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-sky-500 shadow-sm shrink-0"><Cloud className="w-5 h-5" /></div><div className="flex-1 text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('cloud_sync')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{isGuestMode ? t('sync_guest_msg') : session ? t('sync_active') : t('sync_disconnected')}</p></div></div>
               {!isGuestMode && session && (
                 <div className="flex flex-col gap-2">
-                  <button onClick={handleManualSync} disabled={syncState.status === 'syncing'} className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-sky-500/20 disabled:bg-slate-300 disabled:cursor-not-allowed">{syncState.status === 'syncing' ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}{t('sync_now')}</button>
+                  <button onClick={handleManualSync} disabled={syncState.status === 'syncing'} className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-xl uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-sky-500/20 disabled:bg-slate-300 disabled:cursor-not-allowed">{syncState.status === 'syncing' ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}{t('sync_now')}</button>
                   <button onClick={() => setView('CLOUD')} className="w-full py-3.5 bg-slate-100 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black rounded-2xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 border border-sky-100 dark:border-sky-900/30 transition-all shadow-sm">
                     <Search className="w-3.5 h-3.5" /> Browse Cloud Backup
                   </button>

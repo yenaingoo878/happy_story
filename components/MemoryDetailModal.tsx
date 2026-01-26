@@ -12,6 +12,7 @@ const ChevronLeft = ({ className }: { className?: string }) => <i className={`fa
 const ChevronRight = ({ className }: { className?: string }) => <i className={`fa-solid fa-chevron-right flex items-center justify-center ${className}`} />;
 const Heart = ({ className }: { className?: string }) => <i className={`fa-solid fa-heart flex items-center justify-center ${className}`} />;
 const ImageIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-image flex items-center justify-center ${className}`} />;
+const Tag = ({ className }: { className?: string }) => <i className={`fa-solid fa-tag flex items-center justify-center ${className}`} />;
 
 interface MemoryDetailModalProps {
   memory: Memory | null;
@@ -207,7 +208,8 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
                 {memory.tags && memory.tags.length > 0 ? (
                   memory.tags.map(tag => (
                     <span key={tag} className="inline-flex items-center px-3 py-1.5 rounded-xl text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 uppercase tracking-widest">
-                      #{tag}
+                      <Tag className="w-2.5 h-2.5 mr-1.5 text-slate-400" />
+                      {tag}
                     </span>
                   ))
                 ) : (
