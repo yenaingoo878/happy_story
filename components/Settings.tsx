@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, syncData, getImageSrc } from '../db';
-import { syncManager } from '../syncManager';
-import { refreshR2Client, isR2Configured } from '../r2Client';
+import { DataService, syncData, getImageSrc } from '../lib/db';
+import { syncManager } from '../lib/syncManager';
+import { refreshR2Client, isR2Configured } from '../lib/r2Client';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
