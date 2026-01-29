@@ -40,7 +40,7 @@
   }
 }
 
-/* Custom Base Styles for Full Screen Immersive Experience */
+/* Custom Base Styles */
 :root {
   --rs-primary: #FF9AA2;
   --rs-secondary: #B5EAD7;
@@ -70,7 +70,6 @@ html {
   background-color: #0f172a;
 }
 
-/* Viewport height fix for iOS Safari */
 html, body {
   margin: 0;
   padding: 0;
@@ -80,7 +79,6 @@ html, body {
   overflow: hidden;
   position: fixed;
   overscroll-behavior: none;
-  /* Background color across whole viewport inclusive of safe areas */
   background-color: inherit;
 }
 
@@ -88,7 +86,6 @@ html, body {
   width: 100%;
   height: 100%;
   height: 100dvh;
-  margin: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -104,7 +101,8 @@ html, body {
   padding-top: calc(env(safe-area-inset-top, 10px) + 5px);
   padding-left: calc(env(safe-area-inset-left, 0px) + 8px);
   padding-right: calc(env(safe-area-inset-right, 0px) + 8px);
-  padding-bottom: calc(env(safe-area-inset-bottom));
+  /* Changed padding to ensure smooth scroll and no gap */
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 10px) + 20px);
   transition: transform 0.3s ease;
   scrollbar-width: none;
   background-color: inherit;
@@ -112,17 +110,14 @@ html, body {
 
 @media (min-width: 1024px) {
   .main-content {
-    padding-top: 20px;
-    padding-bottom: 20px;
+    padding: 20px;
     padding-left: 20px;
-    padding-right: 20px;
   }
 }
 
 .mobile-nav-container {
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
   will-change: transform, opacity;
-  /* Ensuring background flows into safe area at bottom */
   background-color: inherit;
 }
 
@@ -145,7 +140,6 @@ img {
   user-drag: none;
 }
 
-/* Modal Responsiveness Fixes */
 .modal-container {
   max-height: calc(100dvh);
 }
@@ -155,53 +149,4 @@ img {
     max-height: 100dvh;
     border-radius: 0;
   }
-}
-
-/* SAFE AREA VISUAL DEBUGGER - STICKY TO SCREEN EDGES */
-.debug-safe-area-top {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-top, 0px);
-  background: rgba(0, 0, 255, 0.4) !important;
-  z-index: 9999999;
-  pointer-events: none;
-  border-bottom: 1px solid blue;
-}
-
-.debug-safe-area-bottom {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: rgba(0, 0, 255, 0.4) !important;
-  z-index: 9999999;
-  pointer-events: none;
-  border-top: 1px solid blue;
-}
-
-.debug-safe-area-left {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: env(safe-area-inset-left, 0px);
-  background: rgba(0, 0, 255, 0.4) !important;
-  z-index: 9999999;
-  pointer-events: none;
-  border-right: 1px solid blue;
-}
-
-.debug-safe-area-right {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: env(safe-area-inset-right, 0px);
-  background: rgba(0, 0, 255, 0.4) !important;
-  z-index: 9999999;
-  pointer-events: none;
-  border-left: 1px solid blue;
 }

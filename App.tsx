@@ -343,7 +343,6 @@ function App() {
     const heroImg = latestMemory?.imageUrls?.[0] || latestMemory?.imageUrl || null;
     return (
       <div className="space-y-3 md:space-y-4 pb-4 animate-fade-in">
-        {/* Responsive Header - Compact */}
         <div className="flex justify-between items-center mb-1 mt-1">
            <div className="text-left">
               <h1 className="text-xl sm:text-2xl md:text-3xl xl:text-4xl font-black text-slate-800 dark:text-white tracking-tight leading-tight">
@@ -361,7 +360,6 @@ function App() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
-          {/* Main Hero Card - Compact */}
           <div className="md:col-span-8">
               {latestMemory && heroImg ? (
                   <div className="relative h-48 sm:h-60 md:h-[300px] xl:h-[380px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-xl group cursor-pointer border border-transparent dark:border-slate-700 transition-all hover:scale-[1.01] active:scale-95" onClick={() => setSelectedMemory(latestMemory)}>
@@ -383,7 +381,6 @@ function App() {
               )}
           </div>
 
-          {/* Quick Actions & Stats - Compact */}
           <div className="grid grid-cols-2 md:grid-cols-1 md:col-span-4 gap-2 md:gap-3 lg:gap-4">
               <div onClick={() => handleTabChange(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl sm:rounded-[32px] p-4 sm:p-5 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-lg cursor-pointer transition-all active:scale-95 hover:shadow-indigo-500/20 overflow-hidden relative text-left">
                 <Wand2 className="w-5 h-5 sm:w-8 sm:h-8 text-indigo-100 mb-1" />
@@ -404,7 +401,6 @@ function App() {
           </div>
         </div>
 
-        {/* Recent Memories Section - Compact */}
         <div className="mt-4 md:mt-6 animate-slide-up">
           <div className="flex justify-between items-center mb-3 sm:mb-4 px-1">
             <h3 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">
@@ -538,12 +534,6 @@ function App() {
 
   return (
     <>
-      <div className="debug-safe-area-top"></div>
-      <div className="debug-safe-area-bottom"></div>
-      <div className="debug-safe-area-left"></div>
-      <div className="debug-safe-area-right"></div>
-
-      {/* Desktop Sidebar Navigation - Compact */}
       <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 xl:w-64 bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700 flex-col py-6 px-4 z-[1000] shadow-sm transition-all">
         <div className="flex items-center gap-3 mb-8 px-2 text-left">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-inner shrink-0"><Baby className="w-5 h-5" /></div>
@@ -587,7 +577,6 @@ function App() {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation - Compact */}
       <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-[1000] pointer-events-none mobile-nav-container ${!isNavVisible ? 'mobile-nav-hidden' : ''}`}>
         <div className="relative pointer-events-auto bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl shadow-[0_-8px_30px_rgb(0,0,0,0.06)] border-t border-slate-100 dark:border-slate-700/50 pb-[env(safe-area-inset-bottom,8px)]">
           <div className="flex justify-between items-center relative overflow-hidden">
@@ -608,7 +597,6 @@ function App() {
         </div>
       </nav>
 
-      {/* Global Modals - Reduced Padding */}
       {showPasscodeModal && (
         <div className="fixed inset-0 z-[2000000] flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 animate-fade-in" onClick={() => hiddenInputRef.current?.focus()}>
            <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[40px] p-6 shadow-2xl border border-slate-100 dark:border-slate-800 text-center relative overflow-hidden">
