@@ -101,7 +101,7 @@ html, body {
   padding-left: calc(env(safe-area-inset-left, 0px) + 16px);
   padding-right: calc(env(safe-area-inset-right, 0px) + 16px);
   /* On mobile, account for bottom nav. On desktop, standard padding. */
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 10px) + 10px);
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 20px) + 30px);
   transition: transform 0.3s ease;
   scrollbar-width: none;
 }
@@ -109,7 +109,7 @@ html, body {
 @media (min-width: 1024px) {
   .main-content {
     padding-top: 40px;
-    padding-bottom: 40px;
+    padding-bottom: 0px;
     padding-left: 40px;
     padding-right: 40px;
   }
