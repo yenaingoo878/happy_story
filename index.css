@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 /* Configuration for Class-based Dark Mode in v4 */
@@ -97,29 +96,30 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Reduced padding (halved) */
-  padding-top: calc(env(safe-area-inset-top, 10px) + 5px);
-  padding-left: calc(env(safe-area-inset-left, 0px) + 8px);
-  padding-right: calc(env(safe-area-inset-right, 0px) + 8px);
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 20px) + 40px);
+  /* Adaptive padding for all devices, including safe areas for notches */
+  padding-top: calc(env(safe-area-inset-top, 20px) + 10px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 16px);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 16px);
+  /* On mobile, account for bottom nav. On desktop, standard padding. */
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 20px) + 20px);
   transition: transform 0.3s ease;
   scrollbar-width: none;
 }
 
 @media (min-width: 1024px) {
   .main-content {
-    padding-top: 20px;
-    padding-bottom: 20px;
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    padding-left: 40px;
+    padding-right: 40px;
   }
 }
 
 /* Specific adjustments for iPads in portrait mode */
 @media (min-width: 768px) and (max-width: 1023px) {
   .main-content {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 
@@ -150,7 +150,7 @@ img {
 
 /* Modal Responsiveness Fixes */
 .modal-container {
-  max-height: calc(100dvh - 20px);
+  max-height: calc(100dvh - 40px);
 }
 
 @media (max-width: 640px) {
