@@ -147,7 +147,7 @@ img {
 
 /* Modal Responsiveness Fixes */
 .modal-container {
-  max-height: calc(100dvh - 20px);
+  max-height: calc(100dvh);
 }
 
 @media (max-width: 640px) {
