@@ -104,7 +104,7 @@ html, body {
   padding-top: calc(env(safe-area-inset-top, 10px) + 5px);
   padding-left: calc(env(safe-area-inset-left, 0px) + 8px);
   padding-right: calc(env(safe-area-inset-right, 0px) + 8px);
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 10px) + 10px);
+  padding-bottom: calc(env(safe-area-inset-bottom));
   transition: transform 0.3s ease;
   scrollbar-width: none;
   background-color: inherit;
