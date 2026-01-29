@@ -63,13 +63,14 @@ input, textarea, [contenteditable="true"], select {
 
 html {
   background-color: #FDFCFB;
-  height: -webkit-fill-available;
+  height: 100%;
 }
 
 .dark html {
   background-color: #0f172a;
 }
 
+/* Viewport height fix for iOS Safari */
 html, body {
   margin: 0;
   padding: 0;
@@ -79,6 +80,8 @@ html, body {
   overflow: hidden;
   position: fixed;
   overscroll-behavior: none;
+  /* Background color across whole viewport inclusive of safe areas */
+  background-color: inherit;
 }
 
 #root {
@@ -97,13 +100,13 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Reduced padding (halved) */
   padding-top: calc(env(safe-area-inset-top, 10px) + 5px);
   padding-left: calc(env(safe-area-inset-left, 0px) + 8px);
   padding-right: calc(env(safe-area-inset-right, 0px) + 8px);
   padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 10px) + 10px);
   transition: transform 0.3s ease;
   scrollbar-width: none;
+  background-color: inherit;
 }
 
 @media (min-width: 1024px) {
@@ -115,18 +118,11 @@ html, body {
   }
 }
 
-/* Specific adjustments for iPads in portrait mode */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .main-content {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-}
-
 .mobile-nav-container {
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
   will-change: transform, opacity;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Ensuring background flows into safe area at bottom */
+  background-color: inherit;
 }
 
 .mobile-nav-hidden {
@@ -160,17 +156,17 @@ img {
   }
 }
 
-/* SAFE AREA VISUAL DEBUGGER (REQUESTED) */
+/* SAFE AREA VISUAL DEBUGGER - STICKY TO SCREEN EDGES */
 .debug-safe-area-top {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: env(safe-area-inset-top, 0px);
-  background: blue !important;
+  background: rgba(0, 0, 255, 0.4) !important;
   z-index: 9999999;
-  opacity: 0.5;
   pointer-events: none;
+  border-bottom: 1px solid blue;
 }
 
 .debug-safe-area-bottom {
@@ -179,10 +175,10 @@ img {
   left: 0;
   right: 0;
   height: env(safe-area-inset-bottom, 0px);
-  background: blue !important;
+  background: rgba(0, 0, 255, 0.4) !important;
   z-index: 9999999;
-  opacity: 0.5;
   pointer-events: none;
+  border-top: 1px solid blue;
 }
 
 .debug-safe-area-left {
@@ -191,10 +187,10 @@ img {
   bottom: 0;
   left: 0;
   width: env(safe-area-inset-left, 0px);
-  background: blue !important;
+  background: rgba(0, 0, 255, 0.4) !important;
   z-index: 9999999;
-  opacity: 0.5;
   pointer-events: none;
+  border-right: 1px solid blue;
 }
 
 .debug-safe-area-right {
@@ -203,8 +199,8 @@ img {
   bottom: 0;
   right: 0;
   width: env(safe-area-inset-right, 0px);
-  background: blue !important;
+  background: rgba(0, 0, 255, 0.4) !important;
   z-index: 9999999;
-  opacity: 0.5;
   pointer-events: none;
+  border-left: 1px solid blue;
 }

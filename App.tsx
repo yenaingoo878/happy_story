@@ -589,8 +589,8 @@ function App() {
 
       {/* Mobile Bottom Navigation - Compact */}
       <nav className={`lg:hidden fixed bottom-0 left-0 right-0 z-[1000] pointer-events-none mobile-nav-container ${!isNavVisible ? 'mobile-nav-hidden' : ''}`}>
-        <div className="relative pointer-events-auto">
-          <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl flex justify-between items-center shadow-[0_-8px_30px_rgb(0,0,0,0.06)] border-t border-slate-100 dark:border-slate-700/50 relative overflow-hidden pb-[env(safe-area-inset-bottom,8px)]">
+        <div className="relative pointer-events-auto bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl shadow-[0_-8px_30px_rgb(0,0,0,0.06)] border-t border-slate-100 dark:border-slate-700/50 pb-[env(safe-area-inset-bottom,8px)]">
+          <div className="flex justify-between items-center relative overflow-hidden">
             <div className="absolute top-0 transition-all duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275)" style={{ width: `calc(100% / ${navItems.length})`, left: `calc(${activeTabIndex} * (100% / ${navItems.length}))` }}>
                <div className="w-full h-1 bg-primary rounded-b-full shadow-[0_4px_12px_rgba(255,154,162,0.4)]" />
             </div>
