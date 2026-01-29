@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Language, ChildProfile } from '../types';
 import { getTranslation, translations } from '../utils/translations';
@@ -233,7 +232,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ language, onCreateProfil
                   className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
                     !formData.name || isSaving 
                     ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' 
-                    : 'bg-primary text-white shadow-md shadow-primary/20 active:scale-[0.95]'
+                    : 'bg-primary text-white shadow-xl shadow-primary/30 active:scale-95'
                   }`}
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

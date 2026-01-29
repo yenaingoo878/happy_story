@@ -1,15 +1,19 @@
 
-// FIX: Import 'GoogleGenAI' instead of the deprecated 'GoogleGenerativeAI'.
 import { GoogleGenAI } from "@google/genai";
 import { Language, GrowthData } from '../types';
 
-const getEffectiveApiKey = () => {
-  return localStorage.getItem('custom_api_key') || process.env.API_KEY || '';
+/**
+ * Safely retrieves the Gemini API Key.
+ * Priority: localStorage (from config.txt import) > process.env.API_KEY
+ */
+const getApiKey = () => {
+  return localStorage.getItem('custom_ai_api_key') || process.env.API_KEY || "";
 };
 
 export const generateBedtimeStoryStream = async (topic: string, childName: string, language: Language) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: getEffectiveApiKey() });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
     
     const prompt = `
@@ -38,20 +42,20 @@ export const generateBedtimeStoryStream = async (topic: string, childName: strin
 
 export const analyzeGrowthData = async (data: GrowthData[], language: Language): Promise<string> => {
     try {
-        const ai = new GoogleGenAI({ apiKey: getEffectiveApiKey() });
+        const apiKey = getApiKey();
+        const ai = new GoogleGenAI({ apiKey });
         const langPrompt = language === 'mm' ? 'Burmese language (Myanmar)' : 'English language';
         const dataStr = data.map(d => `Month: ${d.month}, Height: ${d.height}cm, Weight: ${d.weight}kg`).join('\n');
         
         const prompt = `
-          Act as a knowledgeable and reassuring pediatrician. Analyze the following child growth data against the World Health Organization (WHO) Child Growth Standards. You can find the standards here: https://www.who.int/tools/child-growth-standards/standards
+          Act as a knowledgeable and reassuring pediatrician. Analyze the following child growth data against the World Health Organization (WHO) Child Growth Standards.
           
           Child's Data:
           ${dataStr}
           
           Based on the WHO standards, provide a brief (2-3 sentences), simple, and encouraging summary for the parent in ${langPrompt}. 
           Mention if the growth trend appears to be following a consistent percentile curve.
-          IMPORTANT: Do not provide alarming medical advice. Frame the analysis in a positive and supportive tone. This is for general informational purposes only.
-          Example Tone: "Your child's growth is progressing steadily, following along their own percentile curve, which is a wonderful sign."
+          IMPORTANT: Do not provide medical advice. Frame the analysis in a positive and supportive tone. This is for general informational purposes only.
         `;
 
         const response = await ai.models.generateContent({
@@ -67,7 +71,7 @@ export const analyzeGrowthData = async (data: GrowthData[], language: Language):
     } catch (error) {
         console.error("Error analyzing growth:", error);
         return language === 'mm' 
-            ? "ကွန်ဟက်ချိတ်ဆက်မှု သို့မဟုတ် API Key အမှားရှိနေပါသည်။" 
-            : "Connection or API Key error. Please try again.";
+            ? "ကွန်ဟက်ချိတ်ဆက်မှု ပြဿနာရှိနေပါသည်။" 
+            : "Connection error. Please try again.";
     }
 }

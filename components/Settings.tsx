@@ -2,8 +2,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChildProfile, Language, Theme, GrowthData, Memory, Reminder, Story } from '../types';
 import { getTranslation, translations } from '../utils/translations';
-import { DataService, syncData, getImageSrc } from '../lib/db';
-import { syncManager } from '../lib/syncManager';
+import { DataService, syncData, getImageSrc } from '../db';
+import { syncManager } from '../syncManager';
+import { refreshR2Client, isR2Configured } from '../r2Client';
 import { Camera as CapacitorCamera, CameraResultType } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -50,6 +51,9 @@ const Camera = ({ className }: { className?: string }) => <i className={`fa-soli
 const Search = ({ className }: { className?: string }) => <i className={`fa-solid fa-magnifying-glass flex items-center justify-center ${className}`} />;
 const KeyIcon = ({ className }: { className?: string }) => <i className={`fa-solid fa-key flex items-center justify-center ${className}`} />;
 const CheckCircle2 = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-check flex items-center justify-center ${className}`} />;
+const FileUp = ({ className }: { className?: string }) => <i className={`fa-solid fa-file-import flex items-center justify-center ${className}`} />;
+const RefreshCw = ({ className }: { className?: string }) => <i className={`fa-solid fa-rotate flex items-center justify-center ${className}`} />;
+const Info = ({ className }: { className?: string }) => <i className={`fa-solid fa-circle-info flex items-center justify-center ${className}`} />;
 
 const IOSInput = ({ label, icon: Icon, value, onChange, type = "text", placeholder, options, className = "", id, multiline = false, step }: any) => (
   <div className={`bg-white dark:bg-slate-800 px-4 py-2.5 flex items-start gap-3.5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm group transition-all focus-within:ring-4 focus-within:ring-primary/5 ${className}`}>
@@ -86,14 +90,14 @@ const SettingToggle = ({ icon: Icon, label, sublabel, active, onToggle, colorCla
 interface SettingsProps {
   language: Language; setLanguage: (lang: Language) => void; theme: Theme; toggleTheme: () => void;
   profiles: ChildProfile[]; activeProfileId: string; onProfileChange: (id: string) => void; onRefreshData: () => Promise<any>;
-  passcode: string | null; isDetailsUnlocked: boolean; onUnlockRequest: () => void; onPasscodeSetup: () => void;
+  passcode: string | null; isDetailsUnlocked: boolean; onUnlockRequest: (callback?: () => void) => void; onPasscodeSetup: () => void;
   onPasscodeChange: () => void; onPasscodeRemove: () => void; onHideDetails: () => void;
   growthData: GrowthData[]; memories: Memory[]; stories: Story[];
   onEditMemory: (mem: Memory) => void; onDeleteMemory: (id: string) => any; 
   onStoryClick: (story: Story) => void; onDeleteStory: (id: string) => any;
   onDeleteGrowth: (id: string) => any; onSaveGrowth: (growth: GrowthData) => Promise<any>;
   onDeleteProfile: (id: string) => any;
-  isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD';
+  isGuestMode?: boolean; onLogout: () => void; initialView?: 'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD' | 'R2_CONFIG';
   remindersEnabled: boolean; toggleReminders: () => void; remindersList: Reminder[]; onDeleteReminder: (id: string) => any;
   onSaveReminder: (reminder: Reminder) => Promise<any>;
   onSaveSuccess: () => void;
@@ -140,7 +144,7 @@ const Settings: React.FC<SettingsProps> = ({
   cloudRefreshTrigger = 0
 }) => {
   const t = (key: keyof typeof translations) => getTranslation(language, key);
-  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD'>(initialView || 'MAIN');
+  const [view, setView] = useState<'MAIN' | 'GROWTH' | 'MEMORIES' | 'REMINDERS' | 'STORIES' | 'CLOUD' | 'R2_CONFIG'>(initialView || 'MAIN');
   const [editingProfile, setEditingProfile] = useState<ChildProfile>({ id: '', name: '', dob: '', gender: 'boy' });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showProfileDetails, setShowProfileDetails] = useState(false);
@@ -150,13 +154,11 @@ const Settings: React.FC<SettingsProps> = ({
   const [cloudPhotos, setCloudPhotos] = useState<any[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const envInputRef = useRef<HTMLInputElement>(null);
+  const touchStartX = useRef<number | null>(null);
 
   const [memoriesSearch, setMemoriesSearch] = useState('');
   const [isMemoriesSearchVisible, setIsMemoriesSearchVisible] = useState(false);
-
-  const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('custom_api_key') || '');
-  const [isSavingKey, setIsSavingKey] = useState(false);
-  const [isKeyInputVisible, setIsKeyInputVisible] = useState(() => !localStorage.getItem('custom_api_key'));
 
   const [syncState, setSyncState] = useState({ status: 'idle' });
 
@@ -210,11 +212,62 @@ const Settings: React.FC<SettingsProps> = ({
     finally { setIsProcessingProfileImage(false); }
   };
 
-  const handleRemoveImage = async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const currentImage = editingProfile.profileImage;
-      if (currentImage && currentImage.startsWith('file://')) { try { await Filesystem.deleteFile({ path: currentImage }); } catch (err) { console.warn("Could not delete file:", err); } }
-      setEditingProfile(prev => ({...prev, profileImage: undefined}));
+  const handleEnvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        const config: any = {};
+        
+        lines.forEach(line => {
+            const [rawKey, ...valParts] = line.split('=');
+            if (!rawKey) return;
+            const key = rawKey.trim();
+            let value = valParts.join('=').trim();
+            if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.substring(1, value.length - 1);
+            }
+            config[key] = value;
+        });
+
+        // Parse Storage Config
+        const ENDPOINT = config.VITE_R2_ENDPOINT || config.R2_ENDPOINT;
+        const ACCESS_KEY = config.VITE_R2_ACCESS_KEY_ID || config.R2_ACCESS_KEY_ID;
+        const SECRET_KEY = config.VITE_R2_SECRET_ACCESS_KEY || config.R2_SECRET_ACCESS_KEY;
+        const BUCKET = config.VITE_R2_BUCKET_NAME || config.R2_BUCKET_NAME;
+        const PUBLIC_URL = config.VITE_R2_PUBLIC_URL || config.R2_PUBLIC_URL;
+
+        if (ENDPOINT) localStorage.setItem('r2_config_R2_ENDPOINT', ENDPOINT);
+        if (ACCESS_KEY) localStorage.setItem('r2_config_R2_ACCESS_KEY_ID', ACCESS_KEY);
+        if (SECRET_KEY) localStorage.setItem('r2_config_R2_SECRET_ACCESS_KEY', SECRET_KEY);
+        if (BUCKET) localStorage.setItem('r2_config_R2_BUCKET_NAME', BUCKET);
+        if (PUBLIC_URL) localStorage.setItem('r2_config_R2_PUBLIC_URL', PUBLIC_URL);
+
+        // Parse AI API Key (Auto Config)
+        const AI_KEY = config.VITE_GEMINI_API_KEY || config.GEMINI_API_KEY || config.API_KEY;
+        if (AI_KEY) {
+            localStorage.setItem('custom_ai_api_key', AI_KEY);
+        }
+
+        refreshR2Client();
+        onSaveSuccess();
+    };
+    reader.readAsText(file);
+    if (envInputRef.current) envInputRef.current.value = '';
+  };
+
+  const handleClearR2Config = () => {
+    localStorage.removeItem('r2_config_R2_ENDPOINT');
+    localStorage.removeItem('r2_config_R2_ACCESS_KEY_ID');
+    localStorage.removeItem('r2_config_R2_SECRET_ACCESS_KEY');
+    localStorage.removeItem('r2_config_R2_BUCKET_NAME');
+    localStorage.removeItem('r2_config_R2_PUBLIC_URL');
+    localStorage.removeItem('custom_ai_api_key');
+    refreshR2Client();
+    onSaveSuccess();
   };
 
   const handleSaveProfile = async () => {
@@ -237,16 +290,6 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const handleSaveApiKey = () => {
-    setIsSavingKey(true);
-    localStorage.setItem('custom_api_key', manualApiKey);
-    setTimeout(() => {
-      setIsSavingKey(false);
-      setIsKeyInputVisible(false);
-      onSaveSuccess();
-    }, 500);
-  };
-
   useEffect(() => { if (view === 'CLOUD') loadCloudPhotos(); }, [view, cloudRefreshTrigger]);
 
   const filteredMemories = useMemo(() => {
@@ -266,16 +309,55 @@ const Settings: React.FC<SettingsProps> = ({
       if (newReminder.title && newReminder.date && onSaveReminder) { await onSaveReminder({ id: crypto.randomUUID(), title: newReminder.title, date: newReminder.date, type: 'event' }); setNewReminder({ title: '', date: '' }); }
   };
 
-  const LockedScreen = () => (
-    <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade-in text-center">
-      <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-primary/10"><Lock className="w-10 h-10 text-primary" /></div>
-      <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-3 tracking-tight">{t('private_info')}</h2><p className="text-slate-400 font-bold text-sm mb-12 max-w-[240px] leading-relaxed">{t('locked_msg')}</p>
-      <button onClick={onUnlockRequest} className="px-14 py-5 bg-slate-900 dark:bg-primary text-white text-sm font-black rounded-[2rem] shadow-xl uppercase tracking-[0.2em] transition-all active:scale-95">{t('tap_to_unlock')}</button>
+  const handleRemoveImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentImage = editingProfile.profileImage;
+    if (currentImage && currentImage.startsWith('file://')) { try { await Filesystem.deleteFile({ path: currentImage }); } catch (err) { console.warn("Could not delete file:", err); } }
+    setEditingProfile(prev => ({...prev, profileImage: undefined}));
+  };
+
+  const handleNavWithLock = (targetView: typeof view) => {
+    if (passcode && !isDetailsUnlocked) {
+      onUnlockRequest(() => setView(targetView));
+    } else {
+      setView(targetView);
+    }
+  };
+
+  const LockedPlaceholder = () => (
+    <div className="flex flex-col items-center justify-center py-24 px-6 animate-fade-in text-center">
+      <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-[2.5rem] flex items-center justify-center mb-8">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+      <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 tracking-tight">Security Check</h2>
+      <p className="text-slate-400 font-bold text-sm">Verifying access to private data...</p>
     </div>
   );
 
+  // SWIPE TO BACK LOGIC
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (view === 'MAIN') return;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (view === 'MAIN' || touchStartX.current === null) return;
+    const distance = e.changedTouches[0].clientX - touchStartX.current;
+    
+    // If swiped right (left to right) more than 80px
+    if (distance > 80) {
+      e.stopPropagation(); // Prevent tab switching in App.tsx
+      setView('MAIN');
+    }
+    touchStartX.current = null;
+  };
+
   return (
-    <div className="max-w-4xl mx-auto relative px-1 sm:px-2">
+    <div 
+      className="max-w-4xl mx-auto relative px-1 sm:px-2"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {view !== 'MAIN' && (<button onClick={() => setView('MAIN')} className="mb-6 flex items-center gap-3 text-slate-500 font-black hover:text-primary transition-colors px-2 text-lg active:scale-95"><ChevronLeft className="w-7 h-7" />{t('back')}</button>)}
       
       {view === 'MAIN' && (
@@ -288,7 +370,7 @@ const Settings: React.FC<SettingsProps> = ({
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-xl border border-slate-100 dark:border-slate-700 p-5">
             <div className="flex items-center justify-between mb-4 px-1"><div className="flex items-center gap-2.5"><CircleUser className="w-4 h-4 text-slate-400"/><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('about_child')}</h3></div><button onClick={() => DataService.saveProfile({ id: crypto.randomUUID(), name: t('add_new_profile'), dob: new Date().toISOString().split('T')[0], gender: 'boy' }).then(() => onRefreshData())} className="text-primary text-[10px] font-black uppercase tracking-wider px-4 py-2.5 bg-primary/5 rounded-2xl flex items-center gap-1.5 active:scale-95 transition-all"><Plus className="w-3.5 h-3.5"/> {t('add_new_profile')}</button></div>
             <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar border-b border-slate-50 dark:border-slate-700/50 mb-5 items-center">{profiles.map(p => (<button key={p.id} onClick={() => onProfileChange(p.id!)} className={`flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-300 ${p.id === activeProfileId ? 'scale-105' : 'opacity-40 grayscale'}`}><div className={`m-2 w-12 h-12 rounded-[18px] border-2 overflow-hidden flex items-center justify-center ${p.id === activeProfileId ? 'border-primary ring-4 ring-primary/10 shadow-lg' : 'border-transparent bg-slate-100 dark:bg-slate-700'}`}>{p.profileImage ? <img src={getImageSrc(p.profileImage)} className="w-full h-full object-cover" /> : <Baby className="w-5 h-5 text-slate-400" />}</div><span className="text-[9px] font-black truncate max-w-[50px]">{p.name}</span></button>))}</div>
-            <div className="flex items-center justify-between px-1"><div className="text-left"><h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-1">{currentProfile?.name}</h2><p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{currentProfile?.dob}</p></div><button onClick={() => isLocked ? onUnlockRequest() : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-xl shadow-primary/30">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button></div>
+            <div className="flex items-center justify-between px-1"><div className="text-left"><h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mb-1">{currentProfile?.name}</h2><p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{currentProfile?.dob}</p></div><button onClick={() => isLocked ? onUnlockRequest(() => setShowProfileDetails(true)) : setShowProfileDetails(!showProfileDetails)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-primary text-white active:scale-95 shadow-xl shadow-primary/30">{isLocked ? <Lock className="w-3.5 h-3.5" /> : (showProfileDetails ? <X className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />)}{isLocked ? t('tap_to_unlock') : (showProfileDetails ? t('close_edit') : t('edit_profile'))}</button></div>
             {showProfileDetails && !isLocked && (
               <div className="animate-slide-up space-y-4 pt-4 pb-4 overflow-y-auto max-h-[70vh] no-scrollbar">
                  <div className="flex flex-col items-center mb-4"><div className="relative group w-24 h-24"><div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 flex items-center justify-center">{isProcessingProfileImage ? (<Loader2 className="w-8 h-8 text-primary animate-spin" />) : editingProfile.profileImage ? (<img src={getImageSrc(editingProfile.profileImage)} className="w-full h-full object-cover" alt="Profile" />) : (<Baby className="w-10 h-10 text-slate-400" />)}</div>{editingProfile.profileImage && !isProcessingProfileImage && (<button type="button" onClick={handleRemoveImage} className="absolute top-0 right-0 z-10 p-1.5 bg-rose-500 text-white rounded-full shadow-md transition-transform hover:scale-110"><X className="w-3 h-3" /></button>)}</div><div className="flex gap-3 mt-4">{Capacitor.isNativePlatform() ? (<button type="button" onClick={handleTakeProfilePhoto} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><Camera className="w-3.5 h-3.5" />{t('take_photo')}</button>) : (<button type="button" onClick={() => !isProcessingProfileImage && imageInputRef.current?.click()} disabled={isProcessingProfileImage} className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-sm border border-slate-100 dark:border-slate-700 disabled:opacity-50"><ImageIcon className="w-3.5 h-3.5" />{t('upload_photo')}</button>)}</div><input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleProfileImageUpload} /></div>
@@ -321,29 +403,25 @@ const Settings: React.FC<SettingsProps> = ({
           </section>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
-            <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('api_key_title')}</h3></div>
-            <section className="p-5 space-y-4">
-              <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-500 shadow-sm shrink-0"><KeyIcon className="w-5 h-5" /></div><div className="flex-1 text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('security_title')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed mb-4">{t('api_key_desc')}</p><div className="space-y-3">{isKeyInputVisible ? (<div className="animate-fade-in space-y-3"><div className="relative"><input type="password" value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} placeholder="Paste your Gemini API Key here..." className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all" /></div><button onClick={handleSaveApiKey} disabled={isSavingKey || !manualApiKey} className="w-full py-4 bg-indigo-500 text-white text-xs font-black rounded-2xl shadow-xl uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-indigo-500/30 transition-all disabled:opacity-50">{isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t('save_changes')}</button></div>) : (<div className="animate-fade-in bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-between"><div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-5 h-5" /><span className="text-xs font-black uppercase tracking-widest">AI Key is Active</span></div><button onClick={() => setIsKeyInputVisible(true)} className="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">{t('edit')}</button></div>)}</div></div></div>
-            </section>
-          </section>
-
-          <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
             <div className="p-4 px-6 bg-slate-50/50 dark:bg-slate-700/20"><h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('data_management')}</h3></div>
             <section className="p-5 space-y-4">
               <div className="flex items-start gap-4"><div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center text-sky-500 shadow-sm shrink-0"><Cloud className="w-5 h-5" /></div><div className="flex-1 text-left"><h3 className="font-black text-slate-800 dark:text-white text-sm tracking-tight leading-none mb-1">{t('cloud_sync')}</h3><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">{isGuestMode ? t('sync_guest_msg') : session ? t('sync_active') : t('sync_disconnected')}</p></div></div>
               {!isGuestMode && session && (
                 <div className="flex flex-col gap-2">
                   <button onClick={handleManualSync} disabled={syncState.status === 'syncing'} className="w-full py-4 bg-sky-500 text-white font-black rounded-2xl shadow-xl uppercase tracking-[0.2em] active:scale-95 flex items-center justify-center gap-3 shadow-sky-500/20 disabled:bg-slate-300 disabled:cursor-not-allowed">{syncState.status === 'syncing' ? <Loader2 className="w-5 h-5 animate-spin" /> : <HardDrive className="w-5 h-5" />}{t('sync_now')}</button>
-                  <button onClick={() => setView('CLOUD')} className="w-full py-3.5 bg-slate-100 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black rounded-2xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 border border-sky-100 dark:border-sky-900/30 transition-all shadow-sm">
+                  <button onClick={() => handleNavWithLock('R2_CONFIG')} className="w-full py-3.5 bg-slate-100 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black rounded-2xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 border border-sky-100 dark:border-sky-900/30 transition-all shadow-sm">
+                    <HardDrive className="w-3.5 h-3.5" /> {t('r2_config_title')}
+                  </button>
+                  <button onClick={() => handleNavWithLock('CLOUD')} className="w-full py-3.5 bg-slate-100 dark:bg-slate-700 text-sky-600 dark:text-sky-400 font-black rounded-2xl uppercase tracking-widest text-[10px] active:scale-95 flex items-center justify-center gap-2 border border-sky-100 dark:border-sky-900/30 transition-all shadow-sm">
                     <Search className="w-3.5 h-3.5" /> Browse Cloud Backup
                   </button>
                 </div>
               )}
             </section>
-             <button onClick={() => setView('GROWTH')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300 mr-4"><Activity className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_growth')}</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{growthData.length}</span><ChevronRight className="w-4 h-4"/></div></button>
+             <button onClick={() => handleNavWithLock('GROWTH')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-500 group-hover:scale-110 transition-transform duration-300 mr-4"><Activity className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_growth')}</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{growthData.length}</span><ChevronRight className="w-4 h-4"/></div></button>
              <button onClick={() => setView('REMINDERS')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 mr-4"><Bell className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_reminders')}</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{remindersList.length}</span><ChevronRight className="w-4 h-4"/></div></button>
-             <button onClick={() => setView('STORIES')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300 mr-4"><BookOpen className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">Ebooks</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{stories.length}</span><ChevronRight className="w-4 h-4"/></div></button>
-             <button onClick={() => setView('MEMORIES')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300 mr-4"><ImageIcon className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_memories')}</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{memories.length}</span><ChevronRight className="w-4 h-4"/></div></button>
+             <button onClick={() => handleNavWithLock('STORIES')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform duration-300 mr-4"><BookOpen className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">Ebooks</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{stories.length}</span><ChevronRight className="w-4 h-4"/></div></button>
+             <button onClick={() => handleNavWithLock('MEMORIES')} className="w-full text-left p-5 flex items-center group active:bg-slate-50 dark:active:bg-slate-700/20 transition-all"><div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300 mr-4"><ImageIcon className="w-5 h-5" /></div><p className="font-black text-slate-800 dark:text-white text-sm">{t('manage_memories')}</p><div className="ml-auto flex items-center gap-3 text-slate-400"><span className="text-sm font-black">{memories.length}</span><ChevronRight className="w-4 h-4"/></div></button>
           </section>
 
           <section className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-50 dark:divide-slate-700/50">
@@ -354,8 +432,73 @@ const Settings: React.FC<SettingsProps> = ({
         </div>
       )}
 
-      {view === 'CLOUD' && (isLocked ? <LockedScreen /> : (
-        <div className="animate-fade-in space-y-4 pb-32 px-1">
+      {view === 'R2_CONFIG' && (isLocked ? <LockedPlaceholder /> : (
+        <div className="animate-fade-in space-y-6 pb-32 px-1 text-center">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-20 h-20 bg-indigo-500/10 rounded-[2.5rem] flex items-center justify-center text-indigo-500 shadow-inner mb-6">
+              <HardDrive className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-widest mb-2">{t('r2_config_title')}</h2>
+            <p className="text-slate-400 font-bold text-sm max-w-[280px] mx-auto leading-relaxed">Import your storage credentials securely through a configuration file.</p>
+          </div>
+          
+          <div className="bg-white dark:bg-slate-800 rounded-[48px] p-8 shadow-xl border border-slate-100 dark:border-slate-700 space-y-8 max-w-sm mx-auto">
+            <div className="flex flex-col items-center gap-4">
+                <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${isR2Configured() ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/50' : 'bg-slate-50 border-slate-100 dark:bg-slate-900 dark:border-slate-800'}`}>
+                    {isR2Configured() ? (
+                        <CheckCircle2 className="w-12 h-12 text-emerald-500 animate-zoom-in" />
+                    ) : (
+                        <Cloud className="w-12 h-12 text-slate-200 dark:text-slate-800" />
+                    )}
+                </div>
+                <div className="text-center">
+                   <h3 className={`font-black text-sm uppercase tracking-[0.2em] mb-1 ${isR2Configured() ? 'text-emerald-500' : 'text-slate-400'}`}>
+                      {isR2Configured() ? t('r2_configured') : t('r2_not_configured')}
+                   </h3>
+                   {isR2Configured() && <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">End-to-end encryption active</p>}
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => envInputRef.current?.click()} 
+                  className="w-full py-5 bg-indigo-500 text-white font-black rounded-[24px] shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 text-xs uppercase tracking-widest"
+                >
+                    <FileUp className="w-5 h-5" />
+                    {t('import_env')}
+                </button>
+                <input ref={envInputRef} type="file" className="hidden" accept=".env,.local,.txt,.env.local" onChange={handleEnvImport} />
+                
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-start gap-3 text-left">
+                  <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                    {t('import_hint')}
+                  </p>
+                </div>
+
+                {isR2Configured() && (
+                  <button 
+                    onClick={handleClearR2Config} 
+                    className="w-full py-4 text-rose-500 dark:text-rose-400 font-black flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/10 rounded-2xl transition-all"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    {t('clear_config')}
+                  </button>
+                )}
+            </div>
+          </div>
+
+          <div className="pt-8 opacity-40">
+             <div className="flex items-center justify-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                <Lock className="w-3 h-3" />
+                <span>AES-256 System Protection</span>
+             </div>
+          </div>
+        </div>
+      ))}
+
+      {view === 'CLOUD' && (isLocked ? <LockedPlaceholder /> : (
+        <div className="animate-fade-in space-y-4 pb-32 px-1 text-left">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Cloud Backup</h2>
             <div className="w-10 h-10 bg-sky-500/10 rounded-2xl flex items-center justify-center text-sky-500 shadow-inner">
@@ -385,8 +528,8 @@ const Settings: React.FC<SettingsProps> = ({
         </div>
       ))}
 
-      {view === 'MEMORIES' && (isLocked ? <LockedScreen /> : (
-        <div className="space-y-4 animate-fade-in pb-32 px-1">
+      {view === 'MEMORIES' && (isLocked ? <LockedPlaceholder /> : (
+        <div className="space-y-4 animate-fade-in pb-32 px-1 text-left">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{t('manage_memories')}</h2>
             <button 
@@ -441,9 +584,9 @@ const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
       ))}
-      {view === 'GROWTH' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
-      {view === 'REMINDERS' && (isLocked ? <LockedScreen /> : (<div className="space-y-6 animate-fade-in pb-32 px-1"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
-      {view === 'STORIES' && (isLocked ? <LockedScreen /> : (<div className="space-y-4 animate-fade-in pb-32 px-1"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}
+      {view === 'GROWTH' && (isLocked ? <LockedPlaceholder /> : (<div className="space-y-6 animate-fade-in pb-32 px-1 text-left"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Activity className="w-6 h-6 text-teal-500" />{editingGrowth.id ? t('update_record') : t('add_record')}</h2><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"><IOSInput label={t('month')} icon={Calendar} type="number" value={editingGrowth.month || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, month: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 12" /><IOSInput label={`${t('height_label')} (cm)`} icon={Ruler} type="number" step="0.1" value={editingGrowth.height || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, height: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 75.5" /><IOSInput label={`${t('weight_label')} (kg)`} icon={Scale} type="number" step="0.1" value={editingGrowth.weight || ''} onChange={(e: any) => setEditingGrowth({...editingGrowth, weight: e.target.value ? parseFloat(e.target.value) : undefined})} placeholder="e.g. 10.2" className="sm:col-span-2"/></div><div className="flex gap-3">{editingGrowth.id && <button onClick={() => setEditingGrowth({})} className="w-full py-4.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-black rounded-2xl uppercase tracking-[0.2em] active:scale-95">{t('cancel_edit')}</button>}<button onClick={handleSaveGrowth} className="w-full py-5 bg-teal-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-teal-500/20">{editingGrowth.id ? t('update_btn') : t('add_record')}</button></div></section><div className="space-y-2">{growthData.map(g => (<div key={g.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-teal-200 transition-all"><div className="text-left flex items-center gap-6"><div className="text-center w-12 shrink-0"><p className="font-black text-teal-500 text-xl leading-none">{g.month}</p><p className="text-[9px] text-slate-400 font-bold uppercase">{t('months_label')}</p></div><div><p className="text-xs font-bold text-slate-400">{t('height_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.height} cm</span></p><p className="text-xs font-bold text-slate-400">{t('weight_label')}: <span className="text-sm font-black text-slate-700 dark:text-slate-200">{g.weight} kg</span></p></div></div><div className="flex gap-1"><button onClick={() => setEditingGrowth(g)} className="p-2.5 text-slate-400 hover:text-primary transition-colors active:scale-90"><Pencil className="w-4 h-4" /></button><button onClick={() => onDeleteGrowth?.(g.id!)} className="p-2.5 text-slate-400 hover:text-rose-500 transition-colors active:scale-90"><Trash2 className="w-4 h-4" /></button></div></div>))}</div></div>))}
+      {view === 'REMINDERS' && (isLocked ? <LockedPlaceholder /> : (<div className="space-y-6 animate-fade-in pb-32 px-1 text-left"><section className="bg-white dark:bg-slate-800 rounded-[40px] p-6 shadow-xl border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-3 tracking-tight leading-none text-left"><Bell className="w-6 h-6 text-amber-500" /> {t('add_reminder')}</h2><div className="flex flex-col gap-4 mb-8"><IOSInput label={t('reminder_title')} icon={User} value={newReminder.title} onChange={(e: any) => setNewReminder({...newReminder, title: e.target.value})} placeholder="e.g. Vaccination" /><IOSInput label={t('reminder_date')} icon={Clock} type="date" value={newReminder.date} onChange={(e: any) => setNewReminder({...newReminder, date: e.target.value})} /></div><button onClick={handleAddReminder} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl shadow-lg uppercase tracking-[0.2em] active:scale-95 shadow-amber-500/20">{t('save_reminder')}</button></section><div className="space-y-2">{remindersList.map(r => (<div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-between border border-slate-50 dark:border-slate-700 shadow-sm group hover:border-amber-200 transition-all"><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm leading-none mb-1">{r.title}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{r.date}</p></div><button onClick={() => onDeleteReminder?.(r.id)} className="p-2 text-rose-500 active:scale-90"><Trash2 className="w-5 h-5" /></button></div>))}</div></div>))}
+      {view === 'STORIES' && (isLocked ? <LockedPlaceholder /> : (<div className="space-y-4 animate-fade-in pb-32 px-1 text-left"><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">Saved Ebooks</h2><div className="w-10 h-10 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-500 shadow-inner"><BookOpen className="w-5 h-5" /></div></div>{stories.length > 0 ? stories.map(s => (<div key={s.id} onClick={() => onStoryClick(s)} className="bg-white dark:bg-slate-800 p-5 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm text-left relative overflow-hidden cursor-pointer group active:scale-[0.98] transition-all hover:border-violet-200"><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform"><BookOpen className="w-5 h-5" /></div><div className="text-left"><h4 className="font-black text-slate-800 dark:text-white text-sm truncate max-w-[180px] leading-none mb-1">{s.title}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.date}</p></div></div><button onClick={(e) => { e.stopPropagation(); onDeleteStory(s.id); }} className="p-2 text-slate-300 hover:text-rose-500 active:scale-90"><Trash2 className="w-4 h-4" /></button></div><p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed italic line-clamp-3">"{s.content}"</p></div>)) : (<div className="py-20 text-center opacity-30 flex flex-col items-center justify-center gap-4 min-h-[300px]"><BookOpen className="w-14 h-14"/><p className="text-xs font-black uppercase tracking-widest">No Stories Found</p></div>)}</div>))}
     </div>
   );
 };

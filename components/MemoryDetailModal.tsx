@@ -99,7 +99,7 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
   };
 
   return (
-    <div className="fixed inset-0 z-[500000] flex items-center justify-center p-4 w-screen h-[100dvh] overflow-hidden">
+    <div className="fixed inset-0 z-[500000] flex items-center justify-center p-0 sm:p-4 w-screen h-[100dvh] overflow-hidden">
       {/* Immersive Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-950/95 backdrop-blur-[40px] transition-opacity duration-500 animate-fade-in" 
@@ -107,11 +107,11 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
       />
       
       {/* Premium Module Box */}
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-[92vw] md:max-w-lg h-[90dvh] rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] animate-zoom-in flex flex-col z-[500001] border border-white/10 dark:border-slate-800">
+      <div className="relative bg-white dark:bg-slate-900 w-full sm:max-w-[92vw] md:max-w-xl h-full sm:h-[90dvh] sm:rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] animate-zoom-in flex flex-col z-[500001] border-none sm:border border-white/10 dark:border-slate-800">
         
         {/* Media Canvas Area - Dominant Height with Bottom Rounding */}
         <div 
-          className="relative flex-1 bg-black flex items-center justify-center overflow-hidden touch-none rounded-b-[48px] shadow-2xl z-20"
+          className="relative flex-[1.4] sm:flex-1 bg-black flex items-center justify-center overflow-hidden touch-none sm:rounded-b-[48px] shadow-2xl z-20"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -140,22 +140,22 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
           {/* Close Button Overlay */}
           <button 
             onClick={onClose}
-            className="absolute top-6 right-6 z-20 w-12 h-12 bg-black/40 hover:bg-rose-500 text-white rounded-[20px] backdrop-blur-xl flex items-center justify-center transition-all active:scale-90 border border-white/10 shadow-lg"
+            className="absolute top-[calc(env(safe-area-inset-top,20px)+10px)] right-6 z-20 w-11 h-11 sm:w-12 sm:h-12 bg-black/40 hover:bg-rose-500 text-white rounded-[18px] sm:rounded-[20px] backdrop-blur-xl flex items-center justify-center transition-all active:scale-90 border border-white/10 shadow-lg"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {/* Navigation Controls Overlay */}
           {hasImages && imageCount > 1 && (
             <>
-              <div className="absolute inset-y-0 left-0 w-20 flex items-center justify-center">
-                 <button onClick={goToPrevious} className="w-11 h-11 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-75 border border-white/5">
-                    <ChevronLeft className="w-6 h-6"/>
+              <div className="absolute inset-y-0 left-0 w-16 sm:w-20 flex items-center justify-center">
+                 <button onClick={goToPrevious} className="w-10 h-10 sm:w-11 sm:h-11 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-75 border border-white/5">
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6"/>
                  </button>
               </div>
-              <div className="absolute inset-y-0 right-0 w-20 flex items-center justify-center">
-                 <button onClick={goToNext} className="w-11 h-11 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-75 border border-white/5">
-                    <ChevronRight className="w-6 h-6"/>
+              <div className="absolute inset-y-0 right-0 w-16 sm:w-20 flex items-center justify-center">
+                 <button onClick={goToNext} className="w-10 h-10 sm:w-11 sm:h-11 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-xl flex items-center justify-center transition-all active:scale-75 border border-white/5">
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6"/>
                  </button>
               </div>
 
@@ -164,31 +164,31 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
                  {memory.imageUrls.map((_, idx) => (
                     <div 
                       key={idx} 
-                      className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentIndex ? 'w-6 bg-primary shadow-[0_0_10px_rgba(255,154,162,0.8)]' : 'w-1.5 bg-white/30'}`} 
+                      className={`h-1 sm:h-1.5 rounded-full transition-all duration-500 ${idx === currentIndex ? 'w-5 sm:w-6 bg-primary shadow-[0_0_10px_rgba(255,154,162,0.8)]' : 'w-1 sm:w-1.5 bg-white/30'}`} 
                     />
                  ))}
               </div>
               
               {/* Pagination text */}
-              <div className="absolute top-6 left-6 px-4 py-2 bg-black/40 text-white text-[10px] font-black rounded-xl backdrop-blur-xl border border-white/10 tracking-widest shadow-lg">
+              <div className="absolute top-[calc(env(safe-area-inset-top,20px)+10px)] left-6 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/40 text-white text-[8px] sm:text-[10px] font-black rounded-xl backdrop-blur-xl border border-white/10 tracking-widest shadow-lg">
                 {currentIndex + 1} / {imageCount}
               </div>
             </>
           )}
         </div>
 
-        {/* Content Details Area - Changed to Flex with Scrolling Body */}
-        <div className="bg-white dark:bg-slate-900 flex flex-col min-h-0 max-h-[45%] md:max-h-[40%]">
+        {/* Content Details Area */}
+        <div className="bg-white dark:bg-slate-900 flex flex-col min-h-0 flex-1 sm:max-h-[45%]">
           {/* Sticky Header inside Content Area */}
           <div className="px-6 py-4 md:px-8 md:py-5 border-b border-slate-50 dark:border-slate-800/50 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                  <div className="w-1 h-5 bg-primary rounded-full shrink-0" />
-                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-50 leading-tight tracking-tight truncate">
+                 <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-50 leading-tight tracking-tight truncate">
                    {memory.title}
                  </h2>
               </div>
-              <div className="flex items-center text-slate-400 dark:text-slate-500 text-[9px] font-black uppercase tracking-widest shrink-0 ml-4">
+              <div className="flex items-center text-slate-400 dark:text-slate-500 text-[8px] sm:text-[9px] font-black uppercase tracking-widest shrink-0 ml-4">
                 <Calendar className="w-3 h-3 mr-1" />
                 {formatDate(memory.date)}
               </div>
@@ -196,29 +196,29 @@ export const MemoryDetailModal: React.FC<MemoryDetailModalProps> = ({ memory, la
           </div>
 
           {/* Scrollable Body Container */}
-          <div className="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1">
-            <div className="bg-slate-50 dark:bg-slate-800/40 p-5 rounded-[28px] mb-6 border border-slate-100 dark:border-slate-800">
-              <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+          <div className="p-6 md:p-8 overflow-y-auto no-scrollbar flex-1 pb-[calc(env(safe-area-inset-bottom,20px)+20px)] sm:pb-8">
+            <div className="bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5 rounded-[24px] sm:rounded-[28px] mb-6 border border-slate-100 dark:border-slate-800">
+              <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-medium">
                 {memory.description || 'No description provided.'}
               </p>
             </div>
 
-            <div className="flex items-center justify-between pb-4">
+            <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-2">
                 {memory.tags && memory.tags.length > 0 ? (
                   memory.tags.map(tag => (
-                    <span key={tag} className="inline-flex items-center px-3 py-1.5 rounded-xl text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 uppercase tracking-widest">
-                      <Tag className="w-2.5 h-2.5 mr-1.5 text-slate-400" />
+                    <span key={tag} className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-[8px] sm:text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 uppercase tracking-widest">
+                      <Tag className="w-2 h-2 mr-1.5 text-slate-400" />
                       {tag}
                     </span>
                   ))
                 ) : (
-                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No tags</span>
+                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">No tags</span>
                 )}
               </div>
               
-              <button className="w-12 h-12 flex items-center justify-center bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[20px] border border-rose-100 dark:border-rose-900/30 active:scale-95 transition-all shadow-sm shrink-0">
-                <Heart className="w-5 h-5" />
+              <button className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-[18px] sm:rounded-[20px] border border-rose-100 dark:border-rose-900/30 active:scale-95 transition-all shadow-sm shrink-0">
+                <Heart className="w-4.5 h-4.5 sm:w-5 h-5" />
               </button>
             </div>
           </div>

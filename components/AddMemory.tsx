@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Memory, Language } from '../types';
 import { getTranslation, translations } from '../utils/translations';
@@ -86,9 +85,9 @@ interface AddMemoryProps {
 
 // Compact FormField component
 const FormField = ({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children?: React.ReactNode }) => (
-  <div className="bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm transition-colors">
-    <label className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">
-      <Icon className="w-3 h-3" />
+  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm transition-colors">
+    <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">
+      <Icon className="w-3.5 h-3.5" />
       <span>{label}</span>
     </label>
     {children}
@@ -278,22 +277,22 @@ const AddMemory: React.FC<AddMemoryProps> = ({
   };
 
   return (
-    <div className="animate-fade-in pb-12 px-1 sm:px-2">
-        <div className="flex justify-between items-center mb-6 pt-2 px-1">
-            <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
-            <button onClick={onCancel} disabled={isSaving} className="text-[10px] font-black text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors uppercase tracking-[0.2em]">{t('cancel_btn')}</button>
+    <div className="animate-fade-in pb-12">
+        <div className="flex justify-between items-center mb-8 pt-2 px-1">
+            <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{editMemory ? t('edit_memory_title') : t('add_memory_title')}</h2>
+            <button onClick={onCancel} disabled={isSaving} className="text-xs font-black text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-[0.2em]">{t('cancel_btn')}</button>
         </div>
         
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Left Column: Image Previews (More Compact) */}
-            <div className="space-y-3">
-               <div className="grid grid-cols-4 lg:grid-cols-3 gap-2">
+        <form onSubmit={handleSave} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Image Previews */}
+            <div className="space-y-4">
+               <div className="grid grid-cols-3 gap-3">
                   {formState.imageUrls.map((url, index) => (
                       <div key={index} className="relative aspect-square group">
-                          <img src={getImageSrc(url)} className="w-full h-full object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
-                          <button type="button" onClick={() => removeImage(index)} className="absolute -top-1.5 -right-1.5 p-1 bg-rose-500 text-white rounded-full shadow-md z-10">
-                              <X className="w-3 h-3"/>
+                          <img src={getImageSrc(url)} className="w-full h-full object-cover rounded-[28px] shadow-sm border border-slate-100 dark:border-slate-700" alt="Preview"/>
+                          <button type="button" onClick={() => removeImage(index)} className="absolute -top-2 -right-2 p-2 bg-rose-500 text-white rounded-full shadow-lg z-10 active:scale-90 transition-transform">
+                              <X className="w-4 h-4"/>
                           </button>
                       </div>
                   ))}
@@ -302,41 +301,41 @@ const AddMemory: React.FC<AddMemoryProps> = ({
                         type="button"
                         onClick={Capacitor.isNativePlatform() ? handleTakePhoto : () => fileInputRef.current?.click()}
                         disabled={isProcessing || isSaving}
-                        className="w-full aspect-square flex flex-col items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95 disabled:opacity-50"
+                        className="w-full aspect-square flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-[28px] border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 transition-all active:scale-95 disabled:opacity-50"
                      >
-                        {isProcessing ? <Loader2 className="w-5 h-5 animate-spin"/> : <Plus className="w-5 h-5"/>}
-                        <span className="text-[8px] font-black uppercase tracking-widest">{t('choose_photo')}</span>
+                        {isProcessing ? <Loader2 className="w-6 h-6 animate-spin"/> : <Plus className="w-6 h-6"/>}
+                        <span className="text-[10px] font-black uppercase tracking-widest">{t('choose_photo')}</span>
                      </button>
                   </div>
                </div>
                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
             </div>
 
-            {/* Right Column: Compact Form Fields */}
-            <div className="space-y-3">
+            {/* Form Fields */}
+            <div className="space-y-4">
               <FormField label={t('form_title')} icon={Text}>
-                <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full bg-transparent outline-none text-base font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300"/>
+                <input type="text" value={formState.title} onChange={e => setFormState({...formState, title: e.target.value})} placeholder={t('form_title_placeholder')} disabled={isSaving} className="w-full bg-transparent outline-none text-lg font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-300"/>
               </FormField>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField label={t('date_label')} icon={Calendar}>
                     <input type="date" value={formState.date} onChange={e => setFormState({...formState, date: e.target.value})} disabled={isSaving} className="w-full bg-transparent outline-none text-sm font-bold text-slate-800 dark:text-slate-100"/>
                   </FormField>
                   
                   <FormField label="Tags" icon={Tag}>
-                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    <div className="flex flex-wrap gap-2 mb-2">
                         {formState.tags.map(tag => (
-                            <span key={tag} className="bg-primary/10 text-primary px-2 py-0.5 rounded-lg text-[9px] font-black flex items-center border border-primary/20">
-                                <Tag className="w-2.5 h-2.5 mr-1" />
+                            <span key={tag} className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-[10px] font-black flex items-center border border-primary/20">
+                                <Tag className="w-3 h-3 mr-1.5" />
                                 {tag}
-                                <button type="button" onClick={() => removeTag(tag)} className="ml-1.5 hover:text-rose-500 transition-colors"><X className="w-2.5 h-2.5"/></button>
+                                <button type="button" onClick={() => removeTag(tag)} className="ml-2 hover:text-rose-500 transition-colors"><X className="w-3 h-3"/></button>
                             </span>
                         ))}
                     </div>
                     <input 
                         type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={handleAddTag}
                         placeholder="Tag + Enter"
-                        className="w-full bg-transparent outline-none text-[11px] font-bold text-slate-500 dark:text-slate-300 placeholder:text-slate-300"
+                        className="w-full bg-transparent outline-none text-xs font-bold text-slate-500 dark:text-slate-300 placeholder:text-slate-300"
                         disabled={isSaving}
                     />
                   </FormField>
@@ -348,19 +347,19 @@ const AddMemory: React.FC<AddMemoryProps> = ({
                     onChange={e => setFormState({...formState, desc: e.target.value})} 
                     placeholder={t('form_desc_placeholder')} 
                     disabled={isSaving} 
-                    className="w-full bg-transparent outline-none h-32 sm:h-40 resize-none text-sm font-medium text-slate-600 dark:text-slate-200 placeholder:text-slate-300 leading-relaxed"
+                    className="w-full bg-transparent outline-none h-48 resize-none text-base font-medium text-slate-600 dark:text-slate-200 placeholder:text-slate-300 leading-relaxed no-scrollbar"
                 />
               </FormField>
             </div>
           </div>
           
-          <div className="mt-8 pb-20 px-2">
+          <div className="mt-12 pb-24">
             <button 
                 type="submit"
                 disabled={isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0} 
-                className={`w-full py-4 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 ${isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
+                className={`w-full py-5 text-white text-xs font-black uppercase tracking-[0.2em] rounded-[24px] flex items-center justify-center gap-4 shadow-2xl transition-all active:scale-95 ${isProcessing || isSaving || !formState.title || formState.imageUrls.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed' : 'bg-primary shadow-primary/30'}`}
             >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4" />}
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin"/> : <Save className="w-5 h-5" />}
                 {isSaving ? t('saving') : (editMemory ? t('update_btn') : t('record_btn'))}
             </button>
           </div>

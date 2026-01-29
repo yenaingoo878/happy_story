@@ -20,50 +20,32 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- FontAwesome 6 -->
+    <!-- FontAwesome 6 CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    
-    <!-- Tailwind Configuration -->
+    <!-- Tailwind CDN for AI Studio Preview -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            colors: {
+              primary: '#FF9AA2',
+              secondary: '#B5EAD7',
+              accent: '#C7CEEA',
+              slate: {
+                950: '#020617',
+              }
+            },
             fontFamily: {
               sans: ['Padauk', 'sans-serif'],
-            },
-            colors: {
-              primary: '#FF9AA2', // Soft Rose
-              secondary: '#B5EAD7', // Soft Mint
-              accent: '#C7CEEA', // Soft Periwinkle
-              textDark: '#4A5568',
             },
             animation: {
               'fade-in': 'fadeIn 0.5s ease-out forwards',
               'zoom-in': 'zoomIn 0.3s ease-out forwards',
               'slide-up': 'slideUp 0.4s ease-out forwards',
               'slide-down': 'slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0', transform: 'translateY(8px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              zoomIn: {
-                '0%': { opacity: '0', transform: 'scale(0.95)' },
-                '100%': { opacity: '1', transform: 'scale(1)' },
-              },
-              slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              slideDown: {
-                '0%': { opacity: '0', transform: 'translate(-50%, -20px)' },
-                '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
-              }
             }
           }
         }
@@ -85,12 +67,12 @@
     "dexie": "https://esm.sh/dexie@3.2.7",
     "dexie-react-hooks": "https://esm.sh/dexie-react-hooks@1.1.7?external=react,dexie",
     "@capacitor/core": "https://esm.sh/@capacitor/core@6.1.2",
-    "@capacitor/camera": "https://esm.sh/@capacitor/camera@6.0.2",
-    "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@6.0.1",
-    "@aws-sdk/client-s3": "https://esm.sh/@aws-sdk/client-s3@3.662.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@capacitor/camera": "https://esm.sh/@capacitor/camera@6.0.2?target=browser",
+    "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@6.0.1?target=browser",
+    "@aws-sdk/client-s3": "https://esm.sh/@aws-sdk/client-s3@3.662.0?target=browser",
+    "react-dom/": "https://esm.sh/react-dom@^18.3.1/",
+    "vite": "https://esm.sh/vite@^5.1.4",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^4.2.1"
   }
 }
 </script>

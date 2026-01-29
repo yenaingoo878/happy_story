@@ -27,7 +27,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   // FIX: Provide a strong type for the translation key.
   const t = (key: keyof typeof translations) => getTranslation(language, key);
@@ -72,11 +71,7 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
         synced: 0
       };
       await DataService.addStory(newStory);
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        if (onSaveComplete) onSaveComplete();
-      }, 2000);
+      if (onSaveComplete) onSaveComplete();
     } catch (error) {
       console.error("Failed to save story", error);
     } finally {
@@ -86,17 +81,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ language, active
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-colors max-w-2xl mx-auto relative">
-      {showSuccess && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-2xl flex flex-col items-center gap-4 animate-zoom-in border border-slate-100 dark:border-slate-700">
-            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
-              <CheckCircle2 className="w-12 h-12" />
-            </div>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest">{language === 'mm' ? 'Ebook သိမ်းဆည်းပြီး' : 'Ebook Saved'}</h3>
-          </div>
-        </div>
-      )}
-
       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 dark:border-b dark:border-slate-700 p-6">
         <div className="flex items-center mb-2">
           <Sparkles className="text-indigo-400 w-5 h-5 mr-2" />

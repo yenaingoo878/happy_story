@@ -42,98 +42,33 @@ db.version(20).stores({
 
 export { db };
 
-/**
- * Helper to map local fields to Supabase columns.
- */
 const mapToSupabase = (tableName: string, item: any, userId: string) => {
     const basePayload: any = { user_id: userId, id: item.id };
-
     if (tableName === 'memories') {
         const urls = item.imageUrls || (item.imageUrl ? [item.imageUrl] : []);
-        return {
-            ...basePayload,
-            childId: item.childId, 
-            title: item.title,
-            description: item.description,
-            date: item.date,
-            tags: item.tags || [],
-            imageUrl: JSON.stringify(urls)
-        };
+        return { ...basePayload, childId: item.childId, title: item.title, description: item.description, date: item.date, tags: item.tags || [], imageUrl: JSON.stringify(urls) };
     }
-    
-    if (tableName === 'stories') {
-        return {
-            ...basePayload,
-            childId: item.childId,
-            title: item.title,
-            content: item.content,
-            date: item.date
-        };
-    }
-    
-    if (tableName === 'growth_data') {
-        return {
-            ...basePayload,
-            childId: item.childId,
-            month: item.month,
-            height: item.height,
-            weight: item.weight
-        };
-    }
-    
-    if (tableName === 'child_profile') {
-        return {
-            ...basePayload,
-            name: item.name,
-            dob: item.dob,
-            gender: item.gender,
-            profileImage: item.profileImage,
-            birthTime: item.birthTime,
-            bloodType: item.bloodType,
-            hospitalName: item.hospitalName,
-            birthLocation: item.birthLocation,
-            country: item.country
-        };
-    }
-
-    if (tableName === 'reminders') {
-        return {
-            ...basePayload,
-            title: item.title,
-            date: item.date,
-            type: item.type
-        };
-    }
-    
+    if (tableName === 'stories') return { ...basePayload, childId: item.childId, title: item.title, content: item.content, date: item.date };
+    if (tableName === 'growth_data') return { ...basePayload, childId: item.childId, month: item.month, height: item.height, weight: item.weight };
+    if (tableName === 'child_profile') return { ...basePayload, name: item.name, dob: item.dob, gender: item.gender, profileImage: item.profileImage, birthTime: item.birthTime, bloodType: item.bloodType, hospitalName: item.hospitalName, birthLocation: item.birthLocation, country: item.country };
+    if (tableName === 'reminders') return { ...basePayload, title: item.title, date: item.date, type: item.type };
     return basePayload;
 };
 
-/**
- * Helper to map Supabase columns back to local camelCase.
- */
 const mapFromSupabase = (tableName: string, item: any) => {
     const local = { ...item, synced: 1, is_deleted: 0 };
-    
     local.childId = item.childId || item.child_id || item.childid;
-    
     if (tableName === 'memories') {
         const rawImageUrl = item.imageUrl || item.imageurl || item.image_url;
         let normalizedUrls: string[] = [];
-
         if (rawImageUrl && typeof rawImageUrl === 'string' && rawImageUrl.startsWith('[')) {
-            try {
-                normalizedUrls = JSON.parse(rawImageUrl);
-            } catch (e) {
-                normalizedUrls = [rawImageUrl];
-            }
+            try { normalizedUrls = JSON.parse(rawImageUrl); } catch (e) { normalizedUrls = [rawImageUrl]; }
         } else if (rawImageUrl) {
             normalizedUrls = Array.isArray(rawImageUrl) ? rawImageUrl : [rawImageUrl];
         }
-
         local.imageUrls = normalizedUrls;
         local.imageUrl = normalizedUrls[0] || null;
     }
-    
     if (tableName === 'child_profile') {
         local.profileImage = item.profileImage || item.profile_image || item.profileimage;
         local.birthTime = item.birthTime || item.birth_time || item.birthtime;
@@ -141,18 +76,11 @@ const mapFromSupabase = (tableName: string, item: any) => {
         local.hospitalName = item.hospitalName || item.hospital_name || item.hospitalname;
         local.birthLocation = item.birthLocation || item.birth_location || item.birthlocation;
     }
-    
     return local;
 };
 
 export const resetDatabase = async () => {
-    try {
-        await db.delete();
-        localStorage.clear();
-        window.location.reload();
-    } catch (err) {
-        console.error("Failed to delete database:", err);
-    }
+    try { await db.delete(); localStorage.clear(); window.location.reload(); } catch (err) { console.error("Failed to delete database:", err); }
 };
 
 export const initDB = async () => {
@@ -167,97 +95,58 @@ export const initDB = async () => {
 };
 
 export const uploadFileToCloud = async (fileOrBlob: File | Blob, userId: string, childId: string, tag: string, itemId: string, imageIndex: number): Promise<string> => {
-    if (!isR2Configured()) {
-        console.warn("R2 Cloud Storage is not configured. Returning local object for now.");
-        return ''; 
-    }
-    
+    if (!isR2Configured()) return ''; 
     const fileNameSuffix = fileOrBlob instanceof File ? fileOrBlob.name.split('.').pop() : 'jpg';
     const displayName = fileOrBlob instanceof File ? fileOrBlob.name : `image_${imageIndex}.jpg`;
-    
     uploadManager.start(displayName);
     const fileName = `${itemId}_${imageIndex}_${Date.now()}.${fileNameSuffix}`;
     const filePath = `${userId}/${childId}/${tag}/${fileName}`;
-
     try {
         const publicUrl = await uploadFileToR2(fileOrBlob, filePath);
         uploadManager.progress(100, displayName);
         uploadManager.finish();
         return publicUrl;
-    } catch (error) {
-        uploadManager.error();
-        throw error;
-    }
+    } catch (error) { uploadManager.error(); throw error; }
 };
 
-/**
- * Helper to delete a file from R2 based on its public URL.
- */
 const deleteImageFromCloudByUrl = async (url: string) => {
     if (!isR2Configured() || !url) return;
     const publicBase = getR2PublicUrl();
     if (url.startsWith(publicBase)) {
         const path = url.replace(publicBase, '').replace(/^\//, '');
-        try {
-            await deleteFileFromR2(path);
-        } catch (e) {
-            console.warn(`Failed to delete cloud image: ${path}`, e);
-        }
+        try { await deleteFileFromR2(path); } catch (e) { console.warn(`Failed to delete cloud image: ${path}`, e); }
     }
 };
 
-/**
- * Helper to clean up local filesystem images
- */
 const deleteLocalImages = async (imageUrls: string[]) => {
     if (!Capacitor.isNativePlatform() || !imageUrls) return;
     for (const url of imageUrls) {
         if (url && url.startsWith('file://')) {
-            try {
-                await Filesystem.deleteFile({ path: url });
-            } catch (err) {
-                console.warn(`Local file cleanup failed for ${url}:`, err);
-            }
+            try { await Filesystem.deleteFile({ path: url }); } catch (err) { console.warn(`Local file cleanup failed for ${url}:`, err); }
         }
     }
 };
 
 const syncDeletions = async () => {
     const tables = ['memories', 'stories', 'growth', 'profiles', 'reminders'];
-    const supabaseTables: { [key: string]: string } = {
-        memories: 'memories',
-        stories: 'stories',
-        growth: 'growth_data',
-        profiles: 'child_profile',
-        reminders: 'reminders',
-    };
-    
+    const supabaseTables: { [key: string]: string } = { memories: 'memories', stories: 'stories', growth: 'growth_data', profiles: 'child_profile', reminders: 'reminders' };
     for (const tableName of tables) {
         try {
             const itemsToDelete = await db.table(tableName).where({ is_deleted: 1, synced: 0 }).toArray();
             for (const item of itemsToDelete) {
                 const { error } = await supabase.from(supabaseTables[tableName]).delete().eq('id', item.id);
                 if (!error) {
-                    // Cleanup cloud storage if configured
                     if (isR2Configured()) {
-                        if (tableName === 'memories' && item.imageUrls) {
-                            for (const url of item.imageUrls) {
-                                await deleteImageFromCloudByUrl(url);
-                            }
-                        } else if (tableName === 'profiles' && item.profileImage) {
-                            await deleteImageFromCloudByUrl(item.profileImage);
-                        }
+                        if (tableName === 'memories' && item.imageUrls) for (const url of item.imageUrls) await deleteImageFromCloudByUrl(url);
+                        else if (tableName === 'profiles' && item.profileImage) await deleteImageFromCloudByUrl(item.profileImage);
                     }
                     await db.table(tableName).delete(item.id);
                 }
             }
-        } catch (e) {
-            console.warn(`Deletion sync failed for table ${tableName}:`, e);
-        }
+        } catch (e) { console.warn(`Deletion sync failed for table ${tableName}:`, e); }
     }
 };
 
-// Concurrency lock to prevent overlapping syncs
 let isSyncing = false;
 
 export const syncData = async () => {
@@ -267,16 +156,11 @@ export const syncData = async () => {
     try {
         isSyncing = true;
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !sessionData.session) {
-            isSyncing = false;
-            return { success: false, reason: 'No Active Session' };
-        }
+        if (sessionError || !sessionData.session) { isSyncing = false; return { success: false, reason: 'No Active Session' }; }
         const userId = sessionData.session.user.id;
 
-        // 1. SYNC DELETIONS FIRST
         await syncDeletions();
 
-        // 2. IDENTIFY UNSYNCED LOCAL DATA
         const unsyncedStories = await db.stories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedMemories = await db.memories.where({synced: 0, is_deleted: 0}).toArray();
         const unsyncedGrowth = await db.growth.where({synced: 0, is_deleted: 0}).toArray();
@@ -286,56 +170,46 @@ export const syncData = async () => {
         const totalToPush = unsyncedStories.length + unsyncedMemories.length + unsyncedGrowth.length + unsyncedProfiles.length + unsyncedReminders.length;
         if (totalToPush > 0) syncManager.start(totalToPush);
         
-        // 3. PUSH LOCAL CHANGES TO SUPABASE
         for (const s of unsyncedStories) {
-            try {
-                const payload = mapToSupabase('stories', s, userId);
-                const { error } = await supabase.from('stories').upsert(payload);
-                if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); }
-            } catch (e) { console.warn("Story sync push failed:", e); }
+            try { const payload = mapToSupabase('stories', s, userId); const { error } = await supabase.from('stories').upsert(payload); if (!error) { await db.stories.update(s.id, { synced: 1 }); syncManager.itemCompleted(); } } catch (e) { console.warn("Story sync push failed:", e); }
         }
 
         for (const mem of unsyncedMemories) {
             try {
                 let memoryToSync = { ...mem };
                 const currentUrls = memoryToSync.imageUrls || (memoryToSync.imageUrl ? [memoryToSync.imageUrl] : []);
-                
                 if (isR2Configured() && currentUrls.some(url => url.startsWith('file://') || url.startsWith('data:'))) {
                     const newUrls = await Promise.all(currentUrls.map(async (url, index) => {
                         if (url.startsWith('file://') || url.startsWith('data:')) {
                             try {
                                 let blob;
                                 if (url.startsWith('file://')) {
-                                    const fileData = await Filesystem.readFile({ path: url });
-                                    blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                                } else {
-                                    blob = await(await fetch(url)).blob();
-                                }
-                                return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
-                            } catch (e) {
-                                console.warn("Image file processing for cloud failed:", e);
+                                    // CRITICAL: Standardize native vs web check
+                                    if (Capacitor.isNativePlatform()) {
+                                        try {
+                                          const fileData = await Filesystem.readFile({ path: url });
+                                          blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                                        } catch (fsErr) {
+                                          console.warn("Filesystem read failed, skipping:", fsErr);
+                                          return url;
+                                        }
+                                    } else { return url; }
+                                } else { blob = await(await fetch(url)).blob(); }
+                                if (blob) return await uploadFileToCloud(blob, userId, memoryToSync.childId, 'memories', memoryToSync.id, index);
                                 return url;
-                            }
+                            } catch (e) { console.warn("Image cloud processing failed:", e); return url; }
                         }
                         return url;
                     }));
                     await db.memories.update(mem.id, { imageUrls: newUrls, imageUrl: newUrls[0] });
-                    memoryToSync.imageUrls = newUrls;
-                    memoryToSync.imageUrl = newUrls[0];
+                    memoryToSync.imageUrls = newUrls; memoryToSync.imageUrl = newUrls[0];
                 }
-                
-                const payload = mapToSupabase('memories', memoryToSync, userId);
-                const { error } = await supabase.from('memories').upsert(payload);
-                if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
+                const payload = mapToSupabase('memories', memoryToSync, userId); const { error } = await supabase.from('memories').upsert(payload); if (!error) { await db.memories.update(mem.id, { synced: 1 }); syncManager.itemCompleted(); }
             } catch (e) { console.error("Memory Push Error:", e); }
         }
 
         for (const g of unsyncedGrowth) {
-            try {
-                const payload = mapToSupabase('growth_data', g, userId);
-                const { error } = await supabase.from('growth_data').upsert(payload);
-                if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); }
-            } catch (e) { console.warn("Growth sync push failed:", e); }
+            try { const payload = mapToSupabase('growth_data', g, userId); const { error } = await supabase.from('growth_data').upsert(payload); if (!error) { await db.growth.update(g.id!, { synced: 1 }); syncManager.itemCompleted(); } } catch (e) { console.warn("Growth sync push failed:", e); }
         }
 
         for (const p of unsyncedProfiles) {
@@ -343,35 +217,29 @@ export const syncData = async () => {
                 let profileToSync = { ...p };
                 if (isR2Configured() && profileToSync.profileImage && (profileToSync.profileImage.startsWith('file://') || profileToSync.profileImage.startsWith('data:'))) {
                     try {
-                        let blob;
+                        let blob = null;
                         if (profileToSync.profileImage.startsWith('file://')) {
-                            const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
-                            blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
-                        } else {
-                            blob = await(await fetch(profileToSync.profileImage)).blob();
+                            if (Capacitor.isNativePlatform()) {
+                                try {
+                                  const fileData = await Filesystem.readFile({ path: profileToSync.profileImage });
+                                  blob = await(await fetch(`data:image/jpeg;base64,${fileData.data}`)).blob();
+                                } catch (fsErr) { console.warn("Profile FS read failed:", fsErr); }
+                            }
+                        } else { blob = await(await fetch(profileToSync.profileImage)).blob(); }
+                        if (blob) {
+                            const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
+                            await db.profiles.update(p.id!, { profileImage: newUrl }); profileToSync.profileImage = newUrl;
                         }
-                        const newUrl = await uploadFileToCloud(blob, userId, p.id!, 'profile', p.id!, 0);
-                        await db.profiles.update(p.id!, { profileImage: newUrl });
-                        profileToSync.profileImage = newUrl;
-                    } catch (e) {
-                        console.warn("Profile image cloud upload failed:", e);
-                    }
+                    } catch (e) { console.warn("Profile image cloud upload failed:", e); }
                 }
-                const payload = mapToSupabase('child_profile', profileToSync, userId);
-                const { error } = await supabase.from('child_profile').upsert(payload);
-                if (!error) { await db.profiles.update(p.id!, { synced: 1 }); syncManager.itemCompleted(); }
+                const payload = mapToSupabase('child_profile', profileToSync, userId); const { error } = await supabase.from('child_profile').upsert(payload); if (!error) { await db.profiles.update(p.id!, { synced: 1 }); syncManager.itemCompleted(); }
             } catch (e) { console.error("Profile Push Error:", e); }
         }
 
         for (const r of unsyncedReminders) {
-            try {
-                const payload = mapToSupabase('reminders', r, userId);
-                const { error } = await supabase.from('reminders').upsert(payload);
-                if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); }
-            } catch (e) { console.warn("Reminder sync push failed:", e); }
+            try { const payload = mapToSupabase('reminders', r, userId); const { error } = await supabase.from('reminders').upsert(payload); if (!error) { await db.reminders.update(r.id, { synced: 1 }); syncManager.itemCompleted(); } } catch (e) { console.warn("Reminder sync push failed:", e); }
         }
 
-        // 4. PULL REMOTE CHANGES FROM SUPABASE & DETECT DELETIONS
         const pullTable = async (dexieTable: Table<any>, supabaseTableName: string, mapper: Function) => {
             try {
                 const { data, error } = await supabase.from(supabaseTableName).select('*').eq('user_id', userId);
@@ -379,30 +247,20 @@ export const syncData = async () => {
                 if (data) {
                     const remoteIds = new Set(data.map(d => d.id));
                     const localItems = await dexieTable.toArray();
-                    
                     for (const localItem of localItems) {
-                        // If it's synced but no longer on the server, it means it was deleted on another device
                         if (localItem.synced === 1 && !remoteIds.has(localItem.id)) {
-                             if (supabaseTableName === 'memories' && localItem.imageUrls) {
-                                 await deleteLocalImages(localItem.imageUrls);
-                             } else if (supabaseTableName === 'child_profile' && localItem.profileImage) {
-                                 await deleteLocalImages([localItem.profileImage]);
-                             }
+                             if (supabaseTableName === 'memories' && localItem.imageUrls) await deleteLocalImages(localItem.imageUrls);
+                             else if (supabaseTableName === 'child_profile' && localItem.profileImage) await deleteLocalImages([localItem.profileImage]);
                              await dexieTable.delete(localItem.id);
                         }
                     }
-
                     for (const remoteItem of data) {
                         const mapped = mapper(supabaseTableName === 'growth_data' ? 'growth_data' : (supabaseTableName === 'child_profile' ? 'child_profile' : supabaseTableName), remoteItem);
                         const localItem = await dexieTable.get(mapped.id);
-                        if (!localItem || localItem.synced === 1) {
-                            await dexieTable.put(mapped);
-                        }
+                        if (!localItem || localItem.synced === 1) await dexieTable.put(mapped);
                     }
                 }
-            } catch (e) {
-                console.warn(`Pull failed for ${supabaseTableName}:`, e);
-            }
+            } catch (e) { console.warn(`Pull failed for ${supabaseTableName}:`, e); }
         };
 
         await pullTable(db.profiles, 'child_profile', mapFromSupabase);
@@ -412,14 +270,8 @@ export const syncData = async () => {
         await pullTable(db.memories, 'memories', mapFromSupabase);
 
         if (totalToPush > 0) syncManager.finish();
-        isSyncing = false;
-        return { success: true };
-    } catch (err: any) {
-        console.error("Critical sync error:", err);
-        syncManager.error();
-        isSyncing = false;
-        return { success: false, error: err.message };
-    }
+        isSyncing = false; return { success: true };
+    } catch (err: any) { console.error("Critical sync error:", err); syncManager.error(); isSyncing = false; return { success: false, error: err.message }; }
 };
 
 export const DataService = {
@@ -428,18 +280,12 @@ export const DataService = {
     removeSetting: async (key: string) => await db.app_settings.delete(key),
     clearAllUserData: async () => {
         await db.transaction('rw', [db.memories, db.stories, db.growth, db.profiles, db.reminders], async () => {
-            await db.memories.clear();
-            await db.stories.clear();
-            await db.growth.clear();
-            await db.profiles.clear();
-            await db.reminders.clear();
+            await db.memories.clear(); await db.stories.clear(); await db.growth.clear(); await db.profiles.clear(); await db.reminders.clear();
         });
         if (Capacitor.isNativePlatform()) {
             try {
                 const { files } = await Filesystem.readdir({ path: '', directory: Directory.Data });
-                for (const file of files) {
-                    if (file.name.endsWith('.jpeg')) await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
-                }
+                for (const file of files) if (file.name.endsWith('.jpeg')) await Filesystem.deleteFile({ path: file.name, directory: Directory.Data });
             } catch (e) {}
         }
     },
@@ -447,44 +293,20 @@ export const DataService = {
         const query = childId ? db.memories.where({ childId, is_deleted: 0 }) : db.memories.where('is_deleted').equals(0);
         const mems = await query.sortBy('date');
         return mems.reverse().map(m => {
-            const normalizedUrls = Array.isArray(m.imageUrls) && m.imageUrls.length > 0 
-                ? m.imageUrls 
-                : (m.imageUrl ? [m.imageUrl] : []);
-            return {
-                ...m,
-                imageUrls: normalizedUrls,
-                imageUrl: m.imageUrl || (normalizedUrls.length > 0 ? normalizedUrls[0] : undefined)
-            };
+            const normalizedUrls = Array.isArray(m.imageUrls) && m.imageUrls.length > 0 ? m.imageUrls : (m.imageUrl ? [m.imageUrl] : []);
+            return { ...m, imageUrls: normalizedUrls, imageUrl: m.imageUrl || (normalizedUrls.length > 0 ? normalizedUrls[0] : undefined) };
         });
     },
     addMemory: async (memory: Memory) => {
         const primary = (memory.imageUrls && memory.imageUrls.length > 0) ? memory.imageUrls[0] : (memory.imageUrl || undefined);
-        const result = await db.memories.put({ 
-            ...memory, 
-            imageUrl: primary,
-            imageUrls: memory.imageUrls || (primary ? [primary] : []),
-            synced: 0, 
-            is_deleted: 0 
-        });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        const result = await db.memories.put({ ...memory, imageUrl: primary, imageUrls: memory.imageUrls || (primary ? [primary] : []), synced: 0, is_deleted: 0 });
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return result;
     },
     deleteMemory: async (id: string) => {
-        try {
-            const mem = await db.memories.get(id);
-            if (mem && mem.imageUrls) {
-                await deleteLocalImages(mem.imageUrls);
-            }
-        } catch (err) {
-            console.warn("Local file cleanup failed during deletion:", err);
-        }
-        
+        try { const mem = await db.memories.get(id); if (mem && mem.imageUrls) await deleteLocalImages(mem.imageUrls); } catch (err) { console.warn("Local cleanup failed:", err); }
         await db.memories.update(id, { is_deleted: 1, synced: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return { success: true };
     },
     getStories: async (childId?: string) => {
@@ -493,16 +315,12 @@ export const DataService = {
     },
     addStory: async (story: Story) => {
         const res = await db.stories.put({ ...story, synced: 0, is_deleted: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return res;
     },
     deleteStory: async (id: string) => {
         await db.stories.update(id, { is_deleted: 1, synced: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return { success: true };
     },
     getGrowth: async (childId?: string) => {
@@ -510,74 +328,45 @@ export const DataService = {
         return await query.sortBy('month');
     },
     saveGrowth: async (data: GrowthData) => {
-        const res = await db.growth.put({ ...data, synced: 0, is_deleted: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        const res = await db.growth.put({ ...data, id: data.id || crypto.randomUUID(), synced: 0, is_deleted: 0 });
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return res;
     },
     deleteGrowth: async (id: string) => {
         await db.growth.update(id, { is_deleted: 1, synced: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return { success: true };
     },
     getProfiles: async () => await db.profiles.where('is_deleted').equals(0).toArray(),
     saveProfile: async (profile: ChildProfile) => {
-        const res = await db.profiles.put({ ...profile, synced: 0, is_deleted: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        const res = await db.profiles.put({ ...profile, id: profile.id || crypto.randomUUID(), synced: 0, is_deleted: 0 });
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return res;
     },
     deleteProfile: async (id: string) => {
-        try {
-            const p = await db.profiles.get(id);
-            if (p && p.profileImage) {
-                await deleteLocalImages([p.profileImage]);
-            }
-        } catch (err) {
-            console.warn("Local profile file cleanup failed during deletion:", err);
-        }
-        
+        try { const p = await db.profiles.get(id); if (p && p.profileImage) await deleteLocalImages([p.profileImage]); } catch (err) { console.warn("Local cleanup failed:", err); }
         await db.profiles.update(id, { is_deleted: 1, synced: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return { success: true };
     },
     getReminders: async () => await db.reminders.where('is_deleted').equals(0).sortBy('date'),
     saveReminder: async (reminder: Reminder) => {
-        const res = await db.reminders.put({ ...reminder, synced: 0, is_deleted: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        const res = await db.reminders.put({ ...reminder, id: reminder.id || crypto.randomUUID(), synced: 0, is_deleted: 0 });
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return res;
     },
     deleteReminder: async (id: string) => {
         await db.reminders.update(id, { is_deleted: 1, synced: 0 });
-        if (navigator.onLine) {
-            syncData().catch(e => console.warn("Background sync failed", e));
-        }
+        if (navigator.onLine) syncData().catch(e => console.warn("Background sync failed", e));
         return { success: true };
     },
     getCloudPhotos: async (userId: string, childId: string) => {
         if (!isR2Configured()) return [];
-        try {
-            return await listObjectsFromR2(`${userId}/${childId}/memories/`);
-        } catch (e) {
-            return [];
-        }
+        try { return await listObjectsFromR2(`${userId}/${childId}/memories/`); } catch (e) { return []; }
     },
     deleteCloudPhoto: async (userId: string, childId: string, fileName: string) => {
-        if (!isR2Configured()) return { success: false, error: 'R2 storage not configured' };
+        if (!isR2Configured()) return { success: false, error: 'R2 not configured' };
         const filePath = `${userId}/${childId}/memories/${fileName}`;
-        try {
-            await deleteFileFromR2(filePath);
-            return { success: true };
-        } catch (e: any) {
-            return { success: false, error: e.message || 'Unknown network error' };
-        }
+        try { await deleteFileFromR2(filePath); return { success: true }; } catch (e: any) { return { success: false, error: e.message }; }
     }
 };

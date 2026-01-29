@@ -12,6 +12,22 @@ export const translations = {
   memories: { en: "Memories", mm: "အမှတ်တရများ" },
   see_all: { en: "See All", mm: "အားလုံးကြည့်ရန်" },
   
+  // R2 Config
+  r2_config_title: { en: "Storage Setup", mm: "သိမ်းဆည်းမှု သတ်မှတ်ချက်" },
+  r2_endpoint: { en: "R2 Endpoint URL", mm: "R2 Endpoint URL" },
+  r2_access_key: { en: "Access Key ID", mm: "Access Key ID" },
+  r2_secret_key: { en: "Secret Access Key", mm: "Secret Access Key" },
+  r2_bucket: { en: "Bucket Name", mm: "Bucket အမည်" },
+  r2_public_url: { en: "Public Access URL", mm: "Public Access URL" },
+  r2_save_btn: { en: "Save Storage Config", mm: "သိမ်းဆည်းမည်" },
+  r2_configured: { en: "Cloud Storage Active", mm: "Cloud တွင် သိမ်းဆည်းမှု အဆင်သင့်ဖြစ်ပါပြီ" },
+  r2_not_configured: { en: "No Cloud Storage Found", mm: "Cloud သိမ်းဆည်းမှု မသတ်မှတ်ရသေးပါ" },
+  import_env: { en: "Import Config File", mm: "Setup ဖိုင်ဖြင့် သတ်မှတ်မည်" },
+  import_hint: { en: "Include VITE_GEMINI_API_KEY for AI features. On Android, rename '.env.local' to 'config.txt' before uploading.", mm: "AI အတွက် VITE_GEMINI_API_KEY ကိုလည်း ထည့်သွင်းနိုင်ပါသည်။ Android တွင် ဖိုင်ရှာမတွေ့ပါက 'config.txt' ဟု အမည်ပြောင်းပါ။" },
+  import_success: { en: "Configuration updated!", mm: "အချက်အလက်များ အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ။" },
+  import_error: { en: "Invalid configuration file.", mm: "ဖိုင်ပုံစံ မှားယွင်းနေပါသည်။" },
+  clear_config: { en: "Reset Configuration", mm: "သတ်မှတ်ချက်များ ပြန်ဖြုတ်မည်" },
+  
   // Birthday
   birthday_tomorrow_title: { en: "Birthday Coming Up!", mm: "မွေးနေ့ရောက်တော့မယ်!" },
   birthday_tomorrow_msg: { en: "Tomorrow is {name}'s Birthday! Get ready for the big day.", mm: "မနက်ဖြန် {name} ရဲ့ မွေးနေ့ရောက်ပါတော့မယ်။" },
@@ -202,13 +218,6 @@ export const translations = {
   enter_old_passcode: { en: "Enter Current PIN", mm: "လက်ရှိနံပါတ် ရိုက်ထည့်ပါ" },
   enter_new_passcode: { en: "Enter New PIN", mm: "နံပါတ်အသစ် ရိုက်ထည့်ပါ" },
   setup_passcode: { en: "Setup PIN", mm: "နံပါတ်သတ်မှတ်" },
-
-  // API Key Management
-  api_key_title: { en: "AI Security Key", mm: "AI လုံခြုံရေး Key" },
-  api_key_desc: { en: "Manage your Gemini API Key securely through our system vault.", mm: "သင်၏ Gemini API Key ကို စနစ်၏ လုံခြုံသော Vault မှတစ်ဆင့် စီမံခန့်ခွဲပါ။" },
-  manage_api_key: { en: "Manage AI Key", mm: "AI Key စီမံခန့်ခွဲရန်" },
-  key_set_success: { en: "AI Key configured successfully", mm: "AI Key အောင်မြင်စွာ သတ်မှတ်ပြီးပါပြီ" },
-  api_key_missing: { en: "Please select an API Key to use AI features.", mm: "AI သုံးရန် API Key ရွေးချယ်ပေးပါ။" }
 };
 
 export const getTranslation = (lang: Language, key: keyof typeof translations) => {
