@@ -383,7 +383,7 @@ function App() {
           </div>
 
           {/* Quick Actions & Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-1 md:col-span-4 gap-4 md:gap-6 lg:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-1 md:col-span-4 gap-1 md:gap-3 lg:gap-5">
               <div onClick={() => handleTabChange(TabView.STORY)} className="col-span-1 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] sm:rounded-[40px] p-5 sm:p-8 text-white flex flex-col justify-between aspect-square md:aspect-auto shadow-xl cursor-pointer transition-all active:scale-95 hover:shadow-indigo-500/20 overflow-hidden relative text-left">
                 <Wand2 className="w-6 h-6 sm:w-10 sm:h-10 text-indigo-100 mb-2" />
                 <h3 className="font-black text-lg sm:text-xl md:text-2xl leading-tight z-10">{t('create_story')}</h3>
